@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using NewLife.Data;
+using NewLife.Messaging;
 using NewLife.Serialization;
 
 namespace NewLife.MQTT.Messaging
@@ -104,6 +106,20 @@ namespace NewLife.MQTT.Messaging
             Write(ms, null);
             return ms.ToArray();
         }
+
+        /// <summary>转数据包</summary>
+        /// <returns></returns>
+        public virtual Packet ToPacket() => ToArray();
+        #endregion
+
+        #region 辅助
+        /// <summary>是否响应</summary>
+        public virtual Boolean Reply =>
+            Type == MqttType.ConnAck ||
+            Type == MqttType.PubAck ||
+            Type == MqttType.SubAck || 
+            Type == MqttType.UnSubAck || 
+            Type == MqttType.PingResp;
         #endregion
     }
 }
