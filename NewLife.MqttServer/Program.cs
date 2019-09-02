@@ -2,6 +2,7 @@
 using NewLife.Agent;
 using NewLife.Caching;
 using NewLife.Log;
+using NewLife.MQTT;
 using NewLife.Remoting;
 
 namespace NewLife.CacheServer
@@ -18,14 +19,14 @@ namespace NewLife.CacheServer
                 DisplayName = "MQTT服务器";
             }
 
-            private ApiServer _Server;
+            private MqttServer _Server;
             protected override void StartWork(String reason)
             {
                 // 配置
                 var set = Setting.Current;
 
                 // 服务器
-                var svr = new ApiServer(set.Port)
+                var svr = new MqttServer(set.Port)
                 {
                     //Encoder = new BinaryEncoder(),
                     Log = XTrace.Log,
