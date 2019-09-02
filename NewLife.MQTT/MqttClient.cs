@@ -57,7 +57,7 @@ namespace NewLife.MQTT
                 client = uri.CreateRemote();
                 client.Log = Log;
                 client.Timeout = Timeout;
-                client.Add(new MqttCodec { Timeout = 29_000 });
+                client.Add(new MqttCodec());
 
                 // 关闭Tcp延迟以合并小包的算法，降低延迟
                 if (client is TcpSession tcp) tcp.NoDelay = true;
