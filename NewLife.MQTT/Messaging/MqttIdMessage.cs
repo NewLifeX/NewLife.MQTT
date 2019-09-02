@@ -8,7 +8,7 @@ namespace NewLife.MQTT.Messaging
     {
         #region 属性
         /// <summary>标识</summary>
-        public Int32 Id { get; set; }
+        public UInt16 Id { get; set; }
         #endregion
 
         #region 读写方法
