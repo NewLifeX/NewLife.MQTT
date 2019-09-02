@@ -14,8 +14,8 @@ namespace NewLife.CacheServer
         {
             public MyService()
             {
-                ServiceName = "CacheServer";
-                DisplayName = "缓存服务器";
+                ServiceName = "MqttServer";
+                DisplayName = "MQTT服务器";
             }
 
             private ApiServer _Server;
