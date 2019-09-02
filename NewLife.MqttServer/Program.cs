@@ -46,17 +46,17 @@ namespace NewLife.CacheServer
                 // 统计日志
                 svr.StatPeriod = 10;
 
-                // 缓存提供者
-                var mc = new MemoryCache();
-                if (set.Expire > 0) mc.Expire = set.Expire;
+                //// 缓存提供者
+                //var mc = new MemoryCache();
+                //if (set.Expire > 0) mc.Expire = set.Expire;
 
-                // 注册RPC服务
-                var svc = new CacheService { Cache = mc };
-                svr.Register(svc, null);
+                //// 注册RPC服务
+                //var svc = new CacheService { Cache = mc };
+                //svr.Register(svc, null);
 
-                svr.Start();
+                //svr.Start();
 
-                _Server = svr;
+                //_Server = svr;
 
                 base.StartWork(reason);
             }
