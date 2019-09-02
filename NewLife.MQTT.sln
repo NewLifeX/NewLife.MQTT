@@ -1,0 +1,42 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29009.5
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{50583EA9-E914-41A8-8B88-4CAFB3C8A8C3}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MQTT", "NewLife.MQTT\NewLife.MQTT.csproj", "{0924F040-4531-476F-80F4-720A5BCFBD98}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MqttServer", "NewLife.MqttServer\NewLife.MqttServer.csproj", "{41570A11-826E-4AFD-810B-60E1B763251A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0924F040-4531-476F-80F4-720A5BCFBD98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0924F040-4531-476F-80F4-720A5BCFBD98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0924F040-4531-476F-80F4-720A5BCFBD98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0924F040-4531-476F-80F4-720A5BCFBD98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41570A11-826E-4AFD-810B-60E1B763251A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41570A11-826E-4AFD-810B-60E1B763251A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41570A11-826E-4AFD-810B-60E1B763251A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41570A11-826E-4AFD-810B-60E1B763251A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1514C3B5-401F-418D-8C5F-9CE839E7DC7B}
+	EndGlobalSection
+EndGlobal
