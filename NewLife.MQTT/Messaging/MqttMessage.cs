@@ -51,7 +51,7 @@ namespace NewLife.MQTT.Messaging
         /// 单个字节最大值：01111111，16进制：0x7F，10进制为127。
         /// MQTT协议规定，第八位（最高位）若为1，则表示还有后续字节存在。
         /// </remarks>
-        public Byte Length { get; set; }
+        public Int32 Length { get; set; }
         #endregion
 
         #region 构造
@@ -74,7 +74,7 @@ namespace NewLife.MQTT.Messaging
             QoS = (QualityOfService)((flag & 0b0000_0110) >> 1);
             Retain = ((flag & 0b0000_0001) >> 0) > 0;
 
-            Length = (Byte)stream.ReadByte();
+            Length = stream.ReadEncodedInt();
 
             return true;
         }
@@ -91,7 +91,7 @@ namespace NewLife.MQTT.Messaging
             if (Retain) flag |= 0b0000_0001;
 
             stream.Write((Byte)flag);
-            stream.Write(Length);
+            stream.WriteEncodedInt(Length);
 
             return true;
         }

@@ -8,25 +8,25 @@ namespace NewLife.MQTT.Messaging
         ///// <summary>保留</summary>
         //Reserved = 0,
 
-        /// <summary>连接</summary>
+        /// <summary>客户端请求连接服务端</summary>
         Connect = 1,
 
-        /// <summary>连接确认</summary>
+        /// <summary>连接报文确认</summary>
         ConnAck = 2,
 
         /// <summary>发布消息</summary>
         Publish = 3,
 
-        /// <summary>发布确认</summary>
+        /// <summary>QoS 1消息发布收到确认</summary>
         PubAck = 4,
 
-        /// <summary>发布已接收</summary>
+        /// <summary>发布收到（保证交付第一步）</summary>
         PubRec = 5,
 
-        /// <summary>发布已释放</summary>
+        /// <summary>发布释放（保证交付第二步）</summary>
         PubRel = 6,
 
-        /// <summary>发布已完成</summary>
+        /// <summary>QoS 2消息发布完成（保证交互第三步）</summary>
         PubComp = 7,
 
         /// <summary>客户端订阅请求</summary>
@@ -47,10 +47,10 @@ namespace NewLife.MQTT.Messaging
         /// <summary>Ping响应</summary>
         PingResp = 13,
 
-        /// <summary>断开连接</summary>
+        /// <summary>客户端断开连接</summary>
         Disconnect = 14,
 
-        /// <summary>保留</summary>
-        Reserved2 = 15
+        ///// <summary>保留</summary>
+        //Reserved2 = 15
     }
 }
