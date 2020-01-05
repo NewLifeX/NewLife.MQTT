@@ -10,16 +10,16 @@ namespace NewLife.MQTT.Messaging
     /// <remarks>
     /// 提供订阅/发布模式，更为简约、轻量，易于使用，针对受限环境（带宽低、网络延迟高、网络通信不稳定），可以简单概括为物联网打造，官方总结特点如下：
     /// 1.使用发布/订阅消息模式，提供一对多的消息发布，解除应用程序耦合。
-    /// 2. 对负载内容屏蔽的消息传输。
-    /// 3. 使用 TCP/IP 提供网络连接。
-    /// 4. 有三种消息发布服务质量：
+    /// 2.对负载内容屏蔽的消息传输。
+    /// 3.使用 TCP/IP 提供网络连接。
+    /// 4.有三种消息发布服务质量：
     /// “至多一次”，消息发布完全依赖底层 TCP/IP 网络。会发生消息丢失或重复。这一级别可用于如下情况，环境传感器数据，丢失一次读记录无所谓，因为不久后还会有第二次发送。
     /// “至少一次”，确保消息到达，但消息重复可能会发生。
     /// “只有一次”，确保消息到达一次。这一级别可用于如下情况，在计费系统中，消息重复或丢失会导致不正确的结果。
-    /// 5. 小型传输，开销很小（固定长度的头部是 2 字节），协议交换最小化，以降低网络流量。
-    /// 6. 使用 Last Will 和 Testament 特性通知有关各方客户端异常中断的机制。
+    /// 5.小型传输，开销很小（固定长度的头部是 2 字节），协议交换最小化，以降低网络流量。
+    /// 6.使用 Last Will 和 Testament 特性通知有关各方客户端异常中断的机制。
     /// </remarks>
-    public class MqttMessage : IAccessor
+    public abstract class MqttMessage : IAccessor
     {
         #region 属性
         /// <summary>消息类型</summary>
@@ -58,7 +58,7 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>已重载</summary>
-        public override String ToString() => $"{GetType().Name}[Type={Type}, QualityOfService={QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+        public override String ToString() => $"{GetType().Name}[Type={Type}, QoS={QoS}, Duplicate={Duplicate}, Retain={Retain}]";
         #endregion
 
         #region 核心读写方法
