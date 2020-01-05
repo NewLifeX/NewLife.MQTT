@@ -1,4 +1,5 @@
 ﻿using System;
+using NewLife;
 using NewLife.Log;
 using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
@@ -36,34 +37,34 @@ namespace XUnitTestClient
             Assert.Equal(ConnectReturnCode.Accepted, rs.ReturnCode);
         }
 
-        [Fact(Timeout = 3_000, Skip = ""), Order(3)]
-        public async void TestPublic()
-        {
-            var rs = await _client.PublicAsync("newlifeTopic", "学无先后达者为师".GetBytes());
-            Assert.NotNull(rs);
-            Assert.Equal(0, rs.Id);
-        }
+        //[Fact(Timeout = 3_000, Skip = ""), Order(3)]
+        //public async void TestPublic()
+        //{
+        //    var rs = await _client.PublicAsync("newlifeTopic", "学无先后达者为师".GetBytes());
+        //    Assert.NotNull(rs);
+        //    Assert.Equal(0, rs.Id);
+        //}
 
-        [Theory(Timeout = 3_000, Skip = ""), Order(4)]
-        [InlineData(QualityOfService.AtMostOnce)]
-        [InlineData(QualityOfService.AtLeastOnce)]
-        [InlineData(QualityOfService.ExactlyOnce)]
-        public async void TestPublicQos(QualityOfService qos)
-        {
-            var msg = new PublishMessage
-            {
-                TopicName = "QosTopic",
-                Payload = "学无先后达者为师".GetBytes(),
+        //[Theory(Timeout = 3_000, Skip = ""), Order(4)]
+        //[InlineData(QualityOfService.AtMostOnce)]
+        //[InlineData(QualityOfService.AtLeastOnce)]
+        //[InlineData(QualityOfService.ExactlyOnce)]
+        //public async void TestPublicQos(QualityOfService qos)
+        //{
+        //    var msg = new PublishMessage
+        //    {
+        //        TopicName = "QosTopic",
+        //        Payload = "学无先后达者为师".GetBytes(),
 
-                QoS = qos,
-            };
+        //        QoS = qos,
+        //    };
 
-            var rs = await _client.PublicAsync(msg);
-            Assert.NotNull(rs);
-            Assert.Equal(0, rs.Id);
-        }
+        //    var rs = await _client.PublicAsync(msg);
+        //    Assert.NotNull(rs);
+        //    Assert.Equal(0, rs.Id);
+        //}
 
-        [Fact, Order(12)]
+        [Fact(Timeout = 3_000), Order(12)]
         public async void TestPing()
         {
             var rs = await _client.PingAsync();
@@ -76,6 +77,9 @@ namespace XUnitTestClient
             //await _client.ConnectAsync();
 
             await _client.DisconnectAsync();
+
+            _client.TryDispose();
+            _client = null;
         }
     }
 }

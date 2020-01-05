@@ -75,7 +75,7 @@ namespace NewLife.MQTT.Messaging
         /// 两者之间允许空闲的最大时间间隔。客户端负责保证控制报文发送的时间间隔不超过保持连接的值。
         /// 如果没有任何其它的控制报文可以发送，客户端必须发送一个PINGREQ报文
         /// </remarks>
-        public UInt16 KeepAliveInSeconds { get; set; } = 2000;
+        public UInt16 KeepAliveInSeconds { get; set; }
 
         /// <summary>用户名</summary>
         public String Username { get; set; }

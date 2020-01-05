@@ -6,6 +6,7 @@ using NewLife.Log;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Security;
+using NewLife.Threading;
 
 namespace NewLife.MQTT
 {
@@ -18,6 +19,9 @@ namespace NewLife.MQTT
 
         /// <summary>超时。默认3000ms</summary>
         public Int32 Timeout { get; set; } = 3_000;
+
+        /// <summary>链接超时。一半时间发起心跳，默认600秒</summary>
+        public Int32 KeepAlive { get; set; } = 600;
 
         /// <summary>服务器地址</summary>
         public NetUri Server { get; set; }
@@ -44,6 +48,7 @@ namespace NewLife.MQTT
         {
             base.Dispose(disposing);
 
+            _timerPing.TryDispose();
             _Client.TryDispose();
         }
         #endregion
@@ -74,6 +79,13 @@ namespace NewLife.MQTT
 
                 client.Received += Client_Received;
                 _Client = client;
+
+                // 打开心跳定时器
+                var p = KeepAlive * 1000 / 2;
+                if (p > 0)
+                {
+                    if (_timerPing == null) _timerPing = new TimerX(DoPing, null, p, p) { Async = true };
+                }
             }
         }
 
@@ -188,6 +200,9 @@ namespace NewLife.MQTT
                 message.ClientId = ClientId;
             }
 
+            // 心跳
+            if (KeepAlive > 0 && message.KeepAliveInSeconds == 0) message.KeepAliveInSeconds = (UInt16)KeepAlive;
+
             var rs = (await SendAsync(message)) as ConnAck;
             return rs;
         }
@@ -237,6 +252,12 @@ namespace NewLife.MQTT
 
             var rs = (await SendAsync(message)) as PingResponse;
             return rs;
+        }
+
+        private TimerX _timerPing;
+        private async void DoPing(Object state)
+        {
+            await PingAsync();
         }
         #endregion
 
