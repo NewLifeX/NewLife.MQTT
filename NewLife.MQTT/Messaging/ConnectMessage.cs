@@ -138,18 +138,6 @@ namespace NewLife.MQTT.Messaging
             return true;
         }
 
-        private String ReadString(Stream stream)
-        {
-            var len = stream.ReadBytes(2).ToUInt16(0, false);
-            return stream.ReadBytes(len).ToStr();
-        }
-
-        private Byte[] ReadData(Stream stream)
-        {
-            var len = stream.ReadBytes(2).ToUInt16(0, false);
-            return stream.ReadBytes(len);
-        }
-
         /// <summary>把消息写入到数据流中</summary>
         /// <param name="stream">数据流</param>
         /// <param name="context">上下文</param>
@@ -183,21 +171,12 @@ namespace NewLife.MQTT.Messaging
             if (HasWill)
             {
                 WriteString(stream, WillTopicName);
-                WriteData(stream, WillMessage.ToArray());
+                WriteData(stream, WillMessage);
             }
             if (HasUsername) WriteString(stream, Username);
             if (HasPassword) WriteString(stream, Password);
 
             return true;
-        }
-
-        private void WriteString(Stream stream, String value) => WriteData(stream, value?.GetBytes());
-
-        private void WriteData(Stream stream, Byte[] buf)
-        {
-            var len = buf == null ? 0 : buf.Length;
-            stream.Write(((UInt16)len).GetBytes(false));
-            if (len > 0) stream.Write(buf);
         }
         #endregion
     }

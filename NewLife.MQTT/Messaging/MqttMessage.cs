@@ -145,6 +145,49 @@ namespace NewLife.MQTT.Messaging
             Type == MqttType.SubAck ||
             Type == MqttType.UnSubAck ||
             Type == MqttType.PingResp;
+
+        /// <summary>读字符串</summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        protected String ReadString(Stream stream)
+        {
+            var len = stream.ReadBytes(2).ToUInt16(0, false);
+            return stream.ReadBytes(len).ToStr();
+        }
+
+        /// <summary>读字节数组</summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        protected Byte[] ReadData(Stream stream)
+        {
+            var len = stream.ReadBytes(2).ToUInt16(0, false);
+            return stream.ReadBytes(len);
+        }
+
+        /// <summary>写字符串</summary>
+        /// <param name="stream"></param>
+        /// <param name="value"></param>
+        protected void WriteString(Stream stream, String value) => WriteData(stream, value?.GetBytes());
+
+        /// <summary>写字节数组</summary>
+        /// <param name="stream"></param>
+        /// <param name="buf"></param>
+        protected void WriteData(Stream stream, Byte[] buf)
+        {
+            var len = buf == null ? 0 : buf.Length;
+            stream.Write(((UInt16)len).GetBytes(false));
+            if (len > 0) stream.Write(buf);
+        }
+
+        /// <summary>写字节数组</summary>
+        /// <param name="stream"></param>
+        /// <param name="pk"></param>
+        protected void WriteData(Stream stream, Packet pk)
+        {
+            var len = pk == null ? 0 : pk.Total;
+            stream.Write(((UInt16)len).GetBytes(false));
+            if (len > 0) pk.CopyTo(stream);
+        }
         #endregion
     }
 }

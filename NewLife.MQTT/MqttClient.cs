@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
+using NewLife.Security;
 
 namespace NewLife.MQTT
 {
@@ -81,7 +83,7 @@ namespace NewLife.MQTT
         /// <returns></returns>
         protected virtual async Task<MqttMessage> SendAsync(MqttMessage msg)
         {
-            if (msg is MqttIdMessage idm && idm.Id == 0) idm.Id = (UInt16)Interlocked.Increment(ref g_id);
+            if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0)) idm.Id = (UInt16)Interlocked.Increment(ref g_id);
 
 #if DEBUG
             WriteLog("=> {0}", msg);
@@ -91,6 +93,17 @@ namespace NewLife.MQTT
             var client = _Client;
             try
             {
+                // 断开消息没有响应
+                if (msg.Type == MqttType.Disconnect)
+                {
+                    client.SendMessage(msg);
+#if NET4
+                    return await TaskEx.FromResult(msg);
+#else
+                    return await Task.FromResult(msg);
+#endif
+                }
+
                 var rs = await client.SendMessageAsync(msg);
 
 #if DEBUG
@@ -150,19 +163,66 @@ namespace NewLife.MQTT
         {
             if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
 
-            var msg = new ConnectMessage
+            var message = new ConnectMessage
             {
                 ClientId = ClientId,
                 Username = UserName,
                 Password = Password,
             };
 
-            var rs = (await SendAsync(msg)) as ConnAck;
+            return await ConnectAsync(message);
+        }
+
+        /// <summary>连接服务端</summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public async Task<ConnAck> ConnectAsync(ConnectMessage message)
+        {
+            if (message == null) throw new ArgumentNullException(nameof(message));
+
+            // 填充客户端Id
+            if (message.ClientId.IsNullOrEmpty())
+            {
+                if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
+
+                message.ClientId = ClientId;
+            }
+
+            var rs = (await SendAsync(message)) as ConnAck;
             return rs;
+        }
+
+        /// <summary>断开连接</summary>
+        /// <returns></returns>
+        public async Task DisconnectAsync()
+        {
+            if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
+
+            var message = new DisconnectMessage();
+
+            await SendAsync(message);
         }
         #endregion
 
         #region 发布
+        public async Task<PubAck> PublicAsync(String topic, Packet pk)
+        {
+            var message = new PublishMessage
+            {
+                TopicName = topic,
+                Payload = pk,
+            };
+
+            return await PublicAsync(message);
+        }
+
+        public async Task<PubAck> PublicAsync(PublishMessage message)
+        {
+            if (message == null) throw new ArgumentNullException(nameof(message));
+
+            var rs = (await SendAsync(message)) as PubAck;
+            return rs;
+        }
         #endregion
 
         #region 订阅
