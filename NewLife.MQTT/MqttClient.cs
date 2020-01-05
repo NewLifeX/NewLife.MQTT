@@ -27,12 +27,11 @@ namespace NewLife.MQTT
         #endregion
 
         #region 构造
-
         /// <summary>销毁</summary>
         /// <param name="disposing"></param>
-        protected override void OnDispose(Boolean disposing)
+        protected override void Dispose(Boolean disposing)
         {
-            base.OnDispose(disposing);
+            base.Dispose(disposing);
 
             _Client.TryDispose();
         }
@@ -66,6 +65,7 @@ namespace NewLife.MQTT
                 _Client = client;
             }
         }
+        #endregion
 
         private Int32 g_id;
         /// <summary>发送命令</summary>
@@ -132,7 +132,6 @@ namespace NewLife.MQTT
 
             return e.Arg;
         }
-        #endregion
         #endregion
 
         #region 连接

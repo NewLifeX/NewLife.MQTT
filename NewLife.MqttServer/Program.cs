@@ -26,7 +26,7 @@ namespace NewLife.MQTTServer
                 // 服务器
                 var svr = new MqttServer()
                 {
-                    Port=set.Port,
+                    Port = set.Port,
                     Log = XTrace.Log,
                 };
 
