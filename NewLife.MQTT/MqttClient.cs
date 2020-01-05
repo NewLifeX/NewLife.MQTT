@@ -162,14 +162,14 @@ namespace NewLife.MQTT
             WriteLog("收到：{0}", msg);
 #endif
 
-            if (Received == null) return msg;
+            if (Received == null) return null;
 
-            if (!(msg is PublishMessage pm)) return msg;
+            if (!(msg is PublishMessage pm)) return null;
 
             var e = new EventArgs<PublishMessage>(pm);
             Received.Invoke(this, e);
 
-            return e.Arg;
+            return new PubAck { Id = pm.Id };
         }
         #endregion
 
