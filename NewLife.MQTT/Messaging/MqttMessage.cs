@@ -78,25 +78,50 @@ namespace NewLife.MQTT.Messaging
 
             Length = stream.ReadEncodedInt();
 
+            if (Length > 0 && stream.CanSeek && stream.Length < Length) throw new InvalidDataException("消息负载的数据长度不足！");
+
+            if (!OnRead(stream, context)) return false;
+
             return true;
         }
+
+        /// <summary>子消息读取</summary>
+        /// <param name="stream">数据流</param>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        protected virtual Boolean OnRead(Stream stream, Object context) => true;
 
         /// <summary>把消息写入到数据流中</summary>
         /// <param name="stream">数据流</param>
         /// <param name="context">上下文</param>
         public virtual Boolean Write(Stream stream, Object context)
         {
+            // 子消息先写入，再写头部，因为头部需要负载长度
+            var ms = new MemoryStream();
+            if (!OnWrite(ms, context)) return false;
+
             var flag = 0;
             flag |= ((Byte)Type << 4) & 0b1111_0000;
             if (Duplicate) flag |= 0b0000_1000;
             flag |= ((Byte)QoS << 1) & 0b0000_0110;
             if (Retain) flag |= 0b0000_0001;
 
+            Length = (Int32)ms.Length;
+
             stream.Write((Byte)flag);
             stream.WriteEncodedInt(Length);
 
+            ms.Position = 0;
+            ms.CopyTo(stream);
+
             return true;
         }
+
+        /// <summary>子消息写入</summary>
+        /// <param name="stream">数据流</param>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        protected virtual Boolean OnWrite(Stream stream, Object context) => true;
 
         /// <summary>消息转为字节数组</summary>
         /// <returns></returns>
@@ -117,8 +142,8 @@ namespace NewLife.MQTT.Messaging
         public virtual Boolean Reply =>
             Type == MqttType.ConnAck ||
             Type == MqttType.PubAck ||
-            Type == MqttType.SubAck || 
-            Type == MqttType.UnSubAck || 
+            Type == MqttType.SubAck ||
+            Type == MqttType.UnSubAck ||
             Type == MqttType.PingResp;
         #endregion
     }

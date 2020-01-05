@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NewLife.Log;
@@ -23,10 +20,22 @@ namespace NewLife.MQTT
         /// <summary>服务器地址</summary>
         public NetUri Server { get; set; }
 
+        /// <summary>客户端标识。必填项</summary>
+        public String ClientId { get; set; }
+
+        /// <summary>用户名</summary>
+        public String UserName { get; set; }
+
+        /// <summary>密码</summary>
+        public String Password { get; set; }
+
         private ISocketClient _Client;
         #endregion
 
         #region 构造
+        /// <summary>实例化Mqtt客户端</summary>
+        public MqttClient() => Name = GetType().Name.TrimEnd("Client");
+
         /// <summary>销毁</summary>
         /// <param name="disposing"></param>
         protected override void Dispose(Boolean disposing)
@@ -37,7 +46,7 @@ namespace NewLife.MQTT
         }
         #endregion
 
-        #region 方法
+        #region 核心方法
         void Init()
         {
             var client = _Client;
@@ -65,7 +74,6 @@ namespace NewLife.MQTT
                 _Client = client;
             }
         }
-        #endregion
 
         private Int32 g_id;
         /// <summary>发送命令</summary>
@@ -99,6 +107,7 @@ namespace NewLife.MQTT
                 throw;
             }
         }
+        #endregion
 
         #region 接收数据
         private void Client_Received(Object sender, ReceivedEventArgs e)
@@ -135,14 +144,21 @@ namespace NewLife.MQTT
         #endregion
 
         #region 连接
-        public async Task ConnectAsync()
+        /// <summary>连接服务端</summary>
+        /// <returns></returns>
+        public async Task<ConnAck> ConnectAsync()
         {
+            if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
+
             var msg = new ConnectMessage
             {
-
+                ClientId = ClientId,
+                Username = UserName,
+                Password = Password,
             };
 
             var rs = (await SendAsync(msg)) as ConnAck;
+            return rs;
         }
         #endregion
 

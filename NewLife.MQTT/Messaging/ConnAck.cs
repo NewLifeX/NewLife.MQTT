@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace NewLife.MQTT.Messaging
 {
@@ -40,6 +41,32 @@ namespace NewLife.MQTT.Messaging
         public ConnAck()
         {
             Type = MqttType.ConnAck;
+        }
+        #endregion
+
+        #region 方法
+        /// <summary>子消息读取</summary>
+        /// <param name="stream">数据流</param>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        protected override Boolean OnRead(Stream stream, Object context)
+        {
+            SessionPresent = stream.ReadByte() > 0;
+            ReturnCode = (ConnectReturnCode)stream.ReadByte();
+
+            return true;
+        }
+
+        /// <summary>子消息写入</summary>
+        /// <param name="stream">数据流</param>
+        /// <param name="context">上下文</param>
+        /// <returns></returns>
+        protected override Boolean OnWrite(Stream stream, Object context)
+        {
+            stream.Write((Byte)(SessionPresent ? 1 : 0));
+            stream.Write((Byte)ReturnCode);
+
+            return true;
         }
         #endregion
     }

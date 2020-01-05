@@ -5,7 +5,7 @@ using Xunit;
 
 namespace XUnitTestClient
 {
-    public class UnitTest1
+    public class MqttClientTests
     {
         [Fact]
         public async void Test1()
@@ -14,9 +14,14 @@ namespace XUnitTestClient
             {
                 Log = XTrace.Log,
                 Server = "tcp://127.0.0.1:1883",
+
+                ClientId = Environment.MachineName,
+                UserName = "stone",
+                Password = "Pass@word",
             };
 
-            await mc.ConnectAsync();
+            var rs = await mc.ConnectAsync();
+            Assert.NotNull(rs);
         }
     }
 }

@@ -5,14 +5,25 @@ using NewLife.Data;
 namespace NewLife.MQTT.Messaging
 {
     /// <summary>连接请求</summary>
+    /// <remarks>
+    /// 客户端和服务端建立网络连接后，第一个从客户端发送给服务端的包必须是CONNECT包。
+    /// 每个网络连接客户端只能发送一次CONNECT包。
+    /// 服务端必须把客户端发来的第二个CONNECT包当作违反协议处理，并断开与客户端的连接。
+    /// 载荷包含一个或多个编码字段，用来指定客户端的唯一标识，话题，信息，用户名和密码。
+    /// 除了客户端唯一标识，其他都是可选项，是否存在取决于可变包头里的标识。
+    /// </remarks>
     public sealed class ConnectMessage : MqttMessage
     {
         #region 属性
         /// <summary>协议名</summary>
-        public String ProtocolName { get; set; }
+        public String ProtocolName { get; set; } = "MQTT";
 
         /// <summary>协议级别</summary>
-        public Byte ProtocolLevel { get; set; }
+        /// <remarks>
+        /// 3.1.1版本的协议等级是4（0x04）。
+        /// 如果协议等级不被服务端支持，服务端必须响应一个包含代码0x01（不接受的协议等级）CONNACK包，然后断开和客户端的连接。
+        /// </remarks>
+        public Byte ProtocolLevel { get; set; } = 0x04;
 
         /// <summary>清理会话</summary>
         /// <remarks>
@@ -64,7 +75,7 @@ namespace NewLife.MQTT.Messaging
         /// 两者之间允许空闲的最大时间间隔。客户端负责保证控制报文发送的时间间隔不超过保持连接的值。
         /// 如果没有任何其它的控制报文可以发送，客户端必须发送一个PINGREQ报文
         /// </remarks>
-        public UInt16 KeepAliveInSeconds { get; set; }
+        public UInt16 KeepAliveInSeconds { get; set; } = 2000;
 
         /// <summary>用户名</summary>
         public String Username { get; set; }
@@ -72,7 +83,7 @@ namespace NewLife.MQTT.Messaging
         /// <summary>密码</summary>
         public String Password { get; set; }
 
-        /// <summary>客户端标识</summary>
+        /// <summary>客户端标识。必填项</summary>
         public String ClientId { get; set; }
 
         /// <summary>遗嘱主题</summary>
@@ -84,10 +95,7 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>实例化</summary>
-        public ConnectMessage()
-        {
-            Type = MqttType.Connect;
-        }
+        public ConnectMessage() => Type = MqttType.Connect;
         #endregion
 
         #region 读写方法
@@ -95,14 +103,12 @@ namespace NewLife.MQTT.Messaging
         /// <param name="stream">数据流</param>
         /// <param name="context">上下文</param>
         /// <returns>是否成功</returns>
-        public override Boolean Read(Stream stream, Object context)
+        protected override Boolean OnRead(Stream stream, Object context)
         {
-            if (!base.Read(stream, context)) return false;
-
             // 协议名
             ProtocolName = ReadString(stream);
 
-            // 协议登记
+            // 协议等级
             ProtocolLevel = (Byte)stream.ReadByte();
 
             // 连接标记 Connect Flags
@@ -147,12 +153,10 @@ namespace NewLife.MQTT.Messaging
         /// <summary>把消息写入到数据流中</summary>
         /// <param name="stream">数据流</param>
         /// <param name="context">上下文</param>
-        public override Boolean Write(Stream stream, Object context)
+        protected override Boolean OnWrite(Stream stream, Object context)
         {
-            if (!base.Write(stream, context)) return false;
-
             // 协议名
-            Write(stream, ProtocolName);
+            WriteString(stream, ProtocolName);
 
             // 协议等级
             stream.Write(ProtocolLevel);
@@ -169,26 +173,27 @@ namespace NewLife.MQTT.Messaging
             if (WillRetain) flag |= 0b0010_0000;
             if (HasPassword) flag |= 0b0100_0000;
             if (HasUsername) flag |= 0b1000_0000;
+            stream.Write((Byte)flag);
 
             // 连接超时
             stream.Write(KeepAliveInSeconds.GetBytes(false));
 
             // 扩展
-            Write(stream, ClientId);
+            WriteString(stream, ClientId);
             if (HasWill)
             {
-                Write(stream, WillTopicName);
-                Write(stream, WillMessage);
+                WriteString(stream, WillTopicName);
+                WriteData(stream, WillMessage.ToArray());
             }
-            if (HasUsername) Write(stream, Username);
-            if (HasPassword) Write(stream, Password);
+            if (HasUsername) WriteString(stream, Username);
+            if (HasPassword) WriteString(stream, Password);
 
             return true;
         }
 
-        private void Write(Stream stream, String value) => Write(stream, value?.GetBytes());
+        private void WriteString(Stream stream, String value) => WriteData(stream, value?.GetBytes());
 
-        private void Write(Stream stream, Byte[] buf)
+        private void WriteData(Stream stream, Byte[] buf)
         {
             var len = buf == null ? 0 : buf.Length;
             stream.Write(((UInt16)len).GetBytes(false));

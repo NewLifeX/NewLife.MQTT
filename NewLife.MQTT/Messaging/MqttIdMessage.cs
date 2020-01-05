@@ -29,10 +29,8 @@ namespace NewLife.MQTT.Messaging
         /// <param name="stream">数据流</param>
         /// <param name="context">上下文</param>
         /// <returns>是否成功</returns>
-        public override Boolean Read(Stream stream, Object context)
+        protected override Boolean OnRead(Stream stream, Object context)
         {
-            if (!base.Read(stream, context)) return false;
-
             // 读Id
             Id = stream.ReadBytes(2).ToUInt16(0, false);
 
@@ -42,10 +40,8 @@ namespace NewLife.MQTT.Messaging
         /// <summary>把消息写入到数据流中</summary>
         /// <param name="stream">数据流</param>
         /// <param name="context">上下文</param>
-        public override Boolean Write(Stream stream, Object context)
+        protected override Boolean OnWrite(Stream stream, Object context)
         {
-            if (!base.Write(stream, context)) return false;
-
             // 写Id
             stream.Write(Id.GetBytes(false));
 
