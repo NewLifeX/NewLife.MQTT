@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace NewLife.MQTT.Messaging
+﻿namespace NewLife.MQTT.Messaging
 {
     /// <summary>取消订阅确认</summary>
     public sealed class UnsubAck : MqttIdMessage
@@ -10,16 +8,13 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>实例化</summary>
-        public UnsubAck()
-        {
-            Type = MqttType.UnSubAck;
-        }
+        public UnsubAck() => Type = MqttType.UnSubAck;
         #endregion
 
         /// <summary>根据请求创建响应</summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        public static UnsubAck Reply(UnsubscribeMessage msg)
+        public static UnsubAck CreateReply(UnsubscribeMessage msg)
         {
             return new UnsubAck
             {

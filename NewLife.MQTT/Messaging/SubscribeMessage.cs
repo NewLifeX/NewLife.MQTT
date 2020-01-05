@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace NewLife.MQTT.Messaging
 {
@@ -17,6 +18,43 @@ namespace NewLife.MQTT.Messaging
         {
             Type = MqttType.Subscribe;
             QoS = QualityOfService.AtLeastOnce;
+        }
+        #endregion
+
+        #region 读写方法
+        /// <summary>从数据流中读取消息</summary>
+        /// <param name="stream">数据流</param>
+        /// <param name="context">上下文</param>
+        /// <returns>是否成功</returns>
+        protected override Boolean OnRead(Stream stream, Object context)
+        {
+            if (!base.OnRead(stream, context)) return false;
+
+            var list = new List<Subscription>();
+            while (stream.Position < stream.Length)
+            {
+                var ss = new Subscription(ReadString(stream), (QualityOfService)stream.ReadByte());
+                list.Add(ss);
+            }
+            Requests = list;
+
+            return true;
+        }
+
+        /// <summary>把消息写入到数据流中</summary>
+        /// <param name="stream">数据流</param>
+        /// <param name="context">上下文</param>
+        protected override Boolean OnWrite(Stream stream, Object context)
+        {
+            if (!base.OnWrite(stream, context)) return false;
+
+            foreach (var item in Requests)
+            {
+                WriteString(stream, item.TopicFilter);
+                stream.Write((Byte)item.QualityOfService);
+            }
+
+            return true;
         }
         #endregion
     }

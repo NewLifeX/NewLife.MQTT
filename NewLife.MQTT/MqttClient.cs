@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NewLife.Data;
@@ -150,7 +152,7 @@ namespace NewLife.MQTT
         }
 
         /// <summary>收到命令时</summary>
-        public event EventHandler<EventArgs<MqttMessage>> Received;
+        public event EventHandler<EventArgs<PublishMessage>> Received;
 
         /// <summary>收到命令</summary>
         /// <param name="msg"></param>
@@ -160,9 +162,11 @@ namespace NewLife.MQTT
             WriteLog("收到：{0}", msg);
 #endif
 
-            if (Received == null) return null;
+            if (Received == null) return msg;
 
-            var e = new EventArgs<MqttMessage>(msg);
+            if (!(msg is PublishMessage pm)) return msg;
+
+            var e = new EventArgs<PublishMessage>(pm);
             Received.Invoke(this, e);
 
             return e.Arg;
@@ -224,7 +228,7 @@ namespace NewLife.MQTT
         /// <summary>发布消息</summary>
         /// <param name="topic">主题</param>
         /// <param name="data">消息数据</param>
-        /// <param name="qos">质量</param>
+        /// <param name="qos">服务质量</param>
         /// <returns></returns>
         public async Task<MqttIdMessage> PublicAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
         {
@@ -273,6 +277,46 @@ namespace NewLife.MQTT
         #endregion
 
         #region 订阅
+        /// <summary>订阅主题</summary>
+        /// <param name="topicFilters">主题过滤器</param>
+        /// <param name="qos">服务质量</param>
+        /// <returns></returns>
+        public async Task<SubAck> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce)
+        {
+            var subscriptions = topicFilters.Select(e => new Subscription(e, qos)).ToList();
+
+            return await SubscribeAsync(subscriptions);
+        }
+
+        /// <summary>订阅主题</summary>
+        /// <param name="subscriptions"></param>
+        /// <returns></returns>
+        public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions)
+        {
+            var message = new SubscribeMessage
+            {
+                Requests = subscriptions,
+            };
+
+            var rs = (await SendAsync(message)) as SubAck;
+
+            return rs;
+        }
+
+        /// <summary>取消订阅主题</summary>
+        /// <param name="topicFilters">主题过滤器</param>
+        /// <returns></returns>
+        public async Task<UnsubAck> UnsubscribeAsync(params String[] topicFilters)
+        {
+            var message = new UnsubscribeMessage
+            {
+                TopicFilters = topicFilters,
+            };
+
+            var rs = (await SendAsync(message)) as UnsubAck;
+
+            return rs;
+        }
         #endregion
 
         #region 心跳

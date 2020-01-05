@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using NewLife;
 using NewLife.Log;
 using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
+using NewLife.Security;
 using Xunit;
 using Xunit.Extensions.Ordering;
 
@@ -12,6 +14,8 @@ namespace XUnitTestClient
     public class MqttClientTests
     {
         private static MqttClient _client;
+        private static Queue<String> _mq = new Queue<string>();
+
         public MqttClientTests()
         {
             var mc = new MqttClient
@@ -24,7 +28,19 @@ namespace XUnitTestClient
                 Password = "Pass@word",
             };
 
-            if (_client == null) _client = mc;
+            if (_client == null)
+            {
+                mc.Received += (s, e) =>
+                {
+                    var pm = e.Arg;
+                    var msg = pm.Payload.ToStr();
+                    _mq.Enqueue(msg);
+
+                    XTrace.WriteLine("消费消息：[{0}] {1}", pm.TopicName, msg);
+                };
+
+                _client = mc;
+            }
         }
 
         [Fact, Order(1)]
@@ -40,8 +56,11 @@ namespace XUnitTestClient
         [Fact(Timeout = 3_000), Order(3)]
         public async void TestPublic()
         {
-            var rs = await _client.PublicAsync("newlifeTopic", "学无先后达者为师".GetBytes());
+            var msg = "学无先后达者为师" + Rand.NextString(8);
+            var rs = await _client.PublicAsync("newlifeTopic", msg);
             Assert.Null(rs);
+
+            Assert.Equal(msg, _mq.Dequeue());
         }
 
         [Theory(Timeout = 3_000), Order(4)]
@@ -69,6 +88,23 @@ namespace XUnitTestClient
                     Assert.NotEqual(0, rs.Id);
                     break;
             }
+        }
+
+        [Fact(Timeout = 3_000), Order(2)]
+        public async void TestSubscribe()
+        {
+            var rs = await _client.SubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
+            Assert.NotNull(rs);
+            Assert.Equal(2, rs.ReturnCodes.Count);
+            Assert.Equal(QualityOfService.AtMostOnce, rs.ReturnCodes[0]);
+            Assert.Equal(QualityOfService.AtMostOnce, rs.ReturnCodes[1]);
+        }
+
+        [Fact(Timeout = 3_000), Order(10)]
+        public async void TestUnsubscribe()
+        {
+            var rs = await _client.UnsubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
+            Assert.NotNull(rs);
         }
 
         [Fact(Timeout = 3_000), Order(12)]
