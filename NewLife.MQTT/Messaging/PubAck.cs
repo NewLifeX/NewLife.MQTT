@@ -10,10 +10,10 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>实例化</summary>
-        public PubAck()
-        {
-            Type = MqttType.PubAck;
-        }
+        public PubAck() => Type = MqttType.PubAck;
+
+        /// <summary>已重载</summary>
+        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}";
         #endregion
     }
 }

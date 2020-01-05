@@ -18,6 +18,9 @@ namespace NewLife.MQTT.Messaging
         #region 构造
         /// <summary>实例化</summary>
         public PublishMessage() => Type = MqttType.Publish;
+
+        /// <summary>已重载</summary>
+        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}, Topic={TopicName}";
         #endregion
 
         #region 读写方法

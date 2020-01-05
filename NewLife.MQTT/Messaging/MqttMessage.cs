@@ -142,6 +142,7 @@ namespace NewLife.MQTT.Messaging
         public virtual Boolean Reply =>
             Type == MqttType.ConnAck ||
             Type == MqttType.PubAck ||
+            Type == MqttType.PubRec ||
             Type == MqttType.SubAck ||
             Type == MqttType.UnSubAck ||
             Type == MqttType.PingResp;

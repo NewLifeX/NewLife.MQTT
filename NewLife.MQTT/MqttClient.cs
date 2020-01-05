@@ -5,7 +5,7 @@ using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
-using NewLife.Security;
+using NewLife.Serialization;
 using NewLife.Threading;
 
 namespace NewLife.MQTT
@@ -17,8 +17,8 @@ namespace NewLife.MQTT
         /// <summary>名称</summary>
         public String Name { get; set; }
 
-        /// <summary>超时。默认3000ms</summary>
-        public Int32 Timeout { get; set; } = 3_000;
+        /// <summary>超时。默认15000ms</summary>
+        public Int32 Timeout { get; set; } = 15_000;
 
         /// <summary>链接超时。一半时间发起心跳，默认600秒</summary>
         public Int32 KeepAlive { get; set; } = 600;
@@ -91,9 +91,10 @@ namespace NewLife.MQTT
 
         private Int32 g_id;
         /// <summary>发送命令</summary>
-        /// <param name="msg"></param>
+        /// <param name="msg">消息</param>
+        /// <param name="waitForResponse">是否等待响应</param>
         /// <returns></returns>
-        protected virtual async Task<MqttMessage> SendAsync(MqttMessage msg)
+        protected virtual async Task<MqttMessage> SendAsync(MqttMessage msg, Boolean waitForResponse = true)
         {
             if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0)) idm.Id = (UInt16)Interlocked.Increment(ref g_id);
 
@@ -106,13 +107,13 @@ namespace NewLife.MQTT
             try
             {
                 // 断开消息没有响应
-                if (msg.Type == MqttType.Disconnect)
+                if (!waitForResponse)
                 {
                     client.SendMessage(msg);
 #if NET4
-                    return await TaskEx.FromResult(msg);
+                    return await TaskEx.FromResult((MqttMessage)null);
 #else
-                    return await Task.FromResult(msg);
+                    return await Task.FromResult((MqttMessage)null);
 #endif
                 }
 
@@ -215,28 +216,50 @@ namespace NewLife.MQTT
 
             var message = new DisconnectMessage();
 
-            await SendAsync(message);
+            await SendAsync(message, false);
         }
         #endregion
 
         #region 发布
-        public async Task<PubAck> PublicAsync(String topic, Packet pk)
+        /// <summary>发布消息</summary>
+        /// <param name="topic">主题</param>
+        /// <param name="data">消息数据</param>
+        /// <param name="qos">质量</param>
+        /// <returns></returns>
+        public async Task<MqttIdMessage> PublicAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
         {
+            var pk = data as Packet;
+            if (pk == null && data != null) pk = Serialize(data);
+
             var message = new PublishMessage
             {
                 TopicName = topic,
                 Payload = pk,
+                QoS = qos,
             };
 
             return await PublicAsync(message);
         }
 
-        public async Task<PubAck> PublicAsync(PublishMessage message)
+        /// <summary>发布消息</summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public async Task<MqttIdMessage> PublicAsync(PublishMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
-            var rs = (await SendAsync(message)) as PubAck;
-            return rs;
+            return (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+        }
+
+        /// <summary>把对象序列化为数据，字节数组和字符串以外的复杂类型，走Json序列化</summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        protected virtual Packet Serialize(Object data)
+        {
+            if (data is Byte[] buf) return buf;
+            if (data is String str) return str.GetBytes();
+
+            return data.ToJson().GetBytes();
         }
         #endregion
 
@@ -255,10 +278,7 @@ namespace NewLife.MQTT
         }
 
         private TimerX _timerPing;
-        private async void DoPing(Object state)
-        {
-            await PingAsync();
-        }
+        private async void DoPing(Object state) => await PingAsync();
         #endregion
 
         #region 日志

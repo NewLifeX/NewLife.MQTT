@@ -33,36 +33,41 @@ namespace XUnitTestClient
             // 连接
             var rs = await _client.ConnectAsync();
             Assert.NotNull(rs);
-            Assert.True(rs.SessionPresent);
+            //Assert.True(rs.SessionPresent);
             Assert.Equal(ConnectReturnCode.Accepted, rs.ReturnCode);
         }
 
-        //[Fact(Timeout = 3_000, Skip = ""), Order(3)]
-        //public async void TestPublic()
-        //{
-        //    var rs = await _client.PublicAsync("newlifeTopic", "学无先后达者为师".GetBytes());
-        //    Assert.NotNull(rs);
-        //    Assert.Equal(0, rs.Id);
-        //}
+        [Fact(Timeout = 3_000), Order(3)]
+        public async void TestPublic()
+        {
+            var rs = await _client.PublicAsync("newlifeTopic", "学无先后达者为师".GetBytes());
+            Assert.Null(rs);
+        }
 
-        //[Theory(Timeout = 3_000, Skip = ""), Order(4)]
-        //[InlineData(QualityOfService.AtMostOnce)]
-        //[InlineData(QualityOfService.AtLeastOnce)]
-        //[InlineData(QualityOfService.ExactlyOnce)]
-        //public async void TestPublicQos(QualityOfService qos)
-        //{
-        //    var msg = new PublishMessage
-        //    {
-        //        TopicName = "QosTopic",
-        //        Payload = "学无先后达者为师".GetBytes(),
-
-        //        QoS = qos,
-        //    };
-
-        //    var rs = await _client.PublicAsync(msg);
-        //    Assert.NotNull(rs);
-        //    Assert.Equal(0, rs.Id);
-        //}
+        [Theory(Timeout = 3_000), Order(4)]
+        [InlineData(QualityOfService.AtMostOnce)]
+        [InlineData(QualityOfService.AtLeastOnce)]
+        [InlineData(QualityOfService.ExactlyOnce)]
+        public async void TestPublicQos(QualityOfService qos)
+        {
+            var rs = await _client.PublicAsync("QosTopic", "学无先后达者为师", qos);
+            switch (qos)
+            {
+                case QualityOfService.AtMostOnce:
+                    Assert.Null(rs);
+                    break;
+                case QualityOfService.AtLeastOnce:
+                    var ack = rs as PubAck;
+                    Assert.NotNull(ack);
+                    Assert.NotEqual(0, rs.Id);
+                    break;
+                case QualityOfService.ExactlyOnce:
+                    var rec = rs as PubRec;
+                    Assert.NotNull(rec);
+                    Assert.NotEqual(0, rs.Id);
+                    break;
+            }
+        }
 
         [Fact(Timeout = 3_000), Order(12)]
         public async void TestPing()

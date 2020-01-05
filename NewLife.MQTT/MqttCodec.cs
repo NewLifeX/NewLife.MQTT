@@ -70,9 +70,29 @@ namespace NewLife.MQTT
         /// <returns></returns>
         protected override Boolean IsMatch(Object request, Object response)
         {
-            return request is MqttMessage req &&
-                response is MqttMessage res &&
-                req.Type + 1 == res.Type;
+            //return request is MqttMessage req &&
+            //    response is MqttMessage res &&
+            //    req.Type + 1 == res.Type;
+
+            var req = request as MqttMessage;
+            var res = response as MqttMessage;
+            if (req == null || res == null) return false;
+
+            // 请求响应前后配对
+            if (req.Reply || !res.Reply) return false;
+
+            // 要求Id匹配
+            if (!(request is MqttIdMessage req2) ||
+                !(response is MqttIdMessage res2) ||
+                req2.Id == res2.Id)
+            {
+                if (req.Type + 1 == res.Type) return true;
+
+                // 特殊处理Public
+                if (req.Type == MqttType.Publish && (res.Type == MqttType.PubAck || res.Type == MqttType.PubRec)) return true;
+            }
+
+            return false;
         }
     }
 }

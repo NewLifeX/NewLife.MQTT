@@ -15,6 +15,9 @@ namespace NewLife.MQTT.Messaging
             Type = MqttType.PubRel;
             QoS = QualityOfService.AtLeastOnce;
         }
+
+        /// <summary>已重载</summary>
+        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}";
         #endregion
     }
 }
