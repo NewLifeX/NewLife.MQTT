@@ -248,7 +248,16 @@ namespace NewLife.MQTT
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
-            return (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+            var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+
+            if (rs is PubRec)
+            {
+                var rel = new PubRel();
+                var cmp = (await SendAsync(rel, true)) as PubComp;
+                return cmp;
+            }
+
+            return rs;
         }
 
         /// <summary>把对象序列化为数据，字节数组和字符串以外的复杂类型，走Json序列化</summary>

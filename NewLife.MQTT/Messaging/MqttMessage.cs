@@ -143,6 +143,7 @@ namespace NewLife.MQTT.Messaging
             Type == MqttType.ConnAck ||
             Type == MqttType.PubAck ||
             Type == MqttType.PubRec ||
+            Type == MqttType.PubComp ||
             Type == MqttType.SubAck ||
             Type == MqttType.UnSubAck ||
             Type == MqttType.PingResp;

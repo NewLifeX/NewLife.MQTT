@@ -62,8 +62,10 @@ namespace XUnitTestClient
                     Assert.NotEqual(0, rs.Id);
                     break;
                 case QualityOfService.ExactlyOnce:
-                    var rec = rs as PubRec;
-                    Assert.NotNull(rec);
+                    //var rec = rs as PubRec;
+                    //Assert.NotNull(rec);
+                    var cmp = rs as PubComp;
+                    Assert.NotNull(cmp);
                     Assert.NotEqual(0, rs.Id);
                     break;
             }
