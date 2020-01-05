@@ -9,10 +9,7 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>实例化</summary>
-        public PingResponse()
-        {
-            Type = MqttType.PingResp;
-        }
+        public PingResponse() => Type = MqttType.PingResp;
         #endregion
     }
 }

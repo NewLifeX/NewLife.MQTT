@@ -228,6 +228,18 @@ namespace NewLife.MQTT
         #region 订阅
         #endregion
 
+        #region 心跳
+        /// <summary>心跳</summary>
+        /// <returns></returns>
+        public async Task<PingResponse> PingAsync()
+        {
+            var message = new PingRequest();
+
+            var rs = (await SendAsync(message)) as PingResponse;
+            return rs;
+        }
+        #endregion
+
         #region 日志
         /// <summary>日志</summary>
         public ILog Log { get; set; } = Logger.Null;

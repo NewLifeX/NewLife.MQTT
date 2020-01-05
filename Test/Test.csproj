@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net45;netcoreapp3.1</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
     <OutputPath>..\BinTest\</OutputPath>
     <LangVersion>latest</LangVersion>
     <AssemblyVersion>1.0.*</AssemblyVersion>
@@ -28,7 +28,7 @@
     <Exec Command="del &quot;$(TargetDir)*.xml&quot; /q" />
   </Target>
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="8.5.2020.101" />
+    <PackageReference Include="NewLife.Core" Version="8.5.2020.105" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />

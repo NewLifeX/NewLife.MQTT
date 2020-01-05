@@ -36,7 +36,7 @@ namespace XUnitTestClient
             Assert.Equal(ConnectReturnCode.Accepted, rs.ReturnCode);
         }
 
-        [Fact(Timeout = 3_000), Order(3)]
+        [Fact(Timeout = 3_000, Skip = ""), Order(3)]
         public async void TestPublic()
         {
             var rs = await _client.PublicAsync("newlifeTopic", "学无先后达者为师".GetBytes());
@@ -44,7 +44,7 @@ namespace XUnitTestClient
             Assert.Equal(0, rs.Id);
         }
 
-        [Theory(Timeout = 3_000), Order(4)]
+        [Theory(Timeout = 3_000, Skip = ""), Order(4)]
         [InlineData(QualityOfService.AtMostOnce)]
         [InlineData(QualityOfService.AtLeastOnce)]
         [InlineData(QualityOfService.ExactlyOnce)]
@@ -61,6 +61,13 @@ namespace XUnitTestClient
             var rs = await _client.PublicAsync(msg);
             Assert.NotNull(rs);
             Assert.Equal(0, rs.Id);
+        }
+
+        [Fact, Order(12)]
+        public async void TestPing()
+        {
+            var rs = await _client.PingAsync();
+            Assert.NotNull(rs);
         }
 
         [Fact, Order(16)]

@@ -9,10 +9,7 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>实例化</summary>
-        public PingRequest()
-        {
-            Type = MqttType.PingReq;
-        }
+        public PingRequest() => Type = MqttType.PingReq;
         #endregion
     }
 }
