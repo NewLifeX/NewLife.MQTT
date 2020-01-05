@@ -1,6 +1,7 @@
 ﻿using System;
 using NewLife.Log;
 using NewLife.MQTT;
+using NewLife.MQTT.Messaging;
 using Xunit;
 
 namespace XUnitTestClient
@@ -8,7 +9,7 @@ namespace XUnitTestClient
     public class MqttClientTests
     {
         [Fact]
-        public async void Test1()
+        public async void TestConnect()
         {
             var mc = new MqttClient
             {
@@ -20,8 +21,14 @@ namespace XUnitTestClient
                 Password = "Pass@word",
             };
 
+            // 连接
             var rs = await mc.ConnectAsync();
             Assert.NotNull(rs);
+            Assert.True(rs.SessionPresent);
+            Assert.Equal(ConnectReturnCode.Accepted, rs.ReturnCode);
+
+            // 断开
+            //var rs2 = await mc.ConnectAsync();
         }
     }
 }

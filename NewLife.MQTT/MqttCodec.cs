@@ -45,7 +45,7 @@ namespace NewLife.MQTT
         {
             var ss = context.Owner as IExtend;
             var pc = ss["Codec"] as PacketCodec;
-            if (pc == null) ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, -4) };
+            if (pc == null) ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
 
             var pks = pc.Parse(pk);
             var list = pks.Select(_Factory.ReadMessage).ToList();

@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
-    <PackageReference Include="NewLife.Core" Version="8.5.2020.101" />
+    <PackageReference Include="NewLife.Core" Version="8.5.2020.105" />
     <PackageReference Include="xunit" Version="2.4.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.0" />
     <PackageReference Include="coverlet.collector" Version="1.0.1" />
