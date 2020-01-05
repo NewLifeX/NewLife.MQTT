@@ -55,7 +55,7 @@
       <Version>3.0.8</Version>
     </PackageReference>
     <PackageReference Include="NewLife.Core">
-      <Version>8.3.2019.822</Version>
+      <Version>8.5.2020.101</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
