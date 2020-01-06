@@ -21,7 +21,7 @@ namespace NewLife.MQTT.Messaging
         /// <summary>错误用户名密码</summary>
         RefusedBadUsernameOrPassword = 0x04,
 
-        /// <summary>为认证</summary>
+        /// <summary>未认证</summary>
         RefusedNotAuthorized = 0x05
     }
 
