@@ -313,6 +313,12 @@ namespace NewLife.MQTT
         /// <returns></returns>
         public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage> callback = null)
         {
+            // 已订阅，不重复
+            foreach (var item in subscriptions)
+            {
+                if (_subs.ContainsKey(item.TopicFilter)) return null;
+            }
+
             var message = new SubscribeMessage
             {
                 Requests = subscriptions,

@@ -18,6 +18,7 @@ namespace XUnitTestClient
 
             await client.ConnectAsync();
             await client.SyncTime();
+            await client.PostProperty(new { NickName = "xxx" });
         }
     }
 }

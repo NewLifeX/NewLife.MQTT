@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using NewLife.MQTT.Messaging;
 
@@ -39,30 +36,34 @@ namespace NewLife.MQTT
         #endregion
 
         #region 接收数据
-        protected override MqttMessage OnReceive(MqttMessage msg)
-        {
-            return base.OnReceive(msg);
-        }
+        protected override MqttMessage OnReceive(MqttMessage msg) => base.OnReceive(msg);
         #endregion
 
         #region 设备标签
 
         #endregion
 
+        #region 属性上报
+        public async Task PostProperty(Object data)
+        {
+            await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post_reply", OnPostProperty);
+            await PublicAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post", data);
+
+            await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/service/property/set", OnSetProperty);
+        }
+
+        protected void OnPostProperty(PublishMessage pm) => WriteLog("OnPostProperty:{0}", pm.Payload.ToStr());
+        protected void OnSetProperty(PublishMessage pm) => WriteLog("OnSetProperty:{0}", pm.Payload.ToStr());
+        #endregion
+
         #region 时钟同步
         public async Task SyncTime()
         {
-            var topic1 = $"/ext/ntp/{ProductKey}/{DeviceName}/response";
-            await SubscribeAsync(topic1, OnSyncTime);
-
-            var topic2 = $"/ext/ntp/{ProductKey}/{DeviceName}/request";
-            await PublicAsync(topic2, null);
+            await SubscribeAsync($"/ext/ntp/{ProductKey}/{DeviceName}/response", OnSyncTime);
+            await PublicAsync($"/ext/ntp/{ProductKey}/{DeviceName}/request", new { version = "1.0" });
         }
 
-        protected void OnSyncTime(PublishMessage pm)
-        {
-            WriteLog("SyncTime:{0}", pm.Payload.ToStr());
-        }
+        protected void OnSyncTime(PublishMessage pm) => WriteLog("OnSyncTime:{0}", pm.Payload.ToStr());
         #endregion
     }
 }
