@@ -47,7 +47,12 @@ namespace NewLife.MQTT
         public async Task PostProperty(Object data)
         {
             await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post_reply", OnPostProperty);
-            await PublicAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post", data);
+            await PublicAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post", new
+            {
+                //id = 1,
+                @params = data,
+                method = "thing.event.property.post"
+            });
 
             await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/service/property/set", OnSetProperty);
         }

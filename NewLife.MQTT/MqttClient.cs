@@ -102,6 +102,7 @@ namespace NewLife.MQTT
 
 #if DEBUG
             WriteLog("=> {0}", msg);
+            if (msg is PublishMessage pm) WriteLog("{0}", pm.Payload.ToStr());
 #endif
 
             Init();
@@ -167,6 +168,9 @@ namespace NewLife.MQTT
             //if (Received == null) return null;
 
             if (!(msg is PublishMessage pm)) return null;
+#if DEBUG
+            WriteLog("{0}", pm.Payload.ToStr());
+#endif
 
             // 订阅委托，暂时还不支持模糊匹配
             if (_subs.TryGetValue(pm.Topic, out var func))
