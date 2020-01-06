@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -19,6 +20,15 @@ namespace NewLife.MQTT
         /// <summary>客户端标识</summary>
         public String ClientId { get; private set; }
 
+        /// <summary>模块</summary>
+        public String Module { get; set; }
+
+        /// <summary>版本</summary>
+        public String Version { get; set; }
+
+        /// <summary>使用SSL</summary>
+        public Boolean SSL { get; set; }
+
         /// <summary>计算MQTT参数</summary>
         /// <param name="productKey"></param>
         /// <param name="deviceName"></param>
@@ -37,8 +47,17 @@ namespace NewLife.MQTT
             var plainPasswd = $"clientId{productKey}.{deviceName}deviceName{deviceName}productKey{productKey}timestamp{timestamp}";
             Password = HmacSha256(plainPasswd, deviceSecret);
 
+            var asm = Assembly.GetEntryAssembly();
+            if (asm == null || asm.GetName().Name.StartsWith("testhost")) asm = Assembly.GetExecutingAssembly();
+            if (asm != null)
+            {
+                if (Module.IsNullOrEmpty()) Module = asm.GetName().Name;
+                if (Version.IsNullOrEmpty()) Version = asm.GetName().Version + "";
+            }
+
             //MQTT ClientId
-            ClientId = $"{productKey}.{deviceName}|timestamp={timestamp},_v=newlifeMqtt-c#-1.0.0,securemode=2,signmethod=hmacsha256|";
+            var mode = SSL ? 2 : 3;
+            ClientId = $"{productKey}.{deviceName}|timestamp={timestamp},_v={Version},language=C#,_m={Module},securemode={mode},signmethod=hmacsha256|";
 
             return true;
         }
