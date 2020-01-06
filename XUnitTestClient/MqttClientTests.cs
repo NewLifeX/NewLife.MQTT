@@ -14,7 +14,7 @@ namespace XUnitTestClient
     public class MqttClientTests
     {
         private static MqttClient _client;
-        private static Queue<String> _mq = new Queue<string>();
+        private static readonly Queue<String> _mq = new Queue<String>();
 
         public MqttClientTests()
         {
