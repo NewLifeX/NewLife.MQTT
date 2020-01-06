@@ -36,7 +36,7 @@ namespace XUnitTestClient
                     var msg = pm.Payload.ToStr();
                     _mq.Enqueue(msg);
 
-                    XTrace.WriteLine("消费消息：[{0}] {1}", pm.TopicName, msg);
+                    XTrace.WriteLine("消费消息：[{0}] {1}", pm.Topic, msg);
                 };
 
                 _client = mc;

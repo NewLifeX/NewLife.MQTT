@@ -138,6 +138,8 @@ namespace NewLife.MQTT
         #endregion
 
         #region 接收数据
+        private IDictionary<String, Action<PublishMessage>> _subs = new Dictionary<String, Action<PublishMessage>>();
+
         private void Client_Received(Object sender, ReceivedEventArgs e)
         {
             var cmd = e.Message as MqttMessage;
@@ -162,12 +164,18 @@ namespace NewLife.MQTT
             WriteLog("收到：{0}", msg);
 #endif
 
-            if (Received == null) return null;
+            //if (Received == null) return null;
 
             if (!(msg is PublishMessage pm)) return null;
 
-            var e = new EventArgs<PublishMessage>(pm);
-            Received.Invoke(this, e);
+            // 订阅委托，暂时还不支持模糊匹配
+            if (_subs.TryGetValue(pm.Topic, out var func))
+                func(pm);
+            else if (Received != null)
+            {
+                var e = new EventArgs<PublishMessage>(pm);
+                Received.Invoke(this, e);
+            }
 
             return new PubAck { Id = pm.Id };
         }
@@ -237,7 +245,7 @@ namespace NewLife.MQTT
 
             var message = new PublishMessage
             {
-                TopicName = topic,
+                Topic = topic,
                 Payload = pk,
                 QoS = qos,
             };
@@ -278,13 +286,14 @@ namespace NewLife.MQTT
 
         #region 订阅
         /// <summary>订阅主题</summary>
-        /// <param name="topicFilters">主题过滤器</param>
+        /// <param name="topicFilter">主题过滤器</param>
+        /// <param name="callback">收到该主题消息时的回调</param>
         /// <returns></returns>
-        public async Task<SubAck> SubscribeAsync(params String[] topicFilters)
+        public async Task<SubAck> SubscribeAsync(String topicFilter, Action<PublishMessage> callback = null)
         {
-            var subscriptions = topicFilters.Select(e => new Subscription(e, QualityOfService.AtMostOnce)).ToList();
+            var subscription = new Subscription(topicFilter, QualityOfService.AtMostOnce);
 
-            return await SubscribeAsync(subscriptions);
+            return await SubscribeAsync(new[] { subscription }, callback);
         }
 
         /// <summary>订阅主题</summary>
@@ -299,9 +308,10 @@ namespace NewLife.MQTT
         }
 
         /// <summary>订阅主题</summary>
-        /// <param name="subscriptions"></param>
+        /// <param name="subscriptions">订阅集合</param>
+        /// <param name="callback">收到该主题消息时的回调</param>
         /// <returns></returns>
-        public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions)
+        public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage> callback = null)
         {
             var message = new SubscribeMessage
             {
@@ -309,6 +319,14 @@ namespace NewLife.MQTT
             };
 
             var rs = (await SendAsync(message)) as SubAck;
+            if (rs != null && callback != null)
+            {
+                // 暂时不支持模糊匹配
+                foreach (var item in subscriptions)
+                {
+                    _subs[item.TopicFilter] = callback;
+                }
+            }
 
             return rs;
         }
@@ -324,6 +342,14 @@ namespace NewLife.MQTT
             };
 
             var rs = (await SendAsync(message)) as UnsubAck;
+            if (rs != null)
+            {
+                // 暂时不支持模糊匹配
+                foreach (var item in topicFilters)
+                {
+                    _subs.Remove(item);
+                }
+            }
 
             return rs;
         }

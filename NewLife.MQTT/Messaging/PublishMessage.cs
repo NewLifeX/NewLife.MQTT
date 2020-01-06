@@ -9,7 +9,7 @@ namespace NewLife.MQTT.Messaging
     {
         #region 属性
         /// <summary>主题</summary>
-        public String TopicName { get; set; }
+        public String Topic { get; set; }
 
         /// <summary>负载数据</summary>
         public Packet Payload { get; set; }
@@ -20,7 +20,7 @@ namespace NewLife.MQTT.Messaging
         public PublishMessage() => Type = MqttType.Publish;
 
         /// <summary>已重载</summary>
-        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}, Topic={TopicName}";
+        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}, Topic={Topic}";
         #endregion
 
         #region 读写方法
@@ -30,7 +30,7 @@ namespace NewLife.MQTT.Messaging
         /// <returns>是否成功</returns>
         protected override Boolean OnRead(Stream stream, Object context)
         {
-            TopicName = ReadString(stream);
+            Topic = ReadString(stream);
 
             if (QoS > 0)
             {
@@ -48,7 +48,7 @@ namespace NewLife.MQTT.Messaging
         /// <param name="context">上下文</param>
         protected override Boolean OnWrite(Stream stream, Object context)
         {
-            WriteString(stream, TopicName);
+            WriteString(stream, Topic);
 
             if (QoS > 0)
             {

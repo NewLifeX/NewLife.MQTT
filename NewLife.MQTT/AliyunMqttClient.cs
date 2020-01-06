@@ -53,10 +53,15 @@ namespace NewLife.MQTT
         public async Task SyncTime()
         {
             var topic1 = $"/ext/ntp/{ProductKey}/{DeviceName}/response";
-            await SubscribeAsync(topic1);
+            await SubscribeAsync(topic1, OnSyncTime);
 
             var topic2 = $"/ext/ntp/{ProductKey}/{DeviceName}/request";
             await PublicAsync(topic2, null);
+        }
+
+        protected void OnSyncTime(PublishMessage pm)
+        {
+            WriteLog("SyncTime:{0}", pm.Payload.ToStr());
         }
         #endregion
     }
