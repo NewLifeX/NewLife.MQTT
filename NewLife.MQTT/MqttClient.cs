@@ -56,22 +56,6 @@ namespace NewLife.MQTT
         #endregion
 
         #region 核心方法
-        /// <summary>使用阿里云物联网平台参数</summary>
-        /// <param name="productKey">产品</param>
-        /// <param name="deviceName">设备</param>
-        /// <param name="deviceSecret">密钥</param>
-        public Boolean Init(String productKey, String deviceName, String deviceSecret)
-        {
-            var sign = new MqttSign();
-            if (!sign.Calculate(productKey, deviceName, deviceSecret)) return false;
-
-            UserName = sign.UserName;
-            Password = sign.Password;
-            ClientId = sign.ClientId;
-
-            return true;
-        }
-
         void Init()
         {
             var client = _Client;
@@ -293,6 +277,16 @@ namespace NewLife.MQTT
         #endregion
 
         #region 订阅
+        /// <summary>订阅主题</summary>
+        /// <param name="topicFilters">主题过滤器</param>
+        /// <returns></returns>
+        public async Task<SubAck> SubscribeAsync(params String[] topicFilters)
+        {
+            var subscriptions = topicFilters.Select(e => new Subscription(e, QualityOfService.AtMostOnce)).ToList();
+
+            return await SubscribeAsync(subscriptions);
+        }
+
         /// <summary>订阅主题</summary>
         /// <param name="topicFilters">主题过滤器</param>
         /// <param name="qos">服务质量</param>

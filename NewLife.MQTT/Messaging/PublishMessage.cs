@@ -37,7 +37,8 @@ namespace NewLife.MQTT.Messaging
                 if (!base.OnRead(stream, context)) return false;
             }
 
-            Payload = ReadData(stream);
+            //Payload = ReadData(stream);
+            Payload = stream.ReadBytes();
 
             return true;
         }
@@ -54,7 +55,8 @@ namespace NewLife.MQTT.Messaging
                 if (!base.OnWrite(stream, context)) return false;
             }
 
-            WriteData(stream, Payload);
+            //WriteData(stream, Payload);
+            Payload?.CopyTo(stream);
 
             return true;
         }
