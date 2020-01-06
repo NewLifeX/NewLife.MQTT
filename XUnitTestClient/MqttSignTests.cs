@@ -1,4 +1,5 @@
 ﻿using System;
+using NewLife.Log;
 using NewLife.MQTT;
 using Xunit;
 
@@ -41,8 +42,7 @@ namespace XUnitTestClient
             var deviceName = "example1";
             var deviceSecret = "ga7XA6KdlEeiPXQPpRbAjOZXwG8y****";
 
-            var client = new MqttClient();
-            client.Init(productKey, deviceName, deviceSecret);
+            var client = new AliyunMqttClient(productKey, deviceName, deviceSecret);
 
             Assert.Equal("example1&a1X2bEn****", client.UserName);
             //Assert.Equal("B144BAE52CF8A5B5F2B37743D8440C85CDC05861A1BF87C564E4FB2CBF43FAFB", sign.Password);

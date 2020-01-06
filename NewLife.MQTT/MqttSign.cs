@@ -38,7 +38,7 @@ namespace NewLife.MQTT
             Password = HmacSha256(plainPasswd, deviceSecret);
 
             //MQTT ClientId
-            ClientId = $"{productKey}.{deviceName}|timestamp={timestamp},_v=newlife-mqtt-1.0,securemode=2,signmethod=hmacsha256|";
+            ClientId = $"{productKey}.{deviceName}|timestamp={timestamp},_v=newlifeMqtt-c#-1.0.0,securemode=2,signmethod=hmacsha256|";
 
             return true;
         }
