@@ -39,7 +39,7 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.Agent" Version="8.5.2020.101" />
-    <PackageReference Include="NewLife.Core" Version="8.5.2020.106" />
+    <PackageReference Include="NewLife.Core" Version="8.5.2020.108" />
   </ItemGroup>
 
   <ItemGroup>
