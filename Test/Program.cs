@@ -33,6 +33,20 @@ namespace Test
 
         static void Test1()
         {
+            var sub = new string[] { "/test/#", "/test/+/test/test", "/test/+/#" };
+
+            var pub = "/test/test/test/test";
+            foreach (var item in sub)
+            {
+                XTrace.WriteLine(MqttTopicFilter.Matches(pub, item) + "");
+            }
+            var sub1 = new string[] { "test/#", "/test/sss/test/test", "/test//#" };
+
+            foreach (var item in sub1)
+            {
+                XTrace.WriteLine(MqttTopicFilter.Matches(pub, item) + "");
+            }
+
         }
 
         static void Test2()

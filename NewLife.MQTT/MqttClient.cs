@@ -171,11 +171,26 @@ namespace NewLife.MQTT
 #if DEBUG
             WriteLog("{0}", pm.Payload.ToStr());
 #endif
-
+            //模糊匹配
+            foreach (var item in _subs)
+            {
+                if (MqttTopicFilter.Matches(pm.Topic, item.Key))
+                {
+                    item.Value(pm);
+                }
+            }
             // 订阅委托，暂时还不支持模糊匹配
-            if (_subs.TryGetValue(pm.Topic, out var func))
-                func(pm);
-            else if (Received != null)
+            //if (_subs.TryGetValue(pm.Topic, out var func))
+            //    func(pm);
+            //模糊匹配
+            foreach (var item in _subs)
+            {
+                if (MqttTopicFilter.Matches(pm.Topic, item.Key))
+                {
+                    item.Value(pm);
+                }
+            }
+            if (Received != null)
             {
                 var e = new EventArgs<PublishMessage>(pm);
                 Received.Invoke(this, e);
@@ -331,9 +346,9 @@ namespace NewLife.MQTT
             var rs = (await SendAsync(message)) as SubAck;
             if (rs != null && callback != null)
             {
-                // 暂时不支持模糊匹配
                 foreach (var item in subscriptions)
                 {
+
                     _subs[item.TopicFilter] = callback;
                 }
             }
@@ -354,7 +369,7 @@ namespace NewLife.MQTT
             var rs = (await SendAsync(message)) as UnsubAck;
             if (rs != null)
             {
-                // 暂时不支持模糊匹配
+
                 foreach (var item in topicFilters)
                 {
                     _subs.Remove(item);
