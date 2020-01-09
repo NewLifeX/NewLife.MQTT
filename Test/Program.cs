@@ -62,9 +62,20 @@ namespace Test
             {
                 Log = XTrace.Log,
                 Server = "tcp://127.0.0.1:1883",
+                UserName = "admin",
+                Password = "admin",
+                ClientId = Guid.NewGuid() + "",
+
             };
 
             await _mc.ConnectAsync();
+
+            var rt = await _mc.SubscribeAsync("/test/#", (e) =>
+            {
+                XTrace.WriteLine("sub:" + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
+            });
+
+            Console.Read();
         }
     }
 }
