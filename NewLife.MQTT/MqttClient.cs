@@ -182,14 +182,7 @@ namespace NewLife.MQTT
             // 订阅委托，暂时还不支持模糊匹配
             //if (_subs.TryGetValue(pm.Topic, out var func))
             //    func(pm);
-            //模糊匹配
-            foreach (var item in _subs)
-            {
-                if (MqttTopicFilter.Matches(pm.Topic, item.Key))
-                {
-                    item.Value(pm);
-                }
-            }
+            //模糊匹配         
             if (Received != null)
             {
                 var e = new EventArgs<PublishMessage>(pm);
