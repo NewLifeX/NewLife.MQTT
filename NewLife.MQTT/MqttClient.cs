@@ -385,7 +385,7 @@ namespace NewLife.MQTT
         }
 
         private TimerX _timerPing;
-        private async void DoPing(Object state) => await PingAsync();
+        private void DoPing(Object state) => PingAsync().Wait();
         #endregion
 
         #region 日志
