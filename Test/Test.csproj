@@ -28,7 +28,7 @@
     <Exec Command="del &quot;$(TargetDir)*.xml&quot; /q" />
   </Target>
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="8.7.2020.601" />
+    <PackageReference Include="NewLife.Core" Version="8.10.2020.901" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />
