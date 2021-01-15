@@ -22,8 +22,8 @@ namespace NewLife.MQTT
         /// <summary>超时。默认15000ms</summary>
         public Int32 Timeout { get; set; } = 15_000;
 
-        /// <summary>链接超时。一半时间发起心跳，默认600秒</summary>
-        public Int32 KeepAlive { get; set; } = 600;
+        /// <summary>链接超时。一半时间发起心跳，默认60秒</summary>
+        public Int32 KeepAlive { get; set; } = 60;
 
         /// <summary>服务器地址</summary>
         public NetUri Server { get; set; }
