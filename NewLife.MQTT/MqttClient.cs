@@ -37,6 +37,9 @@ namespace NewLife.MQTT
         /// <summary>密码</summary>
         public String Password { get; set; }
 
+        /// <summary>性能跟踪</summary>
+        public ITracer Tracer { get; set; } = DefaultTracer.Instance;
+
         private ISocketClient _Client;
         #endregion
 
@@ -56,7 +59,7 @@ namespace NewLife.MQTT
         #endregion
 
         #region 核心方法
-        void Init()
+        private void Init()
         {
             var client = _Client;
             if (client != null && client.Active && !client.Disposed) return;
@@ -98,8 +101,11 @@ namespace NewLife.MQTT
         /// <returns></returns>
         protected virtual async Task<MqttMessage> SendAsync(MqttMessage msg, Boolean waitForResponse = true)
         {
-            if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0)) idm.Id = (UInt16)Interlocked.Increment(ref g_id);
+            if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0))
+                idm.Id = (UInt16)Interlocked.Increment(ref g_id);
 
+            // 性能埋点
+            using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
 #if DEBUG
             WriteLog("=> {0}", msg);
             if (msg is PublishMessage pm) WriteLog("{0}", pm.Payload.ToStr());
@@ -128,10 +134,12 @@ namespace NewLife.MQTT
 
                 return rs as MqttMessage;
             }
-            catch
+            catch (Exception ex)
             {
-                // 销毁，下次使用另一个地址
-                client.TryDispose();
+                //// 销毁，下次使用另一个地址
+                //client.TryDispose();
+
+                span?.SetError(ex, null);
 
                 throw;
             }
@@ -139,18 +147,28 @@ namespace NewLife.MQTT
         #endregion
 
         #region 接收数据
-        private IDictionary<String, Action<PublishMessage>> _subs = new Dictionary<String, Action<PublishMessage>>();
+        private readonly IDictionary<String, Action<PublishMessage>> _subs = new Dictionary<String, Action<PublishMessage>>();
 
         private void Client_Received(Object sender, ReceivedEventArgs e)
         {
-            var cmd = e.Message as MqttMessage;
-            if (cmd == null || cmd.Reply) return;
+            if (e.Message is not MqttMessage msg || msg.Reply) return;
 
-            var rs = OnReceive(cmd);
-            if (rs != null)
+            // 性能埋点
+            using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
+            try
             {
-                var ss = sender as ISocketRemote;
-                ss.SendMessage(rs);
+                var rs = OnReceive(msg);
+                if (rs != null)
+                {
+                    var ss = sender as ISocketRemote;
+                    ss.SendMessage(rs);
+                }
+            }
+            catch (Exception ex)
+            {
+                span?.SetError(ex, null);
+
+                throw;
             }
         }
 
@@ -167,7 +185,7 @@ namespace NewLife.MQTT
 
             //if (Received == null) return null;
 
-            if (!(msg is PublishMessage pm)) return null;
+            if (msg is not PublishMessage pm) return null;
 #if DEBUG
             WriteLog("{0}", pm.Payload.ToStr());
 #endif

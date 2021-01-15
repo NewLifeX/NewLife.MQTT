@@ -10,9 +10,9 @@ using NewLife.Net.Handlers;
 namespace NewLife.MQTT
 {
     /// <summary>编码器</summary>
-    class MqttCodec : MessageCodec<MqttMessage>
+    internal class MqttCodec : MessageCodec<MqttMessage>
     {
-        private MqttFactory _Factory = new MqttFactory();
+        private readonly MqttFactory _Factory = new MqttFactory();
 
         /// <summary>实例化编码器</summary>
         public MqttCodec() => UserPacket = false;
@@ -44,8 +44,8 @@ namespace NewLife.MQTT
         protected override IList<MqttMessage> Decode(IHandlerContext context, Packet pk)
         {
             var ss = context.Owner as IExtend;
-            var pc = ss["Codec"] as PacketCodec;
-            if (pc == null) ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
+            if (ss["Codec"] is not PacketCodec pc) 
+                ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
 
             var pks = pc.Parse(pk);
             var list = pks.Select(_Factory.ReadMessage).ToList();
@@ -70,20 +70,14 @@ namespace NewLife.MQTT
         /// <returns></returns>
         protected override Boolean IsMatch(Object request, Object response)
         {
-            //return request is MqttMessage req &&
-            //    response is MqttMessage res &&
-            //    req.Type + 1 == res.Type;
-
-            var req = request as MqttMessage;
-            var res = response as MqttMessage;
-            if (req == null || res == null) return false;
+            if (request is not MqttMessage req || response is not MqttMessage res) return false;
 
             // 请求响应前后配对
             if (req.Reply || !res.Reply) return false;
 
             // 要求Id匹配
-            if (!(request is MqttIdMessage req2) ||
-                !(response is MqttIdMessage res2) ||
+            if (request is not MqttIdMessage req2 ||
+                response is not MqttIdMessage res2 ||
                 req2.Id == res2.Id)
             {
                 if (req.Type + 1 == res.Type) return true;

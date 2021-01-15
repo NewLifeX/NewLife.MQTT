@@ -61,11 +61,11 @@ namespace Test
             _mc = new MqttClient
             {
                 Log = XTrace.Log,
-                Server = "tcp://127.0.0.1:1883",
-                UserName = "admin",
-                Password = "admin",
+                Server = "tcp://129.211.129.92:1883",
+                //UserName = "admin",
+                //Password = "admin",
                 ClientId = Guid.NewGuid() + "",
-
+                KeepAlive = 10,
             };
 
             await _mc.ConnectAsync();
