@@ -6,9 +6,9 @@ using NewLife.MQTT;
 
 namespace Test
 {
-    class Program
+    internal class Program
     {
-        static void Main(String[] args)
+        private static void Main(String[] args)
         {
             MachineInfo.RegisterAsync();
             XTrace.UseConsole();
@@ -31,16 +31,16 @@ namespace Test
             Console.Read();
         }
 
-        static void Test1()
+        private static void Test1()
         {
-            var sub = new string[] { "/test/#", "/test/+/test/test", "/test/+/#" };
+            var sub = new String[] { "/test/#", "/test/+/test/test", "/test/+/#" };
 
             var pub = "/test/test/test/test";
             foreach (var item in sub)
             {
                 XTrace.WriteLine(MqttTopicFilter.Matches(pub, item) + "");
             }
-            var sub1 = new string[] { "test/#", "/test/sss/test/test", "/test//#" };
+            var sub1 = new String[] { "test/#", "/test/sss/test/test", "/test//#" };
 
             foreach (var item in sub1)
             {
@@ -49,23 +49,24 @@ namespace Test
 
         }
 
-        static void Test2()
+        private static void Test2()
         {
             var mi = MachineInfo.Current;
 
         }
 
         private static MqttClient _mc;
-        static async void Test3()
+
+        private static async void Test3()
         {
             _mc = new MqttClient
             {
                 Log = XTrace.Log,
+                LogMessage = true,
                 Server = "tcp://129.211.129.92:1883",
                 //UserName = "admin",
                 //Password = "admin",
                 ClientId = Guid.NewGuid() + "",
-                KeepAlive = 10,
             };
 
             await _mc.ConnectAsync();

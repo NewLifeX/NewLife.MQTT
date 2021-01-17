@@ -22,8 +22,8 @@ namespace NewLife.MQTT
         /// <summary>超时。默认15000ms</summary>
         public Int32 Timeout { get; set; } = 15_000;
 
-        /// <summary>链接超时。一半时间发起心跳，默认60秒</summary>
-        public Int32 KeepAlive { get; set; } = 60;
+        /// <summary>链接超时。一半时间发起心跳，默认600秒</summary>
+        public Int32 KeepAlive { get; set; } = 600;
 
         /// <summary>服务器地址</summary>
         public NetUri Server { get; set; }
@@ -89,7 +89,7 @@ namespace NewLife.MQTT
                 var p = KeepAlive * 1000 / 2;
                 if (p > 0)
                 {
-                    if (_timerPing == null) _timerPing = new TimerX(DoPing, null, p, p) { Async = true };
+                    if (_timerPing == null) _timerPing = new TimerX(DoPing, null, 5_000, p) { Async = true };
                 }
             }
         }
@@ -106,10 +106,14 @@ namespace NewLife.MQTT
 
             // 性能埋点
             using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
-#if DEBUG
-            WriteLog("=> {0}", msg);
-            if (msg is PublishMessage pm) WriteLog("{0}", pm.Payload.ToStr());
-#endif
+
+            if (LogMessage)
+            {
+                if (msg is PublishMessage pm)
+                    WriteLog("=> {0} {1}", msg, pm.Payload.ToStr());
+                else
+                    WriteLog("=> {0}", msg);
+            }
 
             Init();
             var client = _Client;
@@ -119,18 +123,12 @@ namespace NewLife.MQTT
                 if (!waitForResponse)
                 {
                     client.SendMessage(msg);
-#if NET4
-                    return await TaskEx.FromResult((MqttMessage)null);
-#else
                     return await Task.FromResult((MqttMessage)null);
-#endif
                 }
 
                 var rs = await client.SendMessageAsync(msg);
 
-#if DEBUG
-                WriteLog("<= {0}", rs as MqttMessage);
-#endif
+                if (LogMessage) WriteLog("<= {0}", rs as MqttMessage);
 
                 return rs as MqttMessage;
             }
@@ -153,6 +151,8 @@ namespace NewLife.MQTT
         {
             if (e.Message is not MqttMessage msg || msg.Reply) return;
 
+            if (LogMessage) WriteLog("<= {0}", msg);
+
             // 性能埋点
             using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
             try
@@ -161,6 +161,9 @@ namespace NewLife.MQTT
                 if (rs != null)
                 {
                     var ss = sender as ISocketRemote;
+
+                    if (LogMessage) WriteLog("=> {0}", rs);
+
                     ss.SendMessage(rs);
                 }
             }
@@ -179,17 +182,9 @@ namespace NewLife.MQTT
         /// <param name="msg"></param>
         protected virtual MqttMessage OnReceive(MqttMessage msg)
         {
-#if DEBUG
-            WriteLog("收到：{0}", msg);
-#endif
-
-            //if (Received == null) return null;
-
             if (msg is not PublishMessage pm) return null;
-#if DEBUG
-            WriteLog("{0}", pm.Payload.ToStr());
-#endif
-            //模糊匹配
+
+            // 模糊匹配
             foreach (var item in _subs)
             {
                 if (MqttTopicFilter.Matches(pm.Topic, item.Key))
@@ -409,6 +404,9 @@ namespace NewLife.MQTT
         #region 日志
         /// <summary>日志</summary>
         public ILog Log { get; set; } = Logger.Null;
+
+        /// <summary>是否记录消息日志。仅用于开发调试，不建议在生产环境使用，默认false</summary>
+        public Boolean LogMessage { get; set; }
 
         /// <summary>写日志</summary>
         /// <param name="format"></param>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net45;netstandard2.0;net40</TargetFrameworks>
+    <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
     <AssemblyTitle>新生命MQTT协议</AssemblyTitle>
     <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
     <Company>新生命开发团队</Company>
@@ -41,10 +41,6 @@
     <DefineConstants>$(DefineConstants);__WIN__</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)'=='net40'">
-    <DefineConstants>$(DefineConstants);__WIN__;NET4</DefineConstants>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
     <DebugType>full</DebugType>
@@ -56,6 +52,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="8.10.2021.115-beta1" />
+    <PackageReference Include="NewLife.Core" Version="8.10.2021.117-beta1" />
   </ItemGroup>
 </Project>
