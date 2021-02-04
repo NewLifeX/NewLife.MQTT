@@ -82,8 +82,8 @@ namespace NewLife.MQTT
             if (req.Reply || !res.Reply) return false;
 
             // 要求Id匹配
-            if (!(request is MqttIdMessage req2) ||
-                !(response is MqttIdMessage res2) ||
+            if (request is not MqttIdMessage req2 ||
+                response is not MqttIdMessage res2 ||
                 req2.Id == res2.Id)
             {
                 if (req.Type + 1 == res.Type) return true;

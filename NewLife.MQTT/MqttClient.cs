@@ -26,7 +26,7 @@ namespace NewLife.MQTT
         public Int32 KeepAlive { get; set; } = 600;
 
         /// <summary>服务器地址</summary>
-        public NetUri Server { get; set; }
+        public String Server { get; set; }
 
         /// <summary>客户端标识。必填项</summary>
         public String ClientId { get; set; }
@@ -36,6 +36,9 @@ namespace NewLife.MQTT
 
         /// <summary>密码</summary>
         public String Password { get; set; }
+
+        /// <summary>性能跟踪</summary>
+        public ITracer Tracer { get; set; }
 
         private ISocketClient _Client;
         #endregion
@@ -55,6 +58,29 @@ namespace NewLife.MQTT
         }
         #endregion
 
+        #region 方法
+        /// <summary>使用连接字符串初始化</summary>
+        /// <param name="config"></param>
+        public virtual void Init(String config)
+        {
+            if (config.IsNullOrEmpty()) return;
+
+            var dic =
+                config.Contains(',') && !config.Contains(';') ?
+                config.SplitAsDictionary("=", ",", true) :
+                config.SplitAsDictionary("=", ";", true);
+            if (dic.Count > 0)
+            {
+                Server = dic["Server"]?.Trim();
+                UserName = dic["UserName"]?.Trim();
+                Password = dic["Password"]?.Trim();
+                ClientId = dic["ClientId"]?.Trim();
+
+                if (dic.TryGetValue("Timeout", out var str)) Timeout = str.ToInt();
+            }
+        }
+        #endregion
+
         #region 核心方法
         void Init()
         {
@@ -66,10 +92,10 @@ namespace NewLife.MQTT
                 if (client != null && client.Active && !client.Disposed) return;
                 _Client = null;
 
-                var uri = Server;
-                WriteLog("正在连接[{0}]", uri);
-
+                var uri = new NetUri(Server);
                 if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+                if (uri.Port == 0) uri.Port = 1883;
+                WriteLog("正在连接[{0}]", uri);
 
                 client = uri.CreateRemote();
                 client.Log = Log;
@@ -80,6 +106,8 @@ namespace NewLife.MQTT
                 if (client is TcpSession tcp) tcp.NoDelay = true;
 
                 client.Received += Client_Received;
+                client.Open();
+
                 _Client = client;
 
                 // 打开心跳定时器
@@ -106,6 +134,8 @@ namespace NewLife.MQTT
 #endif
 
             Init();
+
+            using var span = Tracer?.NewSpan($"mqtt:{msg.Type}");
             var client = _Client;
             try
             {
@@ -128,8 +158,10 @@ namespace NewLife.MQTT
 
                 return rs as MqttMessage;
             }
-            catch
+            catch (Exception ex)
             {
+                span?.SetError(ex, msg);
+
                 // 销毁，下次使用另一个地址
                 client.TryDispose();
 
@@ -143,14 +175,24 @@ namespace NewLife.MQTT
 
         private void Client_Received(Object sender, ReceivedEventArgs e)
         {
-            var cmd = e.Message as MqttMessage;
-            if (cmd == null || cmd.Reply) return;
+            var msg = e.Message as MqttMessage;
+            if (msg == null || msg.Reply) return;
 
-            var rs = OnReceive(cmd);
-            if (rs != null)
+            using var span = Tracer?.NewSpan($"mqtt:{msg.Type}");
+            try
             {
-                var ss = sender as ISocketRemote;
-                ss.SendMessage(rs);
+                var rs = OnReceive(msg);
+                if (rs != null)
+                {
+                    var ss = sender as ISocketRemote;
+                    ss.SendMessage(rs);
+                }
+            }
+            catch (Exception ex)
+            {
+                span?.SetError(ex, msg);
+
+                throw;
             }
         }
 
@@ -167,7 +209,7 @@ namespace NewLife.MQTT
 
             //if (Received == null) return null;
 
-            if (!(msg is PublishMessage pm)) return null;
+            if (msg is not PublishMessage pm) return null;
 #if DEBUG
             WriteLog("{0}", pm.Payload.ToStr());
 #endif
