@@ -106,6 +106,8 @@ namespace NewLife.MQTT
                 if (client is TcpSession tcp) tcp.NoDelay = true;
 
                 client.Received += Client_Received;
+                client.Closed += Client_Closed;
+                client.Error += Client_Error;
                 client.Open();
 
                 _Client = client;
@@ -236,6 +238,12 @@ namespace NewLife.MQTT
         #endregion
 
         #region 连接
+
+        /// <summary>
+        /// 断开连接时
+        /// </summary>
+        public event EventHandler<EventArgs> Disconnect;
+
         /// <summary>连接服务端</summary>
         /// <returns></returns>
         public async Task<ConnAck> ConnectAsync()
@@ -283,7 +291,24 @@ namespace NewLife.MQTT
             var message = new DisconnectMessage();
 
             await SendAsync(message, false);
+
+            var e = new EventArgs();
+            Disconnect?.Invoke(this, e);
         }
+
+        private void Client_Error(Object sender, ExceptionEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void Client_Closed(Object sender, EventArgs e)
+        {
+            WriteLog("断开连接");
+            Disconnect?.Invoke(this, e);
+            WriteLog("尝试重新连接");
+            ConnectAsync().GetAwaiter();
+        }
+
         #endregion
 
         #region 发布
