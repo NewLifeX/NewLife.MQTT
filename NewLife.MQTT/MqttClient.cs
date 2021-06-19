@@ -298,7 +298,7 @@ namespace NewLife.MQTT
 
         private void Client_Error(Object sender, ExceptionEventArgs e)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         private void Client_Closed(Object sender, EventArgs e)
