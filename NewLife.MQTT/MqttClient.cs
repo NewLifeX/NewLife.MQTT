@@ -26,7 +26,7 @@ namespace NewLife.MQTT
         public Int32 KeepAlive { get; set; } = 600;
 
         /// <summary>服务器地址</summary>
-        public NetUri Server { get; set; }
+        public String Server { get; set; }
 
         /// <summary>客户端标识。必填项</summary>
         public String ClientId { get; set; }
@@ -37,8 +37,23 @@ namespace NewLife.MQTT
         /// <summary>密码</summary>
         public String Password { get; set; }
 
+        /// <summary>
+        /// 清除会话，默认true
+        /// </summary>
+        public Boolean CleanSession { get; set; } = true;
+
+        /// <summary>
+        /// 断开后是否自动重连
+        /// </summary>
+        public Boolean ReConnect { get; set; } = true;
+
+        /// <summary>
+        /// 是否处于连接状态
+        /// </summary>
+        public Boolean IsConnected => _Client != null && _Client.Active && !_Client.Disposed;
+
         /// <summary>性能跟踪</summary>
-        public ITracer Tracer { get; set; } = DefaultTracer.Instance;
+        public ITracer Tracer { get; set; }
 
         private ISocketClient _Client;
         #endregion
@@ -58,6 +73,29 @@ namespace NewLife.MQTT
         }
         #endregion
 
+        #region 方法
+        /// <summary>使用连接字符串初始化</summary>
+        /// <param name="config"></param>
+        public virtual void Init(String config)
+        {
+            if (config.IsNullOrEmpty()) return;
+
+            var dic =
+                config.Contains(',') && !config.Contains(';') ?
+                config.SplitAsDictionary("=", ",", true) :
+                config.SplitAsDictionary("=", ";", true);
+            if (dic.Count > 0)
+            {
+                Server = dic["Server"]?.Trim();
+                UserName = dic["UserName"]?.Trim();
+                Password = dic["Password"]?.Trim();
+                ClientId = dic["ClientId"]?.Trim();
+
+                if (dic.TryGetValue("Timeout", out var str)) Timeout = str.ToInt();
+            }
+        }
+        #endregion
+
         #region 核心方法
         private void Init()
         {
@@ -69,10 +107,10 @@ namespace NewLife.MQTT
                 if (client != null && client.Active && !client.Disposed) return;
                 _Client = null;
 
-                var uri = Server;
-                WriteLog("正在连接[{0}]", uri);
-
+                var uri = new NetUri(Server);
                 if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+                if (uri.Port == 0) uri.Port = 1883;
+                WriteLog("正在连接[{0}]", uri);
 
                 client = uri.CreateRemote();
                 client.Log = Log;
@@ -83,6 +121,10 @@ namespace NewLife.MQTT
                 if (client is TcpSession tcp) tcp.NoDelay = true;
 
                 client.Received += Client_Received;
+                client.Closed += Client_Closed;
+                client.Error += Client_Error;
+                client.Open();
+
                 _Client = client;
 
                 // 打开心跳定时器
@@ -116,6 +158,7 @@ namespace NewLife.MQTT
             }
 
             Init();
+
             var client = _Client;
             try
             {
@@ -134,10 +177,10 @@ namespace NewLife.MQTT
             }
             catch (Exception ex)
             {
-                //// 销毁，下次使用另一个地址
-                //client.TryDispose();
+                span?.SetError(ex, msg);
 
-                span?.SetError(ex, null);
+                // 销毁，下次使用另一个地址
+                client.TryDispose();
 
                 throw;
             }
@@ -183,8 +226,10 @@ namespace NewLife.MQTT
         protected virtual MqttMessage OnReceive(MqttMessage msg)
         {
             if (msg is not PublishMessage pm) return null;
-
-            // 模糊匹配
+#if DEBUG
+            WriteLog("{0}", pm.Payload.ToStr());
+#endif
+            //模糊匹配
             foreach (var item in _subs)
             {
                 if (MqttTopicFilter.Matches(pm.Topic, item.Key))
@@ -207,6 +252,17 @@ namespace NewLife.MQTT
         #endregion
 
         #region 连接
+
+        /// <summary>
+        /// 断开连接时
+        /// </summary>
+        public event EventHandler<EventArgs> Disconnected;
+
+        /// <summary>
+        /// 连接成功时
+        /// </summary>
+        public event EventHandler<EventArgs> Connected;
+
         /// <summary>连接服务端</summary>
         /// <returns></returns>
         public async Task<ConnAck> ConnectAsync()
@@ -218,6 +274,7 @@ namespace NewLife.MQTT
                 ClientId = ClientId,
                 Username = UserName,
                 Password = Password,
+                CleanSession = CleanSession,
             };
 
             return await ConnectAsync(message);
@@ -242,6 +299,11 @@ namespace NewLife.MQTT
             if (KeepAlive > 0 && message.KeepAliveInSeconds == 0) message.KeepAliveInSeconds = (UInt16)KeepAlive;
 
             var rs = (await SendAsync(message)) as ConnAck;
+
+            var e = new EventArgs();
+
+            Connected?.Invoke(this, e);
+
             return rs;
         }
 
@@ -254,16 +316,47 @@ namespace NewLife.MQTT
             var message = new DisconnectMessage();
 
             await SendAsync(message, false);
+
+            var e = new EventArgs();
+            Disconnected?.Invoke(this, e);
         }
+
+        private void Client_Error(Object sender, ExceptionEventArgs e)
+        {
+            //throw new NotImplementedException();
+        }
+
+        private void Client_Closed(Object sender, EventArgs e)
+        {
+            WriteLog("断开连接");
+            Disconnected?.Invoke(this, e);
+
+            if (!ReConnect) return;
+            WriteLog("尝试重新连接");
+            ConnectAsync().GetAwaiter();
+        }
+
         #endregion
 
         #region 发布
+        /// <summary>
+        /// PublicAsync=>PublishAsync
+        /// </summary>
+        /// <param name="topic"></param>
+        /// <param name="data"></param>
+        /// <param name="qos"></param>
+        /// <returns></returns>
+        [Obsolete("PublicAsync=>PublishAsync")]
+        public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
+            QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
+
+
         /// <summary>发布消息</summary>
         /// <param name="topic">主题</param>
         /// <param name="data">消息数据</param>
         /// <param name="qos">服务质量</param>
         /// <returns></returns>
-        public async Task<MqttIdMessage> PublicAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+        public async Task<MqttIdMessage> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
         {
             var pk = data as Packet;
             if (pk == null && data != null) pk = Serialize(data);
@@ -275,13 +368,22 @@ namespace NewLife.MQTT
                 QoS = qos,
             };
 
-            return await PublicAsync(message);
+            return await PublishAsync(message);
         }
+
+        /// <summary>
+        /// PublicAsync=>PublishAsync
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        [Obsolete("PublicAsync=>PublishAsync")]
+        public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
+
 
         /// <summary>发布消息</summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task<MqttIdMessage> PublicAsync(PublishMessage message)
+        public async Task<MqttIdMessage> PublishAsync(PublishMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
