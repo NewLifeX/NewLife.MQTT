@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net45;netcoreapp3.1;net40</TargetFrameworks>
+    <TargetFrameworks>net5.0</TargetFrameworks>
     <Namespace>NewLife.MQTTServer</Namespace>
     <AssemblyTitle>新生命MQTT服务器</AssemblyTitle>
     <Description>新生命MQTT服务器</Description>
@@ -38,8 +38,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Agent" Version="8.7.2021.101" />
-    <PackageReference Include="NewLife.Core" Version="8.10.2021.117-beta1" />
+    <PackageReference Include="NewLife.Agent" Version="8.7.2021.708" />
+    <PackageReference Include="NewLife.Core" Version="8.10.2021.708" />
   </ItemGroup>
 
   <ItemGroup>
