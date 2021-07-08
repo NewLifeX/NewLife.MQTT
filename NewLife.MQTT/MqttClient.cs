@@ -37,6 +37,21 @@ namespace NewLife.MQTT
         /// <summary>密码</summary>
         public String Password { get; set; }
 
+        /// <summary>
+        /// 清除会话，默认true
+        /// </summary>
+        public Boolean CleanSession { get; set; } = true;
+
+        /// <summary>
+        /// 断开后是否自动重连
+        /// </summary>
+        public Boolean ReConnect { get; set; } = true;
+
+        /// <summary>
+        /// 是否处于连接状态
+        /// </summary>
+        public Boolean IsConnected => _Client != null && _Client.Active && !_Client.Disposed;
+
         /// <summary>性能跟踪</summary>
         public ITracer Tracer { get; set; }
 
@@ -242,7 +257,12 @@ namespace NewLife.MQTT
         /// <summary>
         /// 断开连接时
         /// </summary>
-        public event EventHandler<EventArgs> Disconnect;
+        public event EventHandler<EventArgs> Disconnected;
+
+        /// <summary>
+        /// 连接成功时
+        /// </summary>
+        public event EventHandler<EventArgs> Connected;
 
         /// <summary>连接服务端</summary>
         /// <returns></returns>
@@ -255,6 +275,7 @@ namespace NewLife.MQTT
                 ClientId = ClientId,
                 Username = UserName,
                 Password = Password,
+                CleanSession = CleanSession,
             };
 
             return await ConnectAsync(message);
@@ -279,6 +300,11 @@ namespace NewLife.MQTT
             if (KeepAlive > 0 && message.KeepAliveInSeconds == 0) message.KeepAliveInSeconds = (UInt16)KeepAlive;
 
             var rs = (await SendAsync(message)) as ConnAck;
+
+            var e = new EventArgs();
+
+            Connected?.Invoke(this, e);
+
             return rs;
         }
 
@@ -293,7 +319,7 @@ namespace NewLife.MQTT
             await SendAsync(message, false);
 
             var e = new EventArgs();
-            Disconnect?.Invoke(this, e);
+            Disconnected?.Invoke(this, e);
         }
 
         private void Client_Error(Object sender, ExceptionEventArgs e)
@@ -304,7 +330,9 @@ namespace NewLife.MQTT
         private void Client_Closed(Object sender, EventArgs e)
         {
             WriteLog("断开连接");
-            Disconnect?.Invoke(this, e);
+            Disconnected?.Invoke(this, e);
+
+            if (!ReConnect) return;
             WriteLog("尝试重新连接");
             ConnectAsync().GetAwaiter();
         }
@@ -312,12 +340,25 @@ namespace NewLife.MQTT
         #endregion
 
         #region 发布
+
+        /// <summary>
+        /// PublicAsync=>PublishAsync
+        /// </summary>
+        /// <param name="topic"></param>
+        /// <param name="data"></param>
+        /// <param name="qos"></param>
+        /// <returns></returns>
+        [Obsolete("PublicAsync=>PublishAsync")]
+        public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
+            QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
+
+
         /// <summary>发布消息</summary>
         /// <param name="topic">主题</param>
         /// <param name="data">消息数据</param>
         /// <param name="qos">服务质量</param>
         /// <returns></returns>
-        public async Task<MqttIdMessage> PublicAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+        public async Task<MqttIdMessage> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
         {
             var pk = data as Packet;
             if (pk == null && data != null) pk = Serialize(data);
@@ -332,10 +373,19 @@ namespace NewLife.MQTT
             return await PublicAsync(message);
         }
 
+        /// <summary>
+        /// PublicAsync=>PublishAsync
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        [Obsolete("PublicAsync=>PublishAsync")]
+        public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
+
+
         /// <summary>发布消息</summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task<MqttIdMessage> PublicAsync(PublishMessage message)
+        public async Task<MqttIdMessage> PublishAsync(PublishMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
