@@ -166,7 +166,8 @@ namespace NewLife.MQTT
                 if (!waitForResponse)
                 {
                     client.SendMessage(msg);
-                    return await Task.FromResult((MqttMessage)null);
+                    //return await Task.FromResult((MqttMessage)null);
+                    return null;
                 }
 
                 var rs = await client.SendMessageAsync(msg);
