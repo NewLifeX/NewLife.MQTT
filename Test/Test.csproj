@@ -28,7 +28,9 @@
     <Exec Command="del &quot;$(TargetDir)*.xml&quot; /q" />
   </Target>
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="8.10.2021.708" />
+    <PackageReference Include="DotNetty.Codecs.Mqtt" Version="0.7.0" />
+    <PackageReference Include="MQTTnet" Version="3.0.16" />
+    <PackageReference Include="NewLife.Core" Version="8.11.2021.923-beta1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />
