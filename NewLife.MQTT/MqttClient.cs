@@ -226,6 +226,7 @@ namespace NewLife.MQTT
         /// <param name="msg"></param>
         protected virtual MqttMessage OnReceive(MqttMessage msg)
         {
+            if (msg is PubRel pr) return new PubComp { Id = pr.Id };
             if (msg is not PublishMessage pm) return null;
 #if DEBUG
             WriteLog("{0}", pm.Payload.ToStr());
@@ -257,7 +258,7 @@ namespace NewLife.MQTT
                 case QualityOfService.AtLeastOnce:
                     return new PubAck { Id = pm.Id };
                 case QualityOfService.ExactlyOnce:
-                    return new PubComp { Id = pm.Id };
+                    return new PubRec { Id = pm.Id };
                 default:
                     break;
             }
