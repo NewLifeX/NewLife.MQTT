@@ -249,7 +249,19 @@ namespace NewLife.MQTT
                 Received.Invoke(this, e);
             }
 
-            return new PubAck { Id = pm.Id };
+            // 根据 Qos 决定是否返回，返回何种消息
+            switch (msg.QoS)
+            {
+                case QualityOfService.AtMostOnce:
+                    return null;
+                case QualityOfService.AtLeastOnce:
+                    return new PubAck { Id = pm.Id };
+                case QualityOfService.ExactlyOnce:
+                    return new PubComp { Id = pm.Id };
+                default:
+                    break;
+            }
+            return null;
         }
         #endregion
 
