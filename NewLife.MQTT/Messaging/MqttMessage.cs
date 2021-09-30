@@ -58,7 +58,35 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>已重载</summary>
-        public override String ToString() => $"{GetType().Name}[Type={Type}, QoS={QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+        public override String ToString()
+        {
+            switch (Type)
+            {
+                case MqttType.Connect:
+                    return $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+                case MqttType.ConnAck:
+                case MqttType.Disconnect:
+                    return $"{GetType().Name}[Type={Type}]";
+                case MqttType.Publish:
+                    return $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+                case MqttType.PubAck:
+                case MqttType.PubRec:
+                case MqttType.PubRel:
+                case MqttType.PubComp:
+                    return $"{GetType().Name}[Type={Type}]";
+                case MqttType.Subscribe:
+                    return $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+                case MqttType.SubAck:
+                case MqttType.UnSubscribe:
+                case MqttType.UnSubAck:
+                    return $"{GetType().Name}[Type={Type}]";
+                case MqttType.PingReq:
+                case MqttType.PingResp:
+                    return $"{GetType().Name}[Type={Type}]";
+                default:
+                    return $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+            }
+        }
         #endregion
 
         #region 核心读写方法

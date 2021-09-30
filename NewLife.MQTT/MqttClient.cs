@@ -347,7 +347,7 @@ namespace NewLife.MQTT
         /// <param name="data"></param>
         /// <param name="qos"></param>
         /// <returns></returns>
-        [Obsolete("PublicAsync=>PublishAsync")]
+        [Obsolete("PublicAsync=>PublishAsync", true)]
         public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
             QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
 
