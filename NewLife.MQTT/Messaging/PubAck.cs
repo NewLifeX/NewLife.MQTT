@@ -13,7 +13,7 @@ namespace NewLife.MQTT.Messaging
         public PubAck() => Type = MqttType.PubAck;
 
         /// <summary>已重载</summary>
-        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}";
+        public override String ToString() => $"{Type}[Id={Id}]";
         #endregion
     }
 }

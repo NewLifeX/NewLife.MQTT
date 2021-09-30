@@ -4,17 +4,20 @@ using System.IO;
 
 namespace NewLife.MQTT.Messaging
 {
-    /// <summary>发布确认</summary>
+    /// <summary>订阅确认</summary>
     public sealed class SubAck : MqttIdMessage
     {
         #region 属性
-        /// <summary>返回代码</summary>
-        public IList<QualityOfService> ReturnCodes { get; set; }
+        /// <summary>同意颁发的Qos</summary>
+        public IList<QualityOfService> GrantedQos { get; set; }
         #endregion
 
         #region 构造
         /// <summary>实例化</summary>
         public SubAck() => Type = MqttType.SubAck;
+
+        /// <summary>已重载</summary>
+        public override String ToString() => $"{Type}[Id={Id}]";
         #endregion
 
         #region 读写方法
@@ -31,7 +34,7 @@ namespace NewLife.MQTT.Messaging
             {
                 list.Add((QualityOfService)stream.ReadByte());
             }
-            ReturnCodes = list;
+            GrantedQos = list;
 
             return true;
         }
@@ -43,7 +46,7 @@ namespace NewLife.MQTT.Messaging
         {
             if (!base.OnWrite(stream, context)) return false;
 
-            foreach (var item in ReturnCodes)
+            foreach (var item in GrantedQos)
             {
                 stream.Write((Byte)item);
             }
@@ -70,7 +73,7 @@ namespace NewLife.MQTT.Messaging
                 codes[i] = qos <= maxQoS ? qos : maxQoS;
             }
 
-            ack.ReturnCodes = codes;
+            ack.GrantedQos = codes;
 
             return ack;
         }

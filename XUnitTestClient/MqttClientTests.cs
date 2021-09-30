@@ -96,9 +96,9 @@ namespace XUnitTestClient
         {
             var rs = await _client.SubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
             Assert.NotNull(rs);
-            Assert.Equal(2, rs.ReturnCodes.Count);
-            Assert.Equal(QualityOfService.AtMostOnce, rs.ReturnCodes[0]);
-            Assert.Equal(QualityOfService.AtMostOnce, rs.ReturnCodes[1]);
+            Assert.Equal(2, rs.GrantedQos.Count);
+            Assert.Equal(QualityOfService.AtMostOnce, rs.GrantedQos[0]);
+            Assert.Equal(QualityOfService.AtMostOnce, rs.GrantedQos[1]);
         }
 
         [Fact(Timeout = 3_000), Order(10)]

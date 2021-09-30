@@ -4,7 +4,7 @@ using System.IO;
 
 namespace NewLife.MQTT.Messaging
 {
-    /// <summary>客户端订阅请求</summary>
+    /// <summary>订阅请求</summary>
     public sealed class SubscribeMessage : MqttIdMessage
     {
         #region 属性
@@ -19,6 +19,9 @@ namespace NewLife.MQTT.Messaging
             Type = MqttType.Subscribe;
             QoS = QualityOfService.AtLeastOnce;
         }
+
+        /// <summary>已重载</summary>
+        public override String ToString() => Requests == null ? Type + "" : $"{Type}[Topic={Requests[0].TopicFilter}, Qos={(Int32)Requests[0].QualityOfService}]";
         #endregion
 
         #region 读写方法

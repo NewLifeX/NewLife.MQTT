@@ -38,10 +38,10 @@ namespace NewLife.MQTT.Messaging
 
         #region 构造
         /// <summary>实例化</summary>
-        public ConnAck()
-        {
-            Type = MqttType.ConnAck;
-        }
+        public ConnAck() => Type = MqttType.ConnAck;
+
+        /// <summary>已重载</summary>
+        public override String ToString() => $"{Type}[SessionPresent={SessionPresent}, ReturnCode={ReturnCode}]";
         #endregion
 
         #region 方法

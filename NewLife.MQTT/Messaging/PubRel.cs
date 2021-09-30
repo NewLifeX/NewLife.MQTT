@@ -17,7 +17,7 @@ namespace NewLife.MQTT.Messaging
         }
 
         /// <summary>已重载</summary>
-        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}";
+        public override String ToString() => $"{Type}[Id={Id}, Qos={(Int32)QoS}]";
         #endregion
     }
 }

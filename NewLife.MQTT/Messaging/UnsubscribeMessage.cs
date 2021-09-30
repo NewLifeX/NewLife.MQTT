@@ -9,7 +9,7 @@ namespace NewLife.MQTT.Messaging
     {
         #region 属性
         /// <summary>主题过滤器</summary>
-        public IEnumerable<String> TopicFilters { get; set; }
+        public IList<String> TopicFilters { get; set; }
         #endregion
 
         #region 构造
@@ -19,6 +19,9 @@ namespace NewLife.MQTT.Messaging
             Type = MqttType.UnSubscribe;
             QoS = QualityOfService.AtLeastOnce;
         }
+
+        /// <summary>已重载</summary>
+        public override String ToString() => TopicFilters == null ? Type + "" : $"{Type}[Topic={TopicFilters[0]}]";
         #endregion
 
         #region 读写方法

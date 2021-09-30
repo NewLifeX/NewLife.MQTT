@@ -96,6 +96,9 @@ namespace NewLife.MQTT.Messaging
         #region 构造
         /// <summary>实例化</summary>
         public ConnectMessage() => Type = MqttType.Connect;
+
+        /// <summary>已重载</summary>
+        public override String ToString() => $"{Type}[ClientId={ClientId}, Username={Username}, CleanSession={CleanSession}]";
         #endregion
 
         #region 读写方法

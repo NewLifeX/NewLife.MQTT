@@ -20,7 +20,7 @@ namespace NewLife.MQTT.Messaging
         public PublishMessage() => Type = MqttType.Publish;
 
         /// <summary>已重载</summary>
-        public override String ToString() => $"{GetType().Name}[{Id}]QoS={QoS}, Topic={Topic}";
+        public override String ToString() => $"{Type}[Id={Id}, QoS={(Int32)QoS}, Topic={Topic}]";
         #endregion
 
         #region 读写方法
