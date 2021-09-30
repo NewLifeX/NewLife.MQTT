@@ -12,6 +12,22 @@
 5.小型传输，开销很小（固定长度的头部是 2 字节），协议交换最小化，以降低网络流量。  
 6.使用 Last Will 和 Testament 特性通知有关各方客户端异常中断的机制。  
 
+## MQTT 发布与订阅
+发布时，指定消息Qos，broker保存的消息包含了Qos；  
+订阅时，指定这次订阅要求的Qos，broker回复授权使用的Qos，一般就是申请那个；  
+消费时，消息的Qos取发布订阅中较小者！  
+
+详细场景：  
+订阅Qos=0，不管发布什么消息，消费到的消息Qos都是0；  
+订阅Qos=1，发布消息Qos=0时，消费得到Qos=0，发布消息Qos=1或2时，消费得到Qos=1；  
+订阅Qos=2，消费得到的消息Qos，就是发布时的Qos；  
+发布Qos=0，broker不做任何答复，理论上中途丢了都不知道，但是因为Tcp，如果网络异常客户端能发现；  
+发布Qos=1，broker答复PubAck，表示已经收到消息；  
+发布Qos=2，broker答复PubRec，客户端再次发送PubRel，broker答复PubComp，消息才算发布完成；
+订阅Qos=2，broker推送Qos=2消息，客户端先回PubRec，broker再次发送PubRel，客户端答复PubComp，消息才算消费完成；  
+发布Qos=2消息时，双重确认流程不需要等消费端在线，仅限于发布者与broker之间即可完成。  
+
+
 ## 新生命开源项目矩阵
 各项目默认支持net4.5/net4.0/netstandard2.0  
 
