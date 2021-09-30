@@ -12,6 +12,9 @@ namespace NewLife.MQTT.Messaging
 
         /// <summary>服务质量</summary>
         public QualityOfService QualityOfService { get; }
+
+        /// <summary>消息处理方法</summary>
+        public Action<PublishMessage> Callback { get; set; }
         #endregion
 
         #region 构造

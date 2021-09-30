@@ -54,10 +54,10 @@ namespace XUnitTestClient
         }
 
         [Fact(Timeout = 3_000), Order(3)]
-        public async void TestPublic()
+        public async void TestPublish()
         {
             var msg = "学无先后达者为师" + Rand.NextString(8);
-            var rs = await _client.PublicAsync("newlifeTopic", msg);
+            var rs = await _client.PublishAsync("newlifeTopic", msg);
             Assert.Null(rs);
 
             //Assert.Equal(msg, _mq.Dequeue());
@@ -67,10 +67,10 @@ namespace XUnitTestClient
         [InlineData(QualityOfService.AtMostOnce)]
         [InlineData(QualityOfService.AtLeastOnce)]
         [InlineData(QualityOfService.ExactlyOnce)]
-        public async void TestPublicQos(QualityOfService qos)
+        public async void TestPublishQos(QualityOfService qos)
         {
             var msg = "学无先后达者为师" + Rand.NextString(8);
-            var rs = await _client.PublicAsync("QosTopic", msg, qos);
+            var rs = await _client.PublishAsync("QosTopic", msg, qos);
             switch (qos)
             {
                 case QualityOfService.AtMostOnce:

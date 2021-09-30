@@ -62,17 +62,8 @@ namespace NewLife.MQTT
 
         static public Boolean Matches(String topicName, String topicFilter)
         {
-            if (!IsValidTopicName(topicName))
-            {
-                var message = String.Format("{0}:发布主题不符合规范", topicName);
-                throw new Exception(message);
-            }
-
-            if (!IsValidTopicFilter(topicFilter))
-            {
-                var message = String.Format("{0}:订阅主题不符合规范", topicName);
-                throw new Exception(message);
-            }
+            if (!IsValidTopicName(topicName)) throw new Exception($"{topicName}:发布主题不符合规范");
+            if (!IsValidTopicFilter(topicFilter)) throw new Exception($"{topicName}:订阅主题不符合规范");
 
             var topicFilterParts = topicFilter.Split('/');
             var topicNameParts = topicName.Split('/');

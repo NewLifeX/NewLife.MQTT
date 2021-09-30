@@ -63,7 +63,7 @@ namespace NewLife.MQTT.Messaging
             switch (Type)
             {
                 case MqttType.Connect:
-                    return $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]";
+                    return $"{GetType().Name}[Type={Type}]";
                 case MqttType.ConnAck:
                 case MqttType.Disconnect:
                     return $"{GetType().Name}[Type={Type}]";

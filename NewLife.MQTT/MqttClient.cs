@@ -45,7 +45,7 @@ namespace NewLife.MQTT
         /// <summary>
         /// 断开后是否自动重连
         /// </summary>
-        public Boolean ReConnect { get; set; } = true;
+        public Boolean Reconnect { get; set; } = true;
 
         /// <summary>
         /// 是否处于连接状态
@@ -189,7 +189,7 @@ namespace NewLife.MQTT
         #endregion
 
         #region 接收数据
-        private readonly IDictionary<String, Action<PublishMessage>> _subs = new Dictionary<String, Action<PublishMessage>>();
+        private readonly IDictionary<String, Subscription> _subs = new Dictionary<String, Subscription>();
 
         private void Client_Received(Object sender, ReceivedEventArgs e)
         {
@@ -230,12 +230,13 @@ namespace NewLife.MQTT
 #if DEBUG
             WriteLog("{0}", pm.Payload.ToStr());
 #endif
-            //模糊匹配
+            // 模糊匹配
             foreach (var item in _subs)
             {
-                if (MqttTopicFilter.Matches(pm.Topic, item.Key))
+                var sub = item.Value;
+                if (sub?.Callback != null && MqttTopicFilter.Matches(pm.Topic, sub.TopicFilter))
                 {
-                    item.Value(pm);
+                    sub.Callback(pm);
                 }
             }
             // 订阅委托，暂时还不支持模糊匹配
@@ -305,6 +306,18 @@ namespace NewLife.MQTT
 
             Connected?.Invoke(this, e);
 
+            // 断线重连后，重新订阅已订阅消息
+            if (_subs.Count > 0)
+            {
+                var message2 = new SubscribeMessage
+                {
+                    Requests = _subs.Values.ToArray(),
+                };
+
+                var rs2 = (await SendAsync(message2)) as SubAck;
+                if (rs2 == null) _subs.Clear();
+            }
+
             return rs;
         }
 
@@ -332,7 +345,7 @@ namespace NewLife.MQTT
             WriteLog("断开连接");
             Disconnected?.Invoke(this, e);
 
-            if (!ReConnect) return;
+            if (!Reconnect) return;
             WriteLog("尝试重新连接");
             ConnectAsync().GetAwaiter();
         }
@@ -350,7 +363,6 @@ namespace NewLife.MQTT
         [Obsolete("PublicAsync=>PublishAsync", true)]
         public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
             QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
-
 
         /// <summary>发布消息</summary>
         /// <param name="topic">主题</param>
@@ -379,7 +391,6 @@ namespace NewLife.MQTT
         /// <returns></returns>
         [Obsolete("PublicAsync=>PublishAsync")]
         public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
-
 
         /// <summary>发布消息</summary>
         /// <param name="message"></param>
@@ -442,10 +453,8 @@ namespace NewLife.MQTT
         public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage> callback = null)
         {
             // 已订阅，不重复
-            foreach (var item in subscriptions)
-            {
-                if (_subs.ContainsKey(item.TopicFilter)) return null;
-            }
+            subscriptions = subscriptions.Where(e => !_subs.ContainsKey(e.TopicFilter)).ToList();
+            if (subscriptions.Count == 0) return null;
 
             var message = new SubscribeMessage
             {
@@ -453,12 +462,12 @@ namespace NewLife.MQTT
             };
 
             var rs = (await SendAsync(message)) as SubAck;
-            if (rs != null && callback != null)
+            if (rs != null)
             {
                 foreach (var item in subscriptions)
                 {
-
-                    _subs[item.TopicFilter] = callback;
+                    item.Callback = callback;
+                    _subs[item.TopicFilter] = item;
                 }
             }
 
