@@ -17,7 +17,7 @@ namespace NewLife.MQTT.Messaging
         public SubAck() => Type = MqttType.SubAck;
 
         /// <summary>已重载</summary>
-        public override String ToString() => $"{Type}[Id={Id}]";
+        public override String ToString() => $"{Type}[Id={Id}, GrantedQos={(Int32)GrantedQos[0]}]";
         #endregion
 
         #region 读写方法
