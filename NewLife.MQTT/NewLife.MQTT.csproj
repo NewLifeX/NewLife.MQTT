@@ -6,8 +6,8 @@
     <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
     <Company>新生命开发团队</Company>
     <Copyright>版权所有(C) 新生命开发团队 2002~2021</Copyright>
-    <Version>1.0.2021.0930-beta1</Version>
-    <FileVersion>1.0.2021.0930</FileVersion>
+    <Version>1.0.2021.1001</Version>
+    <FileVersion>1.0.2021.1001</FileVersion>
     <AssemblyVersion>1.0.*</AssemblyVersion>
     <Deterministic>false</Deterministic>
     <OutputPath>..\Bin</OutputPath>
@@ -57,6 +57,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="8.11.2021.923-beta1" />
+    <PackageReference Include="NewLife.Core" Version="8.11.2021.1001" />
   </ItemGroup>
 </Project>
