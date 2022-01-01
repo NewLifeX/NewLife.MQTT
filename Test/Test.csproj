@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <OutputPath>..\BinTest\</OutputPath>
     <LangVersion>latest</LangVersion>
     <AssemblyVersion>1.0.*</AssemblyVersion>
@@ -30,7 +30,7 @@
   <ItemGroup>
     <PackageReference Include="DotNetty.Codecs.Mqtt" Version="0.7.0" />
     <PackageReference Include="MQTTnet" Version="3.1.1" />
-    <PackageReference Include="NewLife.Core" Version="8.11.2021.1225" />
+    <PackageReference Include="NewLife.Core" Version="9.0.2022.101" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />
