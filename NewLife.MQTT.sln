@@ -1,20 +1,23 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29009.5
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32328.378
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{50583EA9-E914-41A8-8B88-4CAFB3C8A8C3}"
 	ProjectSection(SolutionItems) = preProject
+		.github\workflows\publish-beta.yml = .github\workflows\publish-beta.yml
+		.github\workflows\publish.yml = .github\workflows\publish.yml
 		README.md = README.md
+		.github\workflows\test.yml = .github\workflows\test.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", "{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MQTT", "NewLife.MQTT\NewLife.MQTT.csproj", "{0924F040-4531-476F-80F4-720A5BCFBD98}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MqttServer", "NewLife.MqttServer\NewLife.MqttServer.csproj", "{41570A11-826E-4AFD-810B-60E1B763251A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XUnitTestClient", "XUnitTestClient\XUnitTestClient.csproj", "{0485076E-B380-49E7-9497-0EA0CE519F00}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XUnitTestClient", "XUnitTestClient\XUnitTestClient.csproj", "{0485076E-B380-49E7-9497-0EA0CE519F00}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
