@@ -121,8 +121,8 @@ namespace XUnitTestClient
 
             await _client.DisconnectAsync();
 
-            _client.TryDispose();
-            _client = null;
+            //_client.TryDispose();
+            //_client = null;
         }
     }
 }
