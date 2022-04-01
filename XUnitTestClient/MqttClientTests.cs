@@ -6,11 +6,10 @@ using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
 using NewLife.Security;
 using Xunit;
-using Xunit.Extensions.Ordering;
 
 namespace XUnitTestClient
 {
-    [TestCaseOrderer("Xunit.Extensions.Ordering.TestCaseOrderer", "Xunit.Extensions.Ordering")]
+    [TestCaseOrderer("NewLife.UnitTest.DefaultOrderer", "NewLife.UnitTest")]
     public class MqttClientTests
     {
         private static MqttClient _client;
@@ -43,7 +42,7 @@ namespace XUnitTestClient
             }
         }
 
-        [Fact, Order(1)]
+        [Fact]
         public async void TestConnect()
         {
             // 连接
@@ -53,7 +52,7 @@ namespace XUnitTestClient
             Assert.Equal(ConnectReturnCode.Accepted, rs.ReturnCode);
         }
 
-        [Fact(Timeout = 3_000), Order(3)]
+        [Fact(Timeout = 3_000)]
         public async void TestPublish()
         {
             var msg = "学无先后达者为师" + Rand.NextString(8);
@@ -63,7 +62,7 @@ namespace XUnitTestClient
             //Assert.Equal(msg, _mq.Dequeue());
         }
 
-        [Theory(Timeout = 3_000), Order(4)]
+        [Theory(Timeout = 3_000)]
         [InlineData(QualityOfService.AtMostOnce)]
         [InlineData(QualityOfService.AtLeastOnce)]
         [InlineData(QualityOfService.ExactlyOnce)]
@@ -91,7 +90,7 @@ namespace XUnitTestClient
             }
         }
 
-        [Fact(Timeout = 3_000), Order(2)]
+        [Fact(Timeout = 3_000)]
         public async void TestSubscribe()
         {
             var rs = await _client.SubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
@@ -101,21 +100,21 @@ namespace XUnitTestClient
             Assert.Equal(QualityOfService.AtMostOnce, rs.GrantedQos[1]);
         }
 
-        [Fact(Timeout = 3_000), Order(10)]
+        [Fact(Timeout = 3_000)]
         public async void TestUnsubscribe()
         {
             var rs = await _client.UnsubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
             Assert.NotNull(rs);
         }
 
-        [Fact(Timeout = 3_000), Order(12)]
+        [Fact(Timeout = 3_000)]
         public async void TestPing()
         {
             var rs = await _client.PingAsync();
             Assert.NotNull(rs);
         }
 
-        [Fact, Order(16)]
+        [Fact]
         public async void TestDisconnect()
         {
             //await _client.ConnectAsync();
