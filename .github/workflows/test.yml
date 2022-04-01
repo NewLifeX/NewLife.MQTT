@@ -23,7 +23,7 @@ jobs:
         dotnet build -c Release
 
     - name: Setup EMQ
-      uses: nnhy/emqx-github-action@v1
+      uses: nnhy/emqx-github-action@v1.0
 
     - name: Test
       run: |
