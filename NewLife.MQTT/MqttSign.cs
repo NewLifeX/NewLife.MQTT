@@ -52,7 +52,11 @@ namespace NewLife.MQTT
             if (asm != null)
             {
                 if (Module.IsNullOrEmpty()) Module = asm.GetName().Name;
-                if (Version.IsNullOrEmpty()) Version = asm.GetName().Version + "";
+                if (Version.IsNullOrEmpty())
+                {
+                    var ver = asm.GetName().Version;
+                    Version = $"newlife-mqtt-{ver.Major}.{ver.Minor}";
+                }
             }
 
             //MQTT ClientId

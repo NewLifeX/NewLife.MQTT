@@ -28,12 +28,14 @@ namespace XUnitTestClient
             Assert.NotEmpty(sign.ClientId);
 
             var cs = sign.ClientId.Split('|', ',');
-            Assert.Equal(6, cs.Length);
+            Assert.Equal(8, cs.Length);
             Assert.Equal($"{productKey}.{deviceName}", cs[0]);
             Assert.Equal("_v=newlife-mqtt-1.0", cs[2]);
-            Assert.Equal("securemode=2", cs[3]);
-            Assert.Equal("signmethod=hmacsha256", cs[4]);
-            Assert.Empty(cs[5]);
+            Assert.Equal("language=C#", cs[3]);
+            Assert.Equal("_m=NewLife.MQTT", cs[4]);
+            Assert.Equal("securemode=3", cs[5]);
+            Assert.Equal("signmethod=hmacsha256", cs[6]);
+            Assert.Empty(cs[7]);
         }
 
         [Fact]
@@ -53,12 +55,14 @@ namespace XUnitTestClient
             Assert.NotEmpty(client.ClientId);
 
             var cs = client.ClientId.Split('|', ',');
-            Assert.Equal(6, cs.Length);
+            Assert.Equal(8, cs.Length);
             Assert.Equal($"{productKey}.{deviceName}", cs[0]);
             Assert.Equal("_v=newlife-mqtt-1.0", cs[2]);
-            Assert.Equal("securemode=2", cs[3]);
-            Assert.Equal("signmethod=hmacsha256", cs[4]);
-            Assert.Empty(cs[5]);
+            Assert.Equal("language=C#", cs[3]);
+            Assert.Equal("_m=NewLife.MQTT", cs[4]);
+            Assert.Equal("securemode=3", cs[5]);
+            Assert.Equal("signmethod=hmacsha256", cs[6]);
+            Assert.Empty(cs[7]);
         }
     }
 }
