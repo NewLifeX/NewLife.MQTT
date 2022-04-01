@@ -5,6 +5,7 @@ on:
     branches: [ '*' ]
   pull_request:
     branches: [ '*' ]
+  workflow_dispatch:
 
 jobs:
   build-publish:
@@ -21,14 +22,8 @@ jobs:
       run: |
         dotnet build -c Release
 
-    - name: Start EMQ X
-      uses: namoshek/emqx-github-action@v1
-      with:
-        version: '4.2.5'
-        ports: '1883:1883 8883:8883'
-        certificates: ${{ github.workspace }}/.ci/tls-certificates
-        config: ${{ github.workspace }}/.ci/emqx.conf
-        container-name: 'mqtt'
+    - name: Setup EMQ
+      uses: nnhy/emqx-github-action
 
     - name: Test
       run: |
