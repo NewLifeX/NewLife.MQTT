@@ -21,7 +21,7 @@
   <PropertyGroup>
     <PackageId>$(AssemblyName)</PackageId>
     <Authors>$(Company)</Authors>
-    <ProjectUrl>https://www.yuque.com/smartstone/nx/mqtt</ProjectUrl>
+    <ProjectUrl>https://newlifex.com/core/mqtt</ProjectUrl>
     <PackageIcon>leaf.png</PackageIcon>
     <RepositoryUrl>https://github.com/NewLifeX/NewLife.MQTT</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -47,6 +47,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="9.0.2022.401" />
+    <PackageReference Include="NewLife.Core" Version="9.0.2022.427-beta0344" />
   </ItemGroup>
 </Project>
