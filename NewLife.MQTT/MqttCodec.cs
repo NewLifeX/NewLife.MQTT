@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using NewLife.Data;
+﻿using NewLife.Data;
 using NewLife.Messaging;
 using NewLife.Model;
 using NewLife.MQTT.Messaging;
@@ -12,7 +9,7 @@ namespace NewLife.MQTT
     /// <summary>编码器</summary>
     internal class MqttCodec : MessageCodec<MqttMessage>
     {
-        private readonly MqttFactory _Factory = new MqttFactory();
+        private readonly MqttFactory _Factory = new();
 
         /// <summary>实例化编码器</summary>
         public MqttCodec() => UserPacket = false;
@@ -44,7 +41,7 @@ namespace NewLife.MQTT
         protected override IList<MqttMessage> Decode(IHandlerContext context, Packet pk)
         {
             var ss = context.Owner as IExtend;
-            if (ss["Codec"] is not PacketCodec pc) 
+            if (ss["Codec"] is not PacketCodec pc)
                 ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
 
             var pks = pc.Parse(pk);

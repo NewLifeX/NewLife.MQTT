@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
@@ -28,7 +24,7 @@ namespace NewLife.MQTT
         /// <summary>服务器地址</summary>
         public String Server { get; set; }
 
-        /// <summary>客户端标识。必填项</summary>
+        /// <summary>客户端标识。应用可能多实例部署，ip@proccessid</summary>
         public String ClientId { get; set; }
 
         /// <summary>用户名</summary>
@@ -60,7 +56,16 @@ namespace NewLife.MQTT
 
         #region 构造
         /// <summary>实例化Mqtt客户端</summary>
-        public MqttClient() => Name = GetType().Name.TrimEnd("Client");
+        public MqttClient()
+        {
+            Name = GetType().Name.TrimEnd("Client");
+
+            try
+            {
+                ClientId = $"{NetHelper.MyIP()}@{Process.GetCurrentProcess().Id}";
+            }
+            catch { }
+        }
 
         /// <summary>销毁</summary>
         /// <param name="disposing"></param>
@@ -149,7 +154,7 @@ namespace NewLife.MQTT
             // 性能埋点
             using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
 
-            if (LogMessage)
+            if (Log != null && Log.Level <= LogLevel.Debug)
             {
                 if (msg is PublishMessage pm)
                     WriteLog("=> {0} {1}", msg, pm.Payload.ToStr());
@@ -172,7 +177,7 @@ namespace NewLife.MQTT
 
                 var rs = await client.SendMessageAsync(msg);
 
-                if (LogMessage) WriteLog("<= {0}", rs as MqttMessage);
+                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs as MqttMessage);
 
                 return rs as MqttMessage;
             }
@@ -195,7 +200,13 @@ namespace NewLife.MQTT
         {
             if (e.Message is not MqttMessage msg || msg.Reply) return;
 
-            if (LogMessage) WriteLog("<= {0}", msg);
+            if (Log != null && Log.Level <= LogLevel.Debug)
+            {
+                if (msg is PublishMessage pm)
+                    WriteLog("<= {0} {1}", msg, pm.Payload.ToStr());
+                else
+                    WriteLog("<= {0}", msg);
+            }
 
             // 性能埋点
             using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
@@ -206,7 +217,7 @@ namespace NewLife.MQTT
                 {
                     var ss = sender as ISocketRemote;
 
-                    if (LogMessage) WriteLog("=> {0}", rs);
+                    if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", rs);
 
                     ss.SendMessage(rs);
                 }
@@ -228,9 +239,7 @@ namespace NewLife.MQTT
         {
             if (msg is PubRel pr) return new PubComp { Id = pr.Id };
             if (msg is not PublishMessage pm) return null;
-#if DEBUG
-            WriteLog("{0}", pm.Payload.ToStr());
-#endif
+
             // 模糊匹配
             foreach (var item in _subs)
             {
@@ -240,10 +249,7 @@ namespace NewLife.MQTT
                     sub.Callback(pm);
                 }
             }
-            // 订阅委托，暂时还不支持模糊匹配
-            //if (_subs.TryGetValue(pm.Topic, out var func))
-            //    func(pm);
-            //模糊匹配         
+
             if (Received != null)
             {
                 var e = new EventArgs<PublishMessage>(pm);
@@ -267,7 +273,6 @@ namespace NewLife.MQTT
         #endregion
 
         #region 连接
-
         /// <summary>
         /// 断开连接时
         /// </summary>
@@ -316,7 +321,6 @@ namespace NewLife.MQTT
             var rs = (await SendAsync(message)) as ConnAck;
 
             var e = new EventArgs();
-
             Connected?.Invoke(this, e);
 
             // 断线重连后，重新订阅已订阅消息
@@ -338,8 +342,6 @@ namespace NewLife.MQTT
         /// <returns></returns>
         public async Task DisconnectAsync()
         {
-            if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
-
             var message = new DisconnectMessage();
 
             await SendAsync(message, false);
@@ -362,7 +364,6 @@ namespace NewLife.MQTT
             WriteLog("尝试重新连接");
             ConnectAsync().GetAwaiter();
         }
-
         #endregion
 
         #region 发布
@@ -429,6 +430,7 @@ namespace NewLife.MQTT
         /// <returns></returns>
         protected virtual Packet Serialize(Object data)
         {
+            if (data is Packet pk) return pk;
             if (data is Byte[] buf) return buf;
             if (data is String str) return str.GetBytes();
 
@@ -528,10 +530,7 @@ namespace NewLife.MQTT
 
         #region 日志
         /// <summary>日志</summary>
-        public ILog Log { get; set; } = Logger.Null;
-
-        /// <summary>是否记录消息日志。仅用于开发调试，不建议在生产环境使用，默认false</summary>
-        public Boolean LogMessage { get; set; }
+        public ILog Log { get; set; }
 
         /// <summary>写日志</summary>
         /// <param name="format"></param>

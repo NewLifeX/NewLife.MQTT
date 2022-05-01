@@ -13,6 +13,8 @@ namespace Test
             MachineInfo.RegisterAsync();
             XTrace.UseConsole();
 
+            XTrace.Log.Level = LogLevel.Debug;
+
             Console.Write("输出要执行的测试方法序号：");
             var idx = Console.ReadLine().ToInt();
 
@@ -62,7 +64,6 @@ namespace Test
             _mc = new MqttClient
             {
                 Log = XTrace.Log,
-                LogMessage = true,
                 Server = "tcp://129.211.129.92:1883",
                 //UserName = "admin",
                 //Password = "admin",
