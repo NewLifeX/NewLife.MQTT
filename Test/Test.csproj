@@ -18,7 +18,7 @@
   <ItemGroup>
     <PackageReference Include="DotNetty.Codecs.Mqtt" Version="0.7.2" />
     <PackageReference Include="MQTTnet" Version="3.1.2" />
-    <PackageReference Include="NewLife.Core" Version="9.0.2022.427-beta0344" />
+    <PackageReference Include="NewLife.Core" Version="9.1.2022.501" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />
