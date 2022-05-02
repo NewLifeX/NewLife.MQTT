@@ -52,6 +52,8 @@ namespace NewLife.MQTT
         public ITracer Tracer { get; set; }
 
         private ISocketClient _Client;
+
+        private Int32 _taskCanceledCount;
         #endregion
 
         #region 构造
@@ -177,13 +179,35 @@ namespace NewLife.MQTT
 
                 var rs = await client.SendMessageAsync(msg);
 
+                // 重置
+                _taskCanceledCount = 0;
+
                 if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs as MqttMessage);
 
                 return rs as MqttMessage;
             }
+            catch (TaskCanceledException ex)
+            {
+                span?.SetError(ex, msg);
+
+                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("发送超时，任务取消=> {0}", msg as MqttMessage);
+
+                // 超过三次，销毁连接
+                if (_taskCanceledCount++ > 3)
+                {
+                    if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("发送超时超过三次，销毁，下次使用另一个地址");
+
+                    // 销毁，下次使用另一个地址
+                    client.TryDispose();
+                }
+
+                throw;
+            }
             catch (Exception ex)
             {
                 span?.SetError(ex, msg);
+
+                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("销毁，下次使用另一个地址");
 
                 // 销毁，下次使用另一个地址
                 client.TryDispose();
