@@ -1,7 +1,5 @@
-﻿using System;
-using System.Reflection;
-using NewLife;
-using NewLife.Log;
+﻿using NewLife.Log;
+using NewLife.Model;
 using NewLife.MQTT;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
@@ -58,12 +56,18 @@ namespace Test
         private static MqttServer _server;
         private static async void Test2()
         {
+            var ioc = ObjectContainer.Current;
+            ioc.AddSingleton<ILog>(XTrace.Log);
+            ioc.AddTransient<IMqttHandler, MyHandler>();
+
             var server = new MqttServer
             {
+                Provider = ioc.BuildServiceProvider(),
+
                 Log = XTrace.Log,
                 SessionLog = XTrace.Log,
             };
-            server.AddHandler(new MyHandler());
+            //server.AddHandler(new MyHandler());
             server.Start();
 
             _server = server;
@@ -81,37 +85,38 @@ namespace Test
                 var qos = (QualityOfService)(i % 3);
 
                 await client.PublishAsync("test", new { name = "p" + i, value = Rand.Next() }, qos);
+
+                await Task.Delay(1000);
             }
 
             await client.DisconnectAsync();
         }
 
-        class MyHandler
+        private class MyHandler : MqttHandler
         {
-            [MqttType(MqttType.Connect)]
-            public MqttMessage OnConnect(INetSession session, MqttMessage message)
-            {
-                var conn = message as ConnectMessage;
+            private readonly ILog _log;
 
-                return new ConnAck { ReturnCode = ConnectReturnCode.Accepted };
+            public MyHandler(ILog log) => _log = log;
+
+            protected override ConnAck OnConnect(INetSession session, ConnectMessage message)
+            {
+                _log.Info("客户端[{0}]连接 user={0} pass={1} clientId={2}", session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+
+                return base.OnConnect(session, message);
             }
 
-            [MqttType(MqttType.Disconnect)]
-            public MqttMessage OnDisconnect(INetSession session, MqttMessage message)
+            protected override MqttMessage OnDisconnect(INetSession session, DisconnectMessage message)
             {
-                var conn = message as DisconnectMessage;
+                _log.Info("客户端[{0}]断开", session.Remote);
 
-                //session.Dispose();
-
-                return conn;
+                return base.OnDisconnect(session, message);
             }
 
-            [MqttType(MqttType.Publish)]
-            public MqttMessage OnPublish(INetSession session, MqttMessage message)
+            protected override MqttIdMessage OnPublish(INetSession session, PublishMessage message)
             {
-                var conn = message as PublishMessage;
+                _log.Info("发布[{0}:qos={1}]: {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
 
-                return new PubAck();
+                return base.OnPublish(session, message);
             }
         }
 
