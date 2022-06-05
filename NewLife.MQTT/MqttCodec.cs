@@ -4,86 +4,85 @@ using NewLife.Model;
 using NewLife.MQTT.Messaging;
 using NewLife.Net.Handlers;
 
-namespace NewLife.MQTT
+namespace NewLife.MQTT;
+
+/// <summary>编码器</summary>
+public class MqttCodec : MessageCodec<MqttMessage>
 {
-    /// <summary>编码器</summary>
-    internal class MqttCodec : MessageCodec<MqttMessage>
+    private readonly MqttFactory _Factory = new();
+
+    /// <summary>实例化编码器</summary>
+    public MqttCodec() => UserPacket = false;
+
+    /// <summary>编码</summary>
+    /// <param name="context"></param>
+    /// <param name="msg"></param>
+    /// <returns></returns>
+    protected override Object Encode(IHandlerContext context, MqttMessage msg)
     {
-        private readonly MqttFactory _Factory = new();
+        if (msg is MqttMessage cmd) return cmd.ToPacket();
 
-        /// <summary>实例化编码器</summary>
-        public MqttCodec() => UserPacket = false;
+        return null;
+    }
 
-        /// <summary>编码</summary>
-        /// <param name="context"></param>
-        /// <param name="msg"></param>
-        /// <returns></returns>
-        protected override Object Encode(IHandlerContext context, MqttMessage msg)
+    /// <summary>加入队列</summary>
+    /// <param name="context"></param>
+    /// <param name="msg"></param>
+    /// <returns></returns>
+    protected override void AddToQueue(IHandlerContext context, MqttMessage msg)
+    {
+        if (!msg.Reply) base.AddToQueue(context, msg);
+    }
+
+    /// <summary>解码</summary>
+    /// <param name="context"></param>
+    /// <param name="pk"></param>
+    /// <returns></returns>
+    protected override IList<MqttMessage> Decode(IHandlerContext context, Packet pk)
+    {
+        var ss = context.Owner as IExtend;
+        if (ss["Codec"] is not PacketCodec pc)
+            ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
+
+        var pks = pc.Parse(pk);
+        var list = pks.Select(_Factory.ReadMessage).ToList();
+
+        return list;
+    }
+
+    /// <summary>连接关闭时，清空粘包编码器</summary>
+    /// <param name="context"></param>
+    /// <param name="reason"></param>
+    /// <returns></returns>
+    public override Boolean Close(IHandlerContext context, String reason)
+    {
+        if (context.Owner is IExtend ss) ss["Codec"] = null;
+
+        return base.Close(context, reason);
+    }
+
+    /// <summary>是否匹配响应</summary>
+    /// <param name="request"></param>
+    /// <param name="response"></param>
+    /// <returns></returns>
+    protected override Boolean IsMatch(Object request, Object response)
+    {
+        if (request is not MqttMessage req || response is not MqttMessage res) return false;
+
+        // 请求响应前后配对
+        if (req.Reply || !res.Reply) return false;
+
+        // 要求Id匹配
+        if (request is not MqttIdMessage req2 ||
+            response is not MqttIdMessage res2 ||
+            req2.Id == res2.Id)
         {
-            if (msg is MqttMessage cmd) return cmd.ToPacket();
+            if (req.Type + 1 == res.Type) return true;
 
-            return null;
+            // 特殊处理Public
+            if (req.Type == MqttType.Publish && (res.Type == MqttType.PubAck || res.Type == MqttType.PubRec)) return true;
         }
 
-        /// <summary>加入队列</summary>
-        /// <param name="context"></param>
-        /// <param name="msg"></param>
-        /// <returns></returns>
-        protected override void AddToQueue(IHandlerContext context, MqttMessage msg)
-        {
-            if (!msg.Reply) base.AddToQueue(context, msg);
-        }
-
-        /// <summary>解码</summary>
-        /// <param name="context"></param>
-        /// <param name="pk"></param>
-        /// <returns></returns>
-        protected override IList<MqttMessage> Decode(IHandlerContext context, Packet pk)
-        {
-            var ss = context.Owner as IExtend;
-            if (ss["Codec"] is not PacketCodec pc)
-                ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
-
-            var pks = pc.Parse(pk);
-            var list = pks.Select(_Factory.ReadMessage).ToList();
-
-            return list;
-        }
-
-        /// <summary>连接关闭时，清空粘包编码器</summary>
-        /// <param name="context"></param>
-        /// <param name="reason"></param>
-        /// <returns></returns>
-        public override Boolean Close(IHandlerContext context, String reason)
-        {
-            if (context.Owner is IExtend ss) ss["Codec"] = null;
-
-            return base.Close(context, reason);
-        }
-
-        /// <summary>是否匹配响应</summary>
-        /// <param name="request"></param>
-        /// <param name="response"></param>
-        /// <returns></returns>
-        protected override Boolean IsMatch(Object request, Object response)
-        {
-            if (request is not MqttMessage req || response is not MqttMessage res) return false;
-
-            // 请求响应前后配对
-            if (req.Reply || !res.Reply) return false;
-
-            // 要求Id匹配
-            if (request is not MqttIdMessage req2 ||
-                response is not MqttIdMessage res2 ||
-                req2.Id == res2.Id)
-            {
-                if (req.Type + 1 == res.Type) return true;
-
-                // 特殊处理Public
-                if (req.Type == MqttType.Publish && (res.Type == MqttType.PubAck || res.Type == MqttType.PubRec)) return true;
-            }
-
-            return false;
-        }
+        return false;
     }
 }
