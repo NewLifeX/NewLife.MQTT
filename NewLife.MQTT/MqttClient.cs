@@ -391,16 +391,16 @@ public class MqttClient : DisposeBase
     #endregion
 
     #region 发布
-    /// <summary>
-    /// PublicAsync=>PublishAsync
-    /// </summary>
-    /// <param name="topic"></param>
-    /// <param name="data"></param>
-    /// <param name="qos"></param>
-    /// <returns></returns>
-    [Obsolete("PublicAsync=>PublishAsync", true)]
-    public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
-        QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
+    ///// <summary>
+    ///// PublicAsync=>PublishAsync
+    ///// </summary>
+    ///// <param name="topic"></param>
+    ///// <param name="data"></param>
+    ///// <param name="qos"></param>
+    ///// <returns></returns>
+    //[Obsolete("PublicAsync=>PublishAsync", true)]
+    //public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
+    //    QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
 
     /// <summary>发布消息</summary>
     /// <param name="topic">主题</param>

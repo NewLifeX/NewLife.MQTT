@@ -3,6 +3,10 @@ using System.Reflection;
 using NewLife;
 using NewLife.Log;
 using NewLife.MQTT;
+using NewLife.MQTT.Handlers;
+using NewLife.MQTT.Messaging;
+using NewLife.Net;
+using NewLife.Security;
 
 namespace Test
 {
@@ -10,19 +14,19 @@ namespace Test
     {
         private static void Main(String[] args)
         {
-            MachineInfo.RegisterAsync();
+            //MachineInfo.RegisterAsync();
             XTrace.UseConsole();
 
             XTrace.Log.Level = LogLevel.Debug;
 
-            Console.Write("输出要执行的测试方法序号：");
-            var idx = Console.ReadLine().ToInt();
+            //Console.Write("输出要执行的测试方法序号：");
+            //var idx = Console.ReadLine().ToInt();
 
             try
             {
-                //Test1();
-                var mi = typeof(Program).GetMethod("Test" + idx, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                if (mi != null) mi.Invoke(null, null);
+                Test2();
+                //var mi = typeof(Program).GetMethod("Test" + idx, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                //if (mi != null) mi.Invoke(null, null);
             }
             catch (Exception ex)
             {
@@ -51,10 +55,46 @@ namespace Test
 
         }
 
-        private static void Test2()
+        private static MqttServer _server;
+        private static async void Test2()
         {
-            var mi = MachineInfo.Current;
+            var server = new MqttServer
+            {
+                Log = XTrace.Log,
+                SessionLog = XTrace.Log,
+            };
+            server.AddHandler(new MyHandler());
+            server.Start();
 
+            _server = server;
+
+            var client = new MqttClient
+            {
+                Server = "tcp://127.0.0.1:1883",
+                Log = XTrace.Log
+            };
+
+            await client.ConnectAsync();
+
+            for (var i = 0; i < 10; i++)
+            {
+                var qos = (QualityOfService)(i % 3);
+
+                await client.PublishAsync("test", new { name = "p" + i, value = Rand.Next() }, qos);
+            }
+
+            await client.DisconnectAsync();
+        }
+
+        class MyHandler
+        {
+            [MqttType(MqttType.Connect)]
+            public MqttMessage OnConnect(INetSession session, MqttMessage message)
+            {
+                var conn = message as ConnectMessage;
+
+                return new ConnAck { ReturnCode = ConnectReturnCode.Accepted };
+            }
         }
 
         private static MqttClient _mc;
