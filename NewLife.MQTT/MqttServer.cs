@@ -90,6 +90,9 @@ public class MqttSession : NetSession<MqttServer>
             // 处理响应
             if (result != null)
             {
+                // 匹配Id
+                if (result is MqttIdMessage response && response.Id == 0 && msg is MqttIdMessage request) response.Id = request.Id;
+
                 if (debug) WriteLog("=> {0}", result);
 
                 Session.SendMessage(result);
@@ -98,5 +101,7 @@ public class MqttSession : NetSession<MqttServer>
 
         // 父级 OnReceive 触发事件，调用 NetServer.OnReceive
         base.OnReceive(e);
+
+        if (msg != null && msg.Type == MqttType.Disconnect) Dispose();
     }
 }

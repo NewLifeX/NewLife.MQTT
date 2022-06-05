@@ -95,6 +95,24 @@ namespace Test
 
                 return new ConnAck { ReturnCode = ConnectReturnCode.Accepted };
             }
+
+            [MqttType(MqttType.Disconnect)]
+            public MqttMessage OnDisconnect(INetSession session, MqttMessage message)
+            {
+                var conn = message as DisconnectMessage;
+
+                //session.Dispose();
+
+                return conn;
+            }
+
+            [MqttType(MqttType.Publish)]
+            public MqttMessage OnPublish(INetSession session, MqttMessage message)
+            {
+                var conn = message as PublishMessage;
+
+                return new PubAck();
+            }
         }
 
         private static MqttClient _mc;
