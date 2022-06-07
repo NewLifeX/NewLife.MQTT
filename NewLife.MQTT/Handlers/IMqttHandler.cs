@@ -24,34 +24,17 @@ public abstract class MqttHandler : IMqttHandler
     public virtual MqttMessage Process(INetSession session, MqttMessage message)
     {
         MqttMessage rs = null;
-        switch (message.Type)
+        rs = message.Type switch
         {
-            case MqttType.Connect:
-                rs = OnConnect(session, message as ConnectMessage);
-                break;
-            case MqttType.Publish:
-                rs = OnPublish(session, message as PublishMessage);
-                break;
-            case MqttType.PubRel:
-                rs = OnPublishRelease(session, message as PubRel);
-                break;
-            case MqttType.Subscribe:
-                rs = OnSubscribe(session, message as SubscribeMessage);
-                break;
-            case MqttType.UnSubscribe:
-                rs = OnUnsubscribe(session, message as UnsubscribeMessage);
-                break;
-            case MqttType.PingReq:
-                rs = OnPing(session, message as PingRequest);
-                break;
-            case MqttType.Disconnect:
-                rs = OnDisconnect(session, message as DisconnectMessage);
-                break;
-            default:
-                rs = null;
-                break;
-        }
-
+            MqttType.Connect => OnConnect(session, message as ConnectMessage),
+            MqttType.Publish => OnPublish(session, message as PublishMessage),
+            MqttType.PubRel => OnPublishRelease(session, message as PubRel),
+            MqttType.Subscribe => OnSubscribe(session, message as SubscribeMessage),
+            MqttType.UnSubscribe => OnUnsubscribe(session, message as UnsubscribeMessage),
+            MqttType.PingReq => OnPing(session, message as PingRequest),
+            MqttType.Disconnect => OnDisconnect(session, message as DisconnectMessage),
+            _ => null,
+        };
         return rs;
     }
 

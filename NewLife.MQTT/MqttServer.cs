@@ -9,9 +9,6 @@ namespace NewLife.MQTT;
 /// <summary>MQTT服务端</summary>
 public class MqttServer : NetServer<MqttSession>
 {
-    ///// <summary>处理器集合</summary>
-    //public Dictionary<MqttType, MqttHandler> Handlers = new();
-
     /// <summary>服务提供者</summary>
     public IServiceProvider Provider { get; set; }
 
@@ -25,39 +22,6 @@ public class MqttServer : NetServer<MqttSession>
 
         base.OnStart();
     }
-
-    ///// <summary>注册类型处理器</summary>
-    ///// <typeparam name="T"></typeparam>
-    //public void AddHandler<T>(T handler)
-    //{
-    //    var type = handler.GetType();
-    //    foreach (var item in type.GetMethods())
-    //    {
-    //        if (item.IsStatic) continue;
-    //        if (item.ReturnType != typeof(MqttMessage)) continue;
-
-    //        // 参数匹配
-    //        var pis = item.GetParameters();
-    //        if (pis.Length != 2) continue;
-
-    //        // 获取类型
-    //        var att = item.GetCustomAttribute<MqttTypeAttribute>();
-    //        if (att != null)
-    //        {
-    //            Handlers[att.Kind] = item.As<MqttHandler>(handler);
-    //        }
-    //    }
-    //}
-
-    ///// <summary>获取消息处理器</summary>
-    ///// <param name="type"></param>
-    ///// <returns></returns>
-    //public MqttHandler GetHandler(MqttType type)
-    //{
-    //    if (Handlers.TryGetValue(type, out var handler)) return handler;
-
-    //    return null;
-    //}
 
     /// <summary>处理请求</summary>
     /// <param name="session"></param>
