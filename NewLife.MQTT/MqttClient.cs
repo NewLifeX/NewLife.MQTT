@@ -422,13 +422,13 @@ public class MqttClient : DisposeBase
         return await PublishAsync(message);
     }
 
-    /// <summary>
-    /// PublicAsync=>PublishAsync
-    /// </summary>
-    /// <param name="message"></param>
-    /// <returns></returns>
-    [Obsolete("PublicAsync=>PublishAsync")]
-    public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
+    ///// <summary>
+    ///// PublicAsync=>PublishAsync
+    ///// </summary>
+    ///// <param name="message"></param>
+    ///// <returns></returns>
+    //[Obsolete("PublicAsync=>PublishAsync")]
+    //public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
 
     /// <summary>发布消息</summary>
     /// <param name="message"></param>
