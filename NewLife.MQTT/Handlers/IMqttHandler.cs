@@ -29,6 +29,7 @@ public abstract class MqttHandler : IMqttHandler
             MqttType.Connect => OnConnect(session, message as ConnectMessage),
             MqttType.Publish => OnPublish(session, message as PublishMessage),
             MqttType.PubRel => OnPublishRelease(session, message as PubRel),
+            MqttType.PubRec => OnPublishReceive(session, message as PubRec),
             MqttType.Subscribe => OnSubscribe(session, message as SubscribeMessage),
             MqttType.UnSubscribe => OnUnsubscribe(session, message as UnsubscribeMessage),
             MqttType.PingReq => OnPing(session, message as PingRequest),
@@ -76,6 +77,12 @@ public abstract class MqttHandler : IMqttHandler
     /// <param name="message">消息</param>
     /// <returns></returns>
     protected virtual PubComp OnPublishRelease(INetSession session, PubRel message) => new();
+
+    /// <summary>收到发布已接收消息时</summary>
+    /// <param name="session">网络会话</param>
+    /// <param name="message">消息</param>
+    /// <returns></returns>
+    protected virtual PubRel OnPublishReceive(INetSession session, PubRec message) => new();
 
     /// <summary>收到订阅请求时</summary>
     /// <param name="session">网络会话</param>
