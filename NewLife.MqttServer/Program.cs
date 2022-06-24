@@ -1,51 +1,44 @@
-﻿using System;
-using NewLife.Agent;
-using NewLife.Log;
+﻿using NewLife.Log;
+using NewLife.Model;
 using NewLife.MQTT;
+using NewLife.MQTT.Handlers;
+using NewLife.MqttServer;
+using NewLife.MQTTServer;
+using Stardust;
 
-namespace NewLife.MQTTServer
+// 启用控制台日志，拦截所有异常
+XTrace.UseConsole();
+
+// 初始化对象容器，提供注入能力
+var services = ObjectContainer.Current;
+services.AddSingleton(XTrace.Log);
+
+// 配置星尘。自动读取配置文件 config/star.config 中的服务器地址
+var star = new StarFactory();
+
+// 配置
+var set = MqttSetting.Current;
+
+// 注册MQTT Broker的指令处理器
+services.AddTransient<IMqttHandler, MqttController>();
+
+// 服务器
+var svr = new MqttServer()
 {
-    class Program
-    {
-        static void Main(String[] args) => new MyService().Main(args);
+    Port = set.Port,
+    Provider = services.BuildServiceProvider(),
 
-        class MyService : ServiceBase
-        {
-            public MyService()
-            {
-                ServiceName = "MqttServer";
-                DisplayName = "MQTT服务器";
-            }
+    Tracer = star.Tracer,
+    Log = XTrace.Log,
+};
 
-            private MqttServer _Server;
-            protected override void StartWork(String reason)
-            {
-                // 配置
-                var set = Setting.Current;
+if (set.Debug) svr.SessionLog = XTrace.Log;
 
-                // 服务器
-                var svr = new MqttServer()
-                {
-                    Port = set.Port,
-                    Log = XTrace.Log,
-                };
+svr.Start();
 
-                if (set.Debug) svr.SessionLog = XTrace.Log;
+// 注册后台任务 IHostedService
+var host = services.BuildHost();
+//host.Add<Worker>();
 
-                svr.Start();
-
-                _Server = svr;
-
-                base.StartWork(reason);
-            }
-
-            protected override void StopWork(String reason)
-            {
-                _Server.TryDispose();
-                _Server = null;
-
-                base.StopWork(reason);
-            }
-        }
-    }
-}
+// 异步阻塞，友好退出
+await host.RunAsync();

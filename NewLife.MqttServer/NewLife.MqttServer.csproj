@@ -3,25 +3,26 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net6.0</TargetFrameworks>
+    <AssemblyName>MqttServer</AssemblyName>
     <Namespace>NewLife.MQTTServer</Namespace>
     <AssemblyTitle>新生命MQTT服务器</AssemblyTitle>
     <Description>新生命MQTT服务器</Description>
     <Company>新生命开发团队</Company>
-    <Copyright>版权所有(C) 新生命开发团队 2002~2020</Copyright>
-    <Version>1.0.2019.0902</Version>
-    <FileVersion>1.0.2019.0902</FileVersion>
-    <AssemblyVersion>1.0.*</AssemblyVersion>
+    <Copyright>版权所有(C) 新生命开发团队 2002~2022</Copyright>
+    <VersionPrefix>1.0</VersionPrefix>
+    <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
+    <Version>$(VersionPrefix).$(VersionSuffix)</Version>
+    <FileVersion>$(Version)</FileVersion>
+    <AssemblyVersion>$(VersionPrefix).*</AssemblyVersion>
     <Deterministic>false</Deterministic>
-    <OutputPath>..\BinServer</OutputPath>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
+    <OutputPath>..\Bin\Server</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Agent" Version="9.1.2022.501" />
     <PackageReference Include="NewLife.Core" Version="9.2.2022.601" />
+    <PackageReference Include="NewLife.Stardust" Version="2.2.2022.601" />
   </ItemGroup>
 
   <ItemGroup>
