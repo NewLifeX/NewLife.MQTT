@@ -44,9 +44,14 @@ public class MqttClient : DisposeBase
     public Boolean Reconnect { get; set; } = true;
 
     /// <summary>
+    /// 连接成功后赋值为true
+    /// </summary>
+    private Boolean _isConnected = false;
+
+    /// <summary>
     /// 是否处于连接状态
     /// </summary>
-    public Boolean IsConnected => _Client != null && _Client.Active && !_Client.Disposed;
+    public Boolean IsConnected => _isConnected == true && _Client != null && _Client.Active && !_Client.Disposed;
 
     /// <summary>性能跟踪</summary>
     public ITracer Tracer { get; set; }
@@ -344,6 +349,16 @@ public class MqttClient : DisposeBase
 
         var rs = (await SendAsync(message)) as ConnAck;
 
+        // 判断响应，是否成功连接
+        if (rs.ReturnCode != ConnectReturnCode.Accepted)
+        {
+            var errMsg = $"连接失败，参数：{message.ToJson()}，原因：{rs.ReturnCode}";
+            WriteLog(errMsg);
+            throw new Exception(errMsg);
+        }
+
+        _isConnected = true;
+
         var e = new EventArgs();
         Connected?.Invoke(this, e);
 
@@ -381,6 +396,8 @@ public class MqttClient : DisposeBase
 
     private void Client_Closed(Object sender, EventArgs e)
     {
+        _isConnected = false;
+
         WriteLog("断开连接");
         Disconnected?.Invoke(this, e);
 
@@ -542,6 +559,11 @@ public class MqttClient : DisposeBase
     /// <returns></returns>
     public async Task<PingResponse> PingAsync()
     {
+        if (!IsConnected)
+        {
+            WriteLog("未连接成功，不发送ping报文"); return (PingResponse)null;
+        }
+
         var message = new PingRequest();
 
         var rs = (await SendAsync(message)) as PingResponse;
