@@ -88,7 +88,12 @@ public abstract class MqttHandler : IMqttHandler
     /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual SubAck OnSubscribe(INetSession session, SubscribeMessage message) => new();
+    protected virtual SubAck OnSubscribe(INetSession session, SubscribeMessage message) => new()
+    {
+        GrantedQos = message.Requests.Select(x => x.QualityOfService).ToList(),
+        Id = message.Id,
+        QoS = message.QoS
+    };
 
     /// <summary>收到取消订阅时</summary>
     /// <param name="session">网络会话</param>

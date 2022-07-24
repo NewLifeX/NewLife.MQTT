@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Security.Authentication;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
@@ -23,6 +24,9 @@ public class MqttClient : DisposeBase
 
     /// <summary>服务器地址</summary>
     public String Server { get; set; }
+
+    /// <summary>是否进行SSL连接</summary>
+    public Boolean UseSSL { get; set; } = false;
 
     /// <summary>客户端标识。应用可能多实例部署，ip@proccessid</summary>
     public String ClientId { get; set; }
@@ -125,12 +129,19 @@ public class MqttClient : DisposeBase
             WriteLog("正在连接[{0}]", uri);
 
             client = uri.CreateRemote();
+
             client.Log = Log;
             client.Timeout = Timeout;
             client.Add(new MqttCodec());
 
             // 关闭Tcp延迟以合并小包的算法，降低延迟
             if (client is TcpSession tcp) tcp.NoDelay = true;
+
+            if (UseSSL)
+            {
+                if (client is TcpSession tcp2) tcp2.SslProtocol = SslProtocols.Tls12;
+                else throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
+            }
 
             client.Received += Client_Received;
             client.Closed += Client_Closed;
