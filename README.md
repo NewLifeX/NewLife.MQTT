@@ -6,6 +6,10 @@
 ![Nuget](https://img.shields.io/nuget/v/newlife.mqtt?logo=nuget)
 ![Nuget (with prereleases)](https://img.shields.io/nuget/vpre/newlife.mqtt?label=dev%20nuget&logo=nuget)
 
+MQTT协议是物联网领域最流行的通信协议！  
+NewLife.MQTT包含了MQTT的完整实现，并实现了客户端MqttClient，以及服务端MqttServer。  
+其中MqttServer仅实现基本网络框架，支持消息收发，完整的消息交换功能位于商用版IoT平台NewLife.IoT中。  
+
 ## MQTT协议
 最流行的物联网通信协议MQTT，包括客户端、服务端和Web管理平台。  
 

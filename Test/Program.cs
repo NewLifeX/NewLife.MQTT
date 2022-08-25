@@ -56,19 +56,19 @@ namespace Test
         private static MqttServer _server;
         private static async void Test2()
         {
-            //var ioc = ObjectContainer.Current;
-            //ioc.AddSingleton<ILog>(XTrace.Log);
-            //ioc.AddTransient<IMqttHandler, MyHandler>();
+            var ioc = ObjectContainer.Current;
+            ioc.AddSingleton<ILog>(XTrace.Log);
+            ioc.AddTransient<IMqttHandler, MyHandler>();
 
-            //var server = new MqttServer
-            //{
-            //    Provider = ioc.BuildServiceProvider(),
+            var server = new MqttServer
+            {
+                Provider = ioc.BuildServiceProvider(),
 
-            //    Log = XTrace.Log,
-            //    SessionLog = XTrace.Log,
-            //};
-            ////server.AddHandler(new MyHandler());
-            //server.Start();
+                Log = XTrace.Log,
+                SessionLog = XTrace.Log,
+            };
+            //server.AddHandler(new MyHandler());
+            server.Start();
 
             //_server = server;
 
