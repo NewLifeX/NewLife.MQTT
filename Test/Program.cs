@@ -70,26 +70,26 @@ namespace Test
             //server.AddHandler(new MyHandler());
             server.Start();
 
-            //_server = server;
+            _server = server;
 
-            var client = new MqttClient
-            {
-                Server = "tcp://127.0.0.1:1883",
-                Log = XTrace.Log
-            };
+            //var client = new MqttClient
+            //{
+            //    Server = "tcp://127.0.0.1:1883",
+            //    Log = XTrace.Log
+            //};
 
-            await client.ConnectAsync();
+            //await client.ConnectAsync();
 
-            for (var i = 0; i < 10; i++)
-            {
-                var qos = (QualityOfService)(i % 3);
+            //for (var i = 0; i < 10; i++)
+            //{
+            //    var qos = (QualityOfService)(i % 3);
 
-                await client.PublishAsync("test", new { name = "p" + i, value = Rand.Next() }, qos);
+            //    await client.PublishAsync("test", new { name = "p" + i, value = Rand.Next() }, qos);
 
-                await Task.Delay(1000);
-            }
+            //    await Task.Delay(1000);
+            //}
 
-            await client.DisconnectAsync();
+            //await client.DisconnectAsync();
         }
 
         private class MyHandler : MqttHandler

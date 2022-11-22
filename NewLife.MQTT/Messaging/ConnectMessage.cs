@@ -89,6 +89,9 @@ public sealed class ConnectMessage : MqttMessage
 
     /// <summary>遗嘱消息</summary>
     public Packet WillMessage { get; set; }
+
+    /// <summary>属性集合。MQTT5.0</summary>
+    public IDictionary<Byte, UInt32> Properties { get; set; }
     #endregion
 
     #region 构造
@@ -124,6 +127,24 @@ public sealed class ConnectMessage : MqttMessage
 
         // 连接超时
         KeepAliveInSeconds = stream.ReadBytes(2).ToUInt16(0, false);
+
+        // MQTT5.0 属性集合
+        if (ProtocolLevel >= 5)
+        {
+            var dic = new Dictionary<Byte, UInt32>();
+
+            var len = stream.ReadByte();
+            var buf = stream.ReadBytes(len);
+            for (var i = 0; i < buf.Length / 5; i += 5)
+            {
+                //todo 这里有问题，不同ID的长度不同
+                var id = buf[i];
+                var val = buf.ToUInt32(i + 1, false);
+                dic[id] = val;
+            }
+
+            Properties = dic;
+        }
 
         // CONNECT报文的有效载荷（payload）包含一个或多个以长度为前缀的字段，可变报头中的标志决定是否包含这些字段。
         // 如果包含的话，必须按这个顺序出现：客户端标识符，遗嘱主题，遗嘱消息，用户名，密码 
