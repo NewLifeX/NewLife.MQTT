@@ -23,23 +23,26 @@ public class MqttServer : NetServer<MqttSession>
         base.OnStart();
     }
 
-    /// <summary>处理请求</summary>
-    /// <param name="session"></param>
-    /// <param name="message"></param>
-    /// <returns></returns>
-    /// <exception cref="NotSupportedException"></exception>
-    public virtual MqttMessage Process(INetSession session, MqttMessage message)
-    {
-        var handler = Provider.GetRequiredService<IMqttHandler>();
-        if (handler == null) throw new NotSupportedException("未注册指令处理器");
+    ///// <summary>处理请求</summary>
+    ///// <param name="session"></param>
+    ///// <param name="message"></param>
+    ///// <returns></returns>
+    ///// <exception cref="NotSupportedException"></exception>
+    //public virtual MqttMessage Process(INetSession session, MqttMessage message)
+    //{
+    //    var handler = Provider.GetRequiredService<IMqttHandler>();
+    //    if (handler == null) throw new NotSupportedException("未注册指令处理器");
 
-        return handler.Process(session, message);
-    }
+    //    return handler.Process(session, message);
+    //}
 }
 
 /// <summary>会话</summary>
 public class MqttSession : NetSession<MqttServer>
 {
+    /// <summary>指令处理器</summary>
+    public IMqttHandler Handler { get; set; }
+
     /// <summary>接收指令</summary>
     /// <param name="e"></param>
     protected override void OnReceive(ReceivedEventArgs e)
@@ -50,12 +53,15 @@ public class MqttSession : NetSession<MqttServer>
         if (debug) WriteLog("<={0}", msg);
         if (msg != null)
         {
+            Handler ??= Host.Provider.GetRequiredService<IMqttHandler>();
+            if (Handler == null) throw new NotSupportedException("未注册指令处理器");
+
             MqttMessage result = null;
             using var span = Host.Tracer?.NewSpan($"mqtt:{msg.Type}", msg);
             try
             {
                 // 执行处理器
-                result = Host.Process(this, msg);
+                result = Handler.Process(this, msg);
             }
             catch (Exception ex)
             {
