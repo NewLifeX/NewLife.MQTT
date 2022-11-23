@@ -1,0 +1,149 @@
+@media print {
+	a { text-decoration: none; }
+	:link { color: black; background: transparent }
+	:visited { color: black; background: transparent }
+	:active { color: black; background: transparent }
+	table.bits, table.props { width: 100%; }
+	div#contents, ul.toc { display: none; }
+	#main h1, #commands h2 {page-break-before: always; }
+}
+
+@media screen {
+/*
+	table.bits { width: 800px; margin: auto;}
+	table.bits td { width: 30px;	}
+	table.bits th {	width: 30px; }
+	table.nack { margin: auto; }
+	table.props { width: 1000px; margin: auto; }
+	.prop-name { width: 300px; }
+	.prop-type { width: 100px; }
+	.prop-required { width: 50px; }
+	.prop-desc { width: *; }
+	*/
+	table { margin-left: 3em; }
+	table.bits, table.nack, table.props { width: 800px; }
+	body {
+		margin: 2em 70px 2em 70px;
+		color: black;
+		background: white;
+		background-position: top left;
+		background-attachment: fixed;
+		background-repeat: no-repeat;
+	}
+	
+	body.draft {
+	  background-image: url(status-draft.jpg);
+	}
+	:link { color: #00C; background: transparent }
+	:visited { color: #609; background: transparent }
+	:active { color: #C00; background: transparent }
+	
+	/*
+	#commands h2 {
+		page-break-before: always;
+	}
+	*/
+	#main h1, #abstract, #appendices, #toc, #copyright {
+		border-top: groove #cc66cc 2px;
+	}
+}
+
+body {
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+}
+
+#main h1, #abstract {
+	padding-top: 1.5em;
+	margin-top: 1.5em;
+}
+
+#main h2 {
+	margin-top: 2em;
+	margin-bottom: 1em;
+}
+
+#commands h2 {
+	margin-top: 3em;
+}
+
+h1, h2, h3, h4, h5, h6 { text-align: left }
+h1, h2, h3 {
+	color: #660066;
+	background: white;
+}
+h1 { font: 170% sans-serif }
+h2 { font: 140% sans-serif }
+h3 { font: 120% sans-serif }
+h4 { font: bold 100% sans-serif }
+h5 { font: italic 100% sans-serif }
+h6 { font: small-caps 100% sans-serif }
+
+.hide { display: none }
+
+div.head { margin-bottom: 1em }
+div.head h1 { margin-top: 2em; clear: both }
+div.head table { margin-left: 2em; margin-top: 2em }
+div.head img { color: white; border: none } /* remove border from top image */
+
+pre { margin-left: 2em }
+
+dt { font-weight: bold; margin-top: 10px; margin-bottom: 10px; }
+dt.label { display: run-in; }
+
+pre, code {
+	font-family: monospace;
+}
+
+code.block {
+	white-space: pre;
+	display: block;
+	background-color: #eeeeee;
+	padding: 5px;
+	margin-left: 2em;
+	margin-right: 2em;
+}
+
+
+table { 
+	empty-cells: show; 
+	border-collapse: collapse;
+	border: solid black 1px;
+}
+
+th {
+	background-color: #dedeff;
+}
+
+th, td {
+	border: solid black 1px;
+	padding: 5px;
+	color: black;
+}
+
+td.bit, td.field {
+	text-align: center;
+}
+
+.note {
+	background-color: #ccffcc;
+	font-weight: bold;
+}
+
+.extended, .extended h1, .extended h2, .extended h3 {
+	background-color: #d0d0d0;
+	display: none;
+	font-style: italic;
+}
+
+.core {
+	background-color: #fffacd;
+}
+
+.unused {
+	background-color: #cccccc;
+}
+
+#flows img {
+	margin: auto;
+	display: block;
+}

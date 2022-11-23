@@ -1,0 +1,4506 @@
+
+<!-- saved from url=(0073)https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html -->
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>MQTT V3.1 Protocol Specification</title>
+<link rel="stylesheet" href="./MQTT V3.1 Protocol Specification_files/style.css" type="text/css">
+</head>
+<body>
+<div><img src="./MQTT V3.1 Protocol Specification_files/logo.png">
+<h1>MQTT V3.1 Protocol Specification</h1>
+<dl>
+	<dt>Authors:</dt>
+	<dd><a href="http://www.ibm.com/">International Business Machines Corporation (IBM)</a></dd>
+
+	<dd><a href="http://www.eurotech-inc.com/">Eurotech</a></dd>
+</dl>
+</div>
+
+<div id="abstract">
+<h2>Abstract</h2>
+<p>
+MQ Telemetry Transport (MQTT) is a lightweight broker-based publish/subscribe messaging protocol designed to be open, simple, lightweight and easy to implement. These characteristics make it ideal for use in constrained environments, for example, but not limited to:
+</p>
+<ul>
+<li>Where the network is expensive, has low bandwidth or is unreliable
+</li><li>When run on an embedded device with limited processor or memory resources
+</li></ul>
+<p>
+Features of the protocol include:
+</p>
+<ul>
+<li>The publish/subscribe message pattern to provide one-to-many message distribution and decoupling of applications</li>
+<li>A messaging transport that is agnostic to the content of the payload</li>
+<li>The use of TCP/IP to provide basic network connectivity</li>
+<li>Three qualities of service for message delivery:
+<ul>
+<li>"At most once", where messages are delivered according to the best efforts of the underlying TCP/IP network. Message loss or duplication can occur. This level could be used, for example, with ambient sensor data where it does not matter if an individual reading is lost as the next one will be published soon after.</li>
+<li>"At least once", where messages are assured to arrive but duplicates may occur.</li>
+<li>"Exactly once", where message are assured to arrive exactly once. This level could be used, for example, with billing systems where duplicate or lost messages could lead to incorrect charges being applied.</li>
+</ul>
+</li>
+<li>A small transport overhead (the fixed-length header is just 2 bytes), and protocol exchanges minimised to reduce network traffic</li>
+<li>A mechanism to notify interested parties to an abnormal disconnection of a client using the Last Will and Testament feature</li>
+</ul>
+</div>
+<div id="copyright">
+<h2>Copyright Notice</h2>
+<p>© 1999-2010 Eurotech, International Business Machines Corporation (IBM). All rights reserved.</p>
+<p>Permission to copy and display the MQ Telemetry Transport specification (the "Specification"), in any medium without fee or royalty is hereby granted by Eurotech and International Business Machines Corporation (IBM) (collectively, the "Authors"), provided that you include the following on ALL copies of the Specification, or portions thereof, that you make:
+</p>
+<ol>
+<li>A link or URL to the Specification at one of the Authors' websites.</li>
+<li>The copyright notice as shown in the Specification.</li>
+</ol>
+<p>
+The Authors each agree to grant you a royalty-free license, under reasonable, non-discriminatory terms and conditions to their respective patents that they deem necessary to implement the Specification.
+THE SPECIFICATION IS PROVIDED "AS IS," AND THE AUTHORS MAKE NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THE SPECIFICATION ARE SUITABLE FOR ANY PURPOSE; NOR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+THE AUTHORS WILL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THE SPECIFICATION.
+</p>
+<p>
+The name and trademarks of the Authors may NOT be used in any manner, including advertising or publicity pertaining to the Specification or its contents without specific, written prior permission. Title to copyright in the Specification will at all times remain with the Authors.
+</p>
+<p>No other rights are granted by implication, estoppel or otherwise.</p>
+</div>
+
+
+<div id="toc">
+<h2>Table of Contents</h2>
+<ul class="toc">
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#intro">1. Introduction</a>
+
+		<ul>
+			<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#new">1.1. Changes</a></li>
+		</ul>
+	</li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#msg-format">2. Message format</a>
+	<ul>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#fixed-header">2.1. Fixed header</a></li>
+
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#variable-header">2.2. Variable header</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#payload">2.3. Payload</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#msg-id">2.4. Message identifiers</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#utf-8">2.5. MQTT and UTF-8</a></li>
+	</ul>
+	</li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#commands">3. Command messages</a>
+
+	<ul>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">3.1. CONNECT</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connack">3.2. CONNACK</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">3.3. PUBLISH</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#puback">3.4. PUBACK</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrec">3.5. PUBREC</a></li>
+
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrel">3.6. PUBREL</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubcomp">3.7. PUBCOMP</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">3.8. SUBSCRIBE</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#suback">3.9. SUBACK</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsubscribe">3.10. UNSUBSCRIBE</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsuback">3.11. UNSUBACK</a></li>
+
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingreq">3.12. PINGREQ</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingresp">3.13. PINGRESP</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#disconnect">3.14. DISCONNECT</a></li>
+	</ul>
+	</li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#flows">4. Flows</a>
+	<ul>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#qos-flows">4.1. Quality of Service levels and flows</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#retry">4.2. Message delivery retry</a></li>
+		<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#ordering">4.3. Message ordering</a></li>
+   </ul>
+   </li>
+   <li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#appendix-a">Appendix A</a></li>
+	</ul>
+</div>
+
+<div id="main">
+<div id="intro">
+<h1>1. Introduction</h1>
+<p>This specification is split into three main sections:
+</p>
+<ul><li>the message format that is common to all packet types,</li>
+<li>the specific details of each packet type,</li>
+<li>how the packets flow between client and server.</li>
+</ul>
+<p>
+Information on how topic wildcards are used is provided in the appendix.
+</p>
+
+<div id="new">
+<h2>1.1. Changes</h2>
+<p>The following are the changes between MQTT V3 and MQTT V3.1:</p>
+<ul>
+	<li>User name and password can now be sent with a CONNECT packet</li>
+	<li>New return codes on CONNACK packets, for security problems</li>
+	<li>Clarification that clients are not informed of un-authorized
+	PUBLISH or SUBSCRIBE commands, and that the normal MQTT flow should
+	complete even though the command has not been performed.</li>
+
+	<li>Strings in MQTT now support full UTF-8, instead of just the US-ASCII
+	subset.</li>
+</ul>
+<p>The protocol version number passed with CONNECT packets, is unchanged for
+this revision, and remains as the "3".  Existing MQTT V3 server implementations 
+should be able to accept connections from clients that support this revision, as
+long as they correctly respect the "Remaining Length" field, and therefore ignore
+the extra security information.</p>
+</div>
+</div>
+<!--  ===================================================================== -->
+<div id="message-format">
+<h1 id="msg-format">2. Message format</h1>
+<p>The message header for each MQTT command message contains a fixed
+header. Some messages also require a variable header and a payload. The
+format for each part of the message header is described in the following
+sections:</p>
+<h2 id="fixed-header">2.1. Fixed header</h2>
+<p>The message header for each MQTT command message contains a fixed
+header. The table below shows the fixed header format.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type</td>
+			<td>DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+
+			<td>RETAIN</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length</td>
+		</tr>
+	</tbody>
+
+</table>
+<dl>
+
+	<dt>Byte 1</dt>
+	<dd>
+	<p>Contains the Message Type and Flags (DUP, QoS level, and RETAIN)
+	fields.</p>
+	</dd>
+
+
+	<dt>Byte 2</dt>
+
+	<dd>
+	<p>(At least one byte) contains the Remaining Length field.</p>
+	</dd>
+
+</dl>
+<p>The fields are described in the following sections. All data
+values are in big-endian order: higher order bytes precede lower order
+bytes. A 16-bit word is presented on the wire as Most Significant Byte
+(MSB), followed by Least Significant Byte (LSB).</p>
+
+
+<h3>Message Type</h3>
+<b>Position:</b> byte 1, bits 7-4.
+
+<p>Represented as a 4-bit unsigned value. The enumerations for this
+version of the protocol are shown in the table below.</p>
+<table>
+	<thead>
+		<tr>
+			<th>Mnemonic</th>
+			<th align="center">Enumeration</th>
+			<th>Description</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>Reserved</td>
+			<td align="center">0</td>
+			<td>Reserved</td>
+		</tr>
+
+		<tr>
+			<td>CONNECT</td>
+			<td align="center">1</td>
+			<td>Client request to connect to Server</td>
+		</tr>
+		<tr>
+			<td>CONNACK</td>
+
+			<td align="center">2</td>
+			<td>Connect Acknowledgment</td>
+		</tr>
+		<tr>
+			<td>PUBLISH</td>
+			<td align="center">3</td>
+			<td>Publish message</td>
+
+		</tr>
+		<tr>
+			<td>PUBACK</td>
+			<td align="center">4</td>
+			<td>Publish Acknowledgment</td>
+		</tr>
+		<tr>
+
+			<td>PUBREC</td>
+			<td align="center">5</td>
+			<td>Publish Received (assured delivery part 1)</td>
+		</tr>
+		<tr>
+			<td>PUBREL</td>
+			<td align="center">6</td>
+
+			<td>Publish Release (assured delivery part 2)</td>
+		</tr>
+		<tr>
+			<td>PUBCOMP</td>
+			<td align="center">7</td>
+			<td>Publish Complete (assured delivery part 3)</td>
+		</tr>
+
+		<tr>
+			<td>SUBSCRIBE</td>
+			<td align="center">8</td>
+			<td>Client Subscribe request</td>
+		</tr>
+		<tr>
+			<td>SUBACK</td>
+
+			<td align="center">9</td>
+			<td>Subscribe Acknowledgment</td>
+		</tr>
+		<tr>
+			<td>UNSUBSCRIBE</td>
+			<td align="center">10</td>
+			<td>Client Unsubscribe request</td>
+
+		</tr>
+		<tr>
+			<td>UNSUBACK</td>
+			<td align="center">11</td>
+			<td>Unsubscribe Acknowledgment</td>
+		</tr>
+		<tr>
+
+			<td>PINGREQ</td>
+			<td align="center">12</td>
+			<td>PING Request</td>
+		</tr>
+		<tr>
+			<td>PINGRESP</td>
+			<td align="center">13</td>
+
+			<td>PING Response</td>
+		</tr>
+		<tr>
+			<td>DISCONNECT</td>
+			<td align="center">14</td>
+			<td>Client is Disconnecting</td>
+		</tr>
+
+		<tr>
+			<td>Reserved</td>
+			<td align="center">15</td>
+			<td>Reserved</td>
+		</tr>
+	</tbody>
+</table>
+
+<h3>Flags</h3>
+<p>The remaining bits of byte 1 contain the fields DUP, QoS, and
+RETAIN. The bit positions are encoded to represent the flags as shown in
+the table below.</p>
+<table>
+	<thead>
+		<tr>
+			<th>Bit position</th>
+			<th>Name</th>
+			<th>Description</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>3</td>
+			<td>DUP</td>
+			<td>Duplicate delivery</td>
+
+		</tr>
+		<tr>
+			<td>2-1</td>
+			<td>QoS</td>
+			<td>Quality of Service</td>
+		</tr>
+		<tr>
+
+			<td>0</td>
+			<td>RETAIN</td>
+			<td>RETAIN flag</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+
+	<dt id="dup-flag">DUP</dt>
+
+	<dd>
+	<p><b>Position:</b> byte 1, bit 3.</p>
+	<p>This flag is set when the client or server attempts to
+	re-deliver a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>, <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrel">PUBREL</a>,
+   <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">SUBSCRIBE</a> or <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsubscribe">UNSUBSCRIBE</a> message. This applies to
+	messages where the value of QoS is greater than zero (0), and an
+	acknowledgment is required. When the DUP bit is set, the variable
+	header includes a Message ID.</p>
+   <p>The recipient should treat this flag as a hint as to whether
+   the message may have been previously received. It should not be relied
+   on to detect duplicates.</p>
+	</dd>
+
+
+	<dt id="qos-flag">QoS</dt>
+	<dd>
+	<p><b>Position:</b> byte 1, bits 2-1.</p>
+	<p>This flag indicates the level of assurance for delivery of a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message. The QoS levels are shown in the
+	table below.</p>
+	<table>
+
+		<thead>
+			<tr>
+				<th>QoS value</th>
+				<th>bit 2</th>
+				<th>bit 1</th>
+				<th align="left" colspan="3">Description</th>
+			</tr>
+
+		</thead>
+		<tbody>
+			<tr>
+				<td align="center">0</td>
+				<td>0</td>
+				<td>0</td>
+				<td>At most once</td>
+
+				<td>Fire and Forget</td>
+				<td>&lt;=1</td>
+			</tr>
+			<tr>
+				<td align="center">1</td>
+				<td>0</td>
+				<td>1</td>
+
+				<td>At least once</td>
+				<td>Acknowledged delivery</td>
+				<td>&gt;=1</td>
+			</tr>
+			<tr>
+				<td align="center">2</td>
+				<td>1</td>
+
+				<td>0</td>
+				<td>Exactly once</td>
+				<td>Assured delivery</td>
+				<td>=1</td>
+			</tr>
+			<tr>
+				<td align="center">3</td>
+
+				<td>1</td>
+				<td>1</td>
+				<td colspan="3">Reserved</td>
+			</tr>
+		</tbody>
+	</table>
+	</dd>
+
+
+	<dt id="retain-flag">RETAIN</dt>
+	<dd>
+	<p><b>Position:</b> byte 1, bit 0.</p>
+	<p>This flag is only used on <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> messages.
+   When a client sends a PUBLISH to a server, if the Retain flag is set (1), the server
+   should hold on to the message after it has been delivered to the current subscribers.</p>
+   <p>When a new subscription is established on a topic, the last retained message
+   on that topic should be sent to the subscriber with the Retain flag set. If there is no retained message,
+   nothing is sent</p>
+   <p>This is useful where	publishers send messages on a "report by exception" basis,
+   where it might	be some time between messages. This allows new subscribers to instantly receive data
+   with the retained, or Last Known Good, value.</p>
+   <p>When a server sends a PUBLISH to a client as a result of a subscription
+   that already existed when the original PUBLISH arrived, the Retain flag should not be set, regardless
+   of the Retain flag of the original PUBLISH. This allows a client to distinguish messages that
+   are being received because they were retained and those that are being received "live".</p>
+   <p>Retained messages should be kept over restarts of the server.</p>
+	<p>A server may delete a retained message if it receives a message with
+	a zero-length payload and the Retain flag set on the same topic.</p>
+	
+	</dd>
+
+</dl>
+
+
+<h3>Remaining Length</h3>
+<p><b>Position:</b> byte 2.</p>
+
+<p>Represents the number of bytes remaining within the current
+message, including data in the variable header and the payload.</p>
+<p>The variable length encoding scheme uses a single byte for
+messages up to 127 bytes long. Longer messages are handled as follows.
+Seven bits of each byte encode the Remaining Length data, and the eighth
+bit indicates any following bytes in the representation. Each byte
+encodes 128 values and a "continuation bit". For example, the number 64
+decimal is encoded as a single byte, decimal value 64, hex 0x40. The number
+321 decimal (= 65 + 2*128) is encoded as two bytes, least significant first.
+The first byte 65+128 = 193. Note that the top bit is set to indicate at least
+ one following byte. The second byte is 2.</p>
+<p>The protocol limits the number of bytes in the representation to
+a maximum of four. This allows applications to send messages of up to
+268&nbsp;435&nbsp;455 (256&nbsp;MB). The representation of this number
+on the wire is: 0xFF, 0xFF, 0xFF, 0x7F.</p>
+<p>The table below shows the Remaining Length values represented by
+increasing numbers of bytes.</p>
+<table>
+	<thead>
+		<tr>
+			<th>Digits</th>
+
+			<th>From</th>
+			<th>To</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td align="center">1</td>
+
+			<td>0 (0x00)</td>
+			<td>127 (0x7F)</td>
+		</tr>
+		<tr>
+			<td align="center">2</td>
+			<td>128 (0x80, 0x01)</td>
+			<td>16&nbsp;383 (0xFF, 0x7F)</td>
+
+		</tr>
+		<tr>
+			<td align="center">3</td>
+			<td>16&nbsp;384 (0x80, 0x80, 0x01)</td>
+			<td>2&nbsp;097&nbsp;151 (0xFF, 0xFF, 0x7F)</td>
+		</tr>
+
+		<tr>
+			<td align="center">4</td>
+			<td>2&nbsp;097&nbsp;152 (0x80, 0x80, 0x80, 0x01)</td>
+			<td>268&nbsp;435&nbsp;455 (0xFF, 0xFF, 0xFF, 0x7F)</td>
+		</tr>
+
+	</tbody>
+</table>
+<p>The algorithm for encoding a decimal number (X) into the variable
+length encoding scheme is as follows:</p>
+<code class="block">do
+  digit = X MOD 128
+  X = X DIV 128
+  // if there are more digits to encode, set the top bit of this digit
+  if ( X &gt; 0 )
+    digit = digit OR 0x80
+  endif
+  'output' digit
+while ( X&gt; 0 )</code>
+<p>where <code>MOD</code> is the modulo operator (<code>%</code> in
+C), <code>DIV</code> is integer division (<code>/</code> in C), and <code>OR</code>
+
+is bit-wise or (<code>|</code> in C).</p>
+<p>The algorithm for decoding the Remaining Length field is as
+follows:</p>
+<code class="block">multiplier = 1 
+value = 0 
+do 
+  digit = 'next digit from stream' 
+  value += (digit AND 127) * multiplier 
+  multiplier *= 128
+while ((digit AND 128) != 0)</code>
+<p>where <code>AND</code> is the bit-wise and operator (<code>&amp;</code>
+in C).</p>
+<p>When this algorithm terminates, <code>value</code> contains the
+Remaining Length in bytes.</p>
+
+<p class="tip">Remaining Length encoding is not part of the variable
+header. The number of bytes used to encode the Remaining Length does not
+contribute to the value of the Remaining Length. The variable length
+"extension bytes" are part of the fixed header, not the variable header.</p>
+
+
+<h2 id="variable-header">2.2. Variable header</h2>
+<p>Some types of MQTT command messages also contain a variable header component.
+It resides between the fixed header and the payload.</p>
+<p class="tip">The variable length Remaining Length field is not
+part of the variable header. The bytes of the Remaining Length field do
+not contribute to the byte count of the Remaining Length value. This
+value only takes account of the variable header and the payload. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#fixed-header">Fixed header</a> for more information.</p>
+<p>The format of the variable header fields are described in the
+following sections, in the order in which they must appear in the header:</p>
+
+
+<h3>Protocol name</h3>
+<p>The protocol name is present in the variable header of a MQTT
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> message. This field is a UTF-encoded string that represents the
+protocol name MQIsdp, capitalized as shown.</p>
+
+
+<h3>Protocol version</h3>
+<p>The protocol version is present in the variable header of a
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> message.</p>
+<p>The field is an 8-bit unsigned value that represents the revision
+level of the protocol used by the client. The value of the Protocol
+version field for the current version of the protocol, 3 (0x03), is
+shown in the table below.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center" colspan="8">Protocol Version</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<h3>Connect flags</h3>
+<p>The Clean session, Will, Will QoS, and Retain flags are present in
+the variable header of a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> message.</p>
+
+
+<h3 id="clean-session-flag">Clean session flag</h3>
+<p><b>Position:</b> bit 1 of the Connect flags byte.</p>
+<p>If not set (0), then the server must store the subscriptions of the client
+after it disconnects. This includes continuing to store QoS 1 and QoS 2 messages for the
+subscribed topics so that they can be delivered when the client reconnects. The server must also
+maintain the state of in-flight messages being delivered at the point the connection is lost.
+This information must be kept until the client reconnects.</p>
+<p>If set (1), then the server must discard any previously maintained information 
+about the client and treat the connection as "clean". The server must also discard any
+state when the client disconnects.</p>
+<p>Typically, a client will operate in one mode or the other and not change.
+The choice will depend on the application. A clean session client will not receive stale
+information and it must resubscribe each time it connects. A non-clean session client
+will not miss any QoS 1 or QoS 2 messages that were published whilst it was disconnected. 
+QoS 0 messages are never stored, since they are delivered on a best efforts basis.</p>
+<p>This flag was formerly known as "Clean start". It has been renamed to
+clarify the fact it applies to the whole session and not just to the initial connect.</p>
+<p>A server may provide an administrative mechanism for clearing stored information
+about a client which can be used when it is known that a client will never reconnect.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center">User Name Flag</td>
+
+			<td align="center">Password Flag</td>
+			<td align="center">Will Retain</td>
+			<td align="center" colspan="2">Will QoS</td>
+			<td align="center">Will Flag</td>
+			<td align="center">Clean Session</td>
+			<td align="center">Reserved</td>
+
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center"></td>
+			<td align="center">x</td>
+		</tr>
+	</tbody>
+</table>
+<p>Bit 0 of this byte is not used in the current version
+of the protocol. It is reserved for future use.</p>
+
+
+<h3>Will flag</h3>
+<p><b>Position:</b> bit 2 of the Connect flags byte.</p>
+<p>The Will message defines that a message is published on behalf of
+the client by the server when either an I/O error is encountered by the
+server during communication with the client, or the client fails to
+communicate within the Keep Alive timer schedule. Sending a Will message
+is not triggered by the server receiving a DISCONNECT message from the
+client.</p>
+<p>If the Will flag is set, the Will QoS and Will Retain fields must
+be present in the Connect flags byte, and the Will Topic and Will
+Message fields must be present in the payload.</p>
+<p>The format of the Will flag is shown in the table below.</p>
+<table class="bits">
+	<thead>
+
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td></td>
+			<td align="center">User Name Flag</td>
+			<td align="center">Password Flag</td>
+			<td align="center">Will Retain</td>
+			<td align="center" colspan="2">Will QoS</td>
+			<td align="center">Will Flag</td>
+
+			<td align="center">Clean Session</td>
+			<td align="center">Reserved</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center"></td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+		</tr>
+	</tbody>
+</table>
+<p>Bit 0 of this byte is not used in the current version
+of the protocol. It is reserved for future use.</p>
+
+
+<h3>Will QoS</h3>
+<p><b>Position:</b> bits 4 and 3 of the Connect flags byte.</p>
+<p>A connecting client specifies the QoS level in the Will QoS field
+for a Will message that is sent in the event that the client is
+disconnected involuntarily. The Will message is defined in the payload
+of a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> message.</p>
+
+<p>If the Will flag is set, the Will QoS field is mandatory,
+otherwise its value is disregarded.</p>
+<p>The value of Will QoS is 0 (0x00), 1 (0x01), or 2 (0x02). The
+Will QoS flag is shown in the table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center">User Name Flag</td>
+			<td align="center">Password Flag</td>
+			<td align="center">Will Retain</td>
+
+			<td align="center" colspan="2">Will QoS</td>
+			<td align="center">Will Flag</td>
+			<td align="center">Clean Session</td>
+			<td align="center">Reserved</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center"></td>
+			<td align="center"></td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+		</tr>
+	</tbody>
+</table>
+<p>Bit 0 of this byte is not used in the current version
+of the protocol. It is reserved for future use.</p>
+
+
+<h3>Will Retain flag</h3>
+<p><b>Position:</b> bit 5 of the Connect flags byte.</p>
+
+<p>The Will Retain flag indicates whether the server should
+retain the Will message which is published by the server on behalf of
+the client in the event that the client is disconnected unexpectedly.</p>
+<p>The Will Retain flag is mandatory if the Will flag is set,
+otherwise, it is disregarded. The format of the Will Retain flag is
+shown in the table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center">User Name Flag</td>
+			<td align="center">Password Flag</td>
+			<td align="center">Will Retain</td>
+
+			<td align="center" colspan="2">Will QoS</td>
+			<td align="center">Will Flag</td>
+			<td align="center">Clean Session</td>
+			<td align="center">Reserved</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center"></td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">1</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+	</tbody>
+</table>
+<p>Bit 0 of this byte is not used in the current version
+of the protocol. It is reserved for future use.</p>
+
+<h3>User name and password flags</h3>
+<p><b>Position:</b> bits 6 and 7 of the Connect flags byte.</p>
+
+<p>A connecting client can specify a user name and a password, and
+setting the flag bits signifies that a User Name, and optionally a password,
+are included in the payload of a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> message.</p>
+<p>If the User Name flag is set, the User Name field is mandatory,
+otherwise its value is disregarded.  If the Password flag is set, the
+Password field is mandatory, otherwise its value is disregarded.  It
+is not valid to supply a password without supplying a user name.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center">User Name Flag</td>
+			<td align="center">Password Flag</td>
+
+			<td align="center">Will Retain</td>
+			<td align="center" colspan="2">Will QoS</td>
+			<td align="center">Will Flag</td>
+			<td align="center">Clean Session</td>
+			<td align="center">Reserved</td>
+		</tr>
+
+		<tr>
+			<td></td>
+			<td align="center"></td>
+			<td align="center"></td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+	</tbody>
+</table>
+<p>Bit 0 of this byte is not used in the current version
+of the protocol. It is reserved for future use.</p>
+
+<h3 id="keep-alive-timer">Keep Alive timer</h3>
+<p>The Keep Alive timer is present in the variable header of a MQTT
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> message.</p>
+<p>The Keep Alive timer, measured in seconds, defines the maximum
+time interval between messages received from a client. It enables the
+server to detect that the network connection to a client has dropped,
+without having to wait for the long TCP/IP timeout. The client has a
+responsibility to send a message within each Keep Alive time period. In
+the absence of a data-related message during the time period, the client
+sends a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingreq">PINGREQ</a> message, which the server acknowledges with a 
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingresp">PINGRESP</a> message.</p>
+<p>If the server does not receive a message from the client within
+one and a half times the Keep Alive time period (the client is allowed
+"grace" of half a time period), it disconnects the client as if the
+client had sent a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#disconnect">DISCONNECT</a> message. This 
+action does not impact any of the client's subscriptions. See 
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#disconnect">DISCONNECT</a> for more details.</p>
+<p>If a client does not receive a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingresp">PINGRESP</a>
+message within a Keep Alive time period after sending a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingreq">PINGREQ</a>,
+it should close the TCP/IP socket connection.</p>
+
+
+<p>The Keep Alive timer is a 16-bit value that represents the number
+of seconds for the time period. The actual value is
+application-specific, but a typical value is a few minutes. The maximum
+value is approximately 18 hours. A value of zero (0) means the client is
+not disconnected.</p>
+<p>The format of the Keep Alive timer is shown in the table below.
+The ordering of the 2 bytes of the Keep Alive Timer is MSB, then LSB
+(big-endian).</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center" colspan="8">Keep Alive MSB</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center" colspan="8">Keep Alive LSB</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<h3>Connect return code</h3>
+<p>The connect return code is sent in the variable header of a
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connack">CONNACK</a> message.</p>
+<p>This field defines a one byte unsigned return code. The meanings
+of the values, shown in the tables below, are specific to the message
+type. A return code of zero (0) usually indicates success.</p>
+<table>
+
+	<thead>
+		<tr>
+			<td>Enumeration</td>
+			<td>HEX</td>
+			<td>Meaning</td>
+		</tr>
+	</thead>
+
+	<tbody>
+		<tr>
+			<td>0</td>
+			<td>0x00</td>
+			<td>Connection Accepted</td>
+		</tr>
+		<tr>
+
+			<td>1</td>
+			<td>0x01</td>
+			<td>Connection Refused: unacceptable protocol version</td>
+		</tr>
+		<tr>
+			<td>2</td>
+			<td>0x02</td>
+
+			<td>Connection Refused: identifier rejected</td>
+		</tr>
+		<tr>
+			<td>3</td>
+			<td>0x03</td>
+			<td>Connection Refused: server unavailable</td>
+		</tr>
+
+		<tr>
+			<td>4</td>
+			<td>0x04</td>
+			<td>Connection Refused: bad user name or password</td>
+		</tr>
+		<tr>
+			<td>5</td>
+
+			<td>0x05</td>
+			<td>Connection Refused: not authorized</td>
+		</tr>
+		<tr>
+			<td>6-255</td>
+			<td></td>
+			<td>Reserved for future use</td>
+
+		</tr>
+	</tbody>
+</table>
+<br>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center" colspan="8">Return Code</td>
+		</tr>
+
+	</tbody>
+</table>
+
+
+<h3>Topic name</h3>
+<p>The topic name is present in the variable header of an MQTT <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message.</p>
+<p>The topic name is the key that identifies the information channel
+to which payload data is published. Subscribers use the key to identify
+the information channels on which they want to receive published
+information.</p>
+<p>The topic name is a UTF-encoded string. See the section on <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#utf-8">MQTT
+and UTF-8</a> for more information. Topic name has an upper length limit of
+32,767 characters.</p>
+
+
+<h2 id="payload">2.3. Payload</h2>
+<p>The following types of MQTT command message have a payload:</p>
+<dl>
+
+	<dt><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a></dt>
+	<dd>The payload contains one or more UTF-8 encoded strings. They specify
+        a unqiue identifier for the client, a Will topic and message and the
+        User Name and Password to use. All but the first are optional and their
+        presence is determined based on flags in the variable header.</dd>
+
+
+	<dt><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">SUBSCRIBE</a></dt>
+
+	<dd>The payload contains a list of topic names to which the client
+	can subscribe, and the QoS level. These strings are UTF-encoded.</dd>
+
+
+	<dt><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#suback">SUBACK</a></dt>
+	<dd>The payload contains a list of granted QoS levels. These are
+	the QoS levels at which the administrators for the server have
+	permitted the client to subscribe to a particular Topic Name. Granted
+	QoS levels are listed in the same order as the topic names in the
+	corresponding SUBSCRIBE message.</dd>
+
+</dl>
+<p>The payload part of a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message
+contains application-specific data only. No assumptions are made about
+the nature or content of the data, and this part of the message is
+treated as a BLOB.</p>
+
+<p>If you want an application to apply compression to the payload
+data, you need to define in the application the appropriate payload flag
+fields to handle the compression details. You cannot define
+application-specific flags in the fixed or variable headers.</p>
+
+
+<h2 id="msg-id">2.4. Message identifiers</h2>
+<p>The message identifier is present in the variable header of the
+following MQTT messages: PUBLISH, PUBACK, PUBREC, PUBREL, PUBCOMP,
+SUBSCRIBE, SUBACK, UNSUBSCRIBE, UNSUBACK.</p>
+<p>The Message Identifier (Message ID) field is only present in
+messages where the QoS bits in the fixed header indicate QoS levels 1 or
+2. See section on <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#qos-flows">Quality of Service levels and flows</a> for
+more information.</p>
+<p>The Message ID is a 16-bit unsigned integer that must be unique amongst the set
+of "in flight" messages in a particular direction of communication. It typically
+increases by exactly one from one message to the next, but is not
+required to do so.</p>
+<p>A client will maintain its own list of Message IDs separate to the Message IDs used by the
+server it is connected to. It is possible for a client to send a PUBLISH with Message ID 1 at 
+the same time as receiving a PUBLISH with Message ID 1.</p>
+<p>The ordering of the two bytes of the Message Identifier is MSB,
+then LSB (big-endian).</p>
+
+<p>Do not use Message ID 0. It is reserved as an invalid Message ID.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td colspan="8" align="center">Message Identifier MSB</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td colspan="8" align="center">Message Identifier LSB</td>
+		</tr>
+	</tbody>
+</table>
+
+<h2 id="utf-8">2.5. MQTT and UTF-8</h2>
+<p>UTF-8 is an efficient encoding of Unicode character-strings that
+optimizes the encoding of ASCII characters in support of text-based
+communications.</p>
+<p>In MQTT, strings are prefixed with two bytes to denote the length,
+as shown in the table below.</p>
+<table class="bits">
+	<thead>
+
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="8">String Length MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">String Length LSB</td>
+
+		</tr>
+		<tr>
+			<td>bytes 3 ...</td>
+			<td align="center" colspan="8">Encoded Character Data</td>
+		</tr>
+	</tbody>
+</table>
+<p>String Length is the number of bytes of encoded string
+characters, not the number of characters.
+For example, the string OTWP is encoded in UTF-8 as
+shown in the table below.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="8">Message Length MSB (0x00)</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Message Length LSB (0x04)</td>
+		</tr>
+
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 3</td>
+			<td align="center" colspan="8">'O' (0x4F)</td>
+
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 4</td>
+
+			<td align="center" colspan="8">'T' (0x54)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td>byte 5</td>
+			<td align="center" colspan="8">'W' (0x57)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 6</td>
+			<td align="center" colspan="8">'P' (0x50)</td>
+		</tr>
+		<tr>
+
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+
+<p>The Java <code>writeUTF()</code> and <code>readUTF()</code> data
+stream methods use this format.</p>
+
+
+<h2 id="unused-bits">2.6. Unused bits</h2>
+<p>Any bits marked as unused should be set to zero (0).</p>
+
+</div>
+
+<!--  ===================================================================== -->
+<div id="commandssec">
+<h1 id="commands">3. Command messages</h1>
+<ul class="toc">
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connack">CONNACK</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a></li>
+
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#puback">PUBACK</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrec">PUBREC</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrel">PUBREL</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubcomp">PUBCOMP</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">SUBSCRIBE</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#suback">SUBACK</a></li>
+
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsubscribe">UNSUBSCRIBE</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsuback">UNSUBACK</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingreq">PINGREQ</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingresp">PINGRESP</a></li>
+	<li><a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#disconnect">DISCONNECT</a></li>
+</ul>
+
+<h2 id="connect">3.1. CONNECT - Client requests a connection to a server</h2>
+<p>When a TCP/IP socket connection is established from a client to a server,
+a protocol level session must be created using a CONNECT flow.
+</p>
+
+<h3>Fixed header</h3>
+<p>The fixed header format is shown in the table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+
+			<td align="center" colspan="4">Message Type (1)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length</td>
+		</tr>
+
+	</tbody>
+</table>
+<p>The DUP, QoS, and RETAIN flags are not used in the CONNECT
+message.</p>
+<p>Remaining Length is the length of the variable header (12 bytes)
+and the length of the Payload. This can be a multibyte field.</p>
+
+
+<h3>Variable header</h3>
+<p>An example of the format of the variable header is shown in the
+table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td colspan="10">Protocol Name</td>
+		</tr>
+		<tr>
+			<td>byte 1</td>
+			<td>Length MSB (0)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td>Length LSB (6)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+		</tr>
+		<tr>
+			<td>byte 3</td>
+			<td align="center">'M'</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 4</td>
+			<td align="center">'Q'</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 5</td>
+			<td align="center">'I'</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 6</td>
+			<td align="center">'s'</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 7</td>
+			<td align="center">'d'</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td>byte 8</td>
+			<td align="center">'p'</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td colspan="10">Protocol Version Number</td>
+		</tr>
+		<tr>
+			<td>byte 9</td>
+			<td>Version (3)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td colspan="10">Connect Flags</td>
+		</tr>
+		<tr>
+			<td>byte 10</td>
+
+			<td>User name flag (1)<br>
+			Password flag (1)<br>
+			Will RETAIN (0)<br>
+			Will QoS (01)<br>
+			Will flag (1)<br>
+			Clean Session (1)</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td colspan="10">Keep Alive timer</td>
+		</tr>
+		<tr>
+
+			<td>byte 11</td>
+			<td>Keep Alive MSB (0)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 12</td>
+
+			<td>Keep Alive LSB (10)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+
+<dl>
+	<dt>User name flag</dt>
+
+	<dd>Set (1).</dd>
+	
+	<dt>Password flag</dt>
+	<dd>Set (1).</dd>
+
+	<dt>Clean Session flag</dt>
+	<dd>Set (1).</dd>
+
+	<dt>Keep Alive timer</dt>
+	<dd>Set to 10 seconds (0x000A).</dd>
+
+
+	<dt>Will message</dt>
+	<dd>
+	<ul>
+		<li>Will flag is set (1)</li>
+
+		<li>Will QoS field is 1</li>
+		<li>Will RETAIN flag is clear (0)</li>
+	</ul>
+	</dd>
+
+</dl>
+
+<h3>Payload</h3>
+The payload of the CONNECT message contains one or more UTF-8 encoded
+strings, based on the flags in the variable header. The strings, if present,
+must appear in the following order:
+<dl>
+
+	<dt>Client Identifier</dt>
+	<dd>
+	<p>The first UTF-encoded string. The Client Identifier (Client ID)
+	is between 1 and 23 characters long, and uniquely identifies the client
+	to the server. It must be unique across all clients connecting to a
+	single server, and is the key in handling Message IDs messages with QoS
+	levels 1 and 2. If the Client ID contains more than 23 characters, the
+	server responds to the CONNECT message with a CONNACK return code 2:
+	Identifier Rejected.</p>
+	</dd>
+
+
+	<dt>Will Topic</dt>
+	<dd>
+
+	<p>If the Will Flag is set, this is the next UTF-8 encoded string. The Will Message is published to
+	the Will Topic. The QoS level is defined by the Will QoS field, and the
+	RETAIN status is defined by the Will RETAIN flag in the variable
+	header.</p>
+	</dd>
+
+
+	<dt>Will Message</dt>
+	<dd>
+	<p>If the Will Flag is set, this is the next UTF-8 encoded string. The Will Message defines the
+	content of the message that is published to the Will Topic if the
+	client is unexpectedly disconnected. This may be a zero-length message.</p>
+	<p>Although the Will Message is UTF-8 encoded in the
+	CONNECT message, when it is published to the Will Topic only the bytes
+	of the message are sent, not the first two length bytes. The message must
+   therefore only consist of 7-bit ASCII characters.</p>
+
+	</dd>
+
+	<dt>User Name</dt>
+	<dd>
+	<p>If the User Name flag is set, this is the next UTF-encoded string.  The user name identifies the name of the user
+	who is connecting, which can be used for authentication.
+	It is recommended that user names are kept to 12 characters or fewer, but
+	it is not required.
+	</p>
+	<p>Note that, for compatibility with the original MQTT V3 specification, 
+	the Remaining Length field from the fixed header takes precedence over the
+	User Name flag.  Server implementations must allow for the possibility that the
+	User Name flag is set, but the User Name string is missing.  This is valid,
+	and connections should be allowed to continue.</p>
+	</dd>
+
+	<dt>Password</dt>
+	<dd>
+	<p>If the Password flag is set, this is the next UTF-encoded string.  The password corresponding to the user
+	who is connecting, which can be used for authentication.
+	It is recommended that passwords are kept to 12 characters or fewer, but
+	it is not required.
+	</p>
+	<p>Note that, for compatibility with the original MQTT V3 specification, 
+	the Remaining Length field from the fixed header takes precedence over the
+	Password flag.  Server implementations must allow for the possibility that the
+	Password flag is set, but the Password string is missing.  This is valid,
+	and connections should be allowed to continue.</p>
+	</dd>
+</dl>
+
+
+<h3>Response</h3>
+
+<p>The server sends a CONNACK message in response to a CONNECT
+message from a client.</p>
+<p>If the server does not receive a CONNECT message within a
+reasonable amount of time after the TCP/IP connection is established, the server
+should close the connection.</p>
+<p>If the client does not receive a CONNACK message from the server
+within a reasonable amount of time, the client should close the TCP/IP
+socket connection, and restart the session by opening a new socket to the
+server and issuing a CONNECT message.</p>
+<p>In both of these scenarios, a "reasonable" amount of time
+depends on the type of application and the communications
+infrastructure.</p>
+<p>If a client with the same Client ID is already connected to the
+server, the "older" client must be disconnected by the server before completing
+the CONNECT flow of the new client.</p>
+<p>If the client sends an invalid CONNECT message, the server should close the 
+connection. This includes CONNECT messages that provide invalid Protocol Name or
+Protocol Version Numbers. If the server can parse enough of the CONNECT message
+to determine that an invalid protocol has been requested, it may try to send a
+CONNACK containing the "Connection Refused: unacceptable protocol version" code
+before dropping the connection.</p>
+
+<h2 id="connack">3.2. CONNACK - Acknowledge connection request</h2>
+<p>The CONNACK message is the message sent by the server in response
+to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#connect">CONNECT</a> request from a client.</p>
+
+<h3>Fixed header</h3>
+<p>The fixed header format is shown in the table below.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message type (2)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS flags</td>
+
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (2)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<p>The DUP, QoS and RETAIN flags are not used in the CONNACK
+message.</p>
+
+
+<h3>Variable header</h3>
+
+<p>The variable header format is shown in the table below.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td colspan="10">Topic Name Compression Response</td>
+		</tr>
+		<tr>
+			<td>byte 1</td>
+			<td>Reserved values. Not used.</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td colspan="10">Connect Return Code</td>
+		</tr>
+		<tr>
+
+			<td>byte 2</td>
+			<td>Return Code</td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+
+			<td></td>
+			<td></td>
+		</tr>
+	</tbody>
+</table>
+<p>The values for the one byte unsigned Connect return code field
+are shown in the table below.</p>
+<table>
+	<thead>
+		<tr>
+			<td>Enumeration</td>
+
+			<td>HEX</td>
+			<td>Meaning</td>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>0</td>
+
+			<td>0x00</td>
+			<td>Connection Accepted</td>
+		</tr>
+		<tr>
+			<td>1</td>
+			<td>0x01</td>
+			<td>Connection Refused: unacceptable protocol version</td>
+
+		</tr>
+		<tr>
+			<td>2</td>
+			<td>0x02</td>
+			<td>Connection Refused: identifier rejected</td>
+		</tr>
+		<tr>
+
+			<td>3</td>
+			<td>0x03</td>
+			<td>Connection Refused: server unavailable</td>
+		</tr>
+		<tr>
+			<td>4</td>
+			<td>0x04</td>
+
+			<td>Connection Refused: bad user name or password</td>
+		</tr>
+		<tr>
+			<td>5</td>
+			<td>0x05</td>
+			<td>Connection Refused: not authorized</td>
+		</tr>
+
+		<tr>
+			<td>6-255</td>
+			<td></td>
+			<td>Reserved for future use</td>
+		</tr>
+	</tbody>
+</table>
+<p>Return code 2 (identifier rejected) is sent if the unique client
+identifier is not between 1 and 23 characters in length.</p>
+
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+
+<h2 id="publish">3.3. PUBLISH - Publish message</h2>
+<p>A PUBLISH message is sent by a client to a server for
+distribution to interested subscribers. Each PUBLISH message is
+associated with a topic name (also known as the Subject or Channel).
+This is a hierarchical name space that defines a taxonomy of information
+sources for which subscribers can register an interest. A message that
+is published to a specific topic name is delivered to connected
+subscribers for that topic.</p>
+<p>If a client subscribes to one or more
+topics, any message published to those topics are sent by the server to
+the client as a PUBLISH message.</p>
+
+<h3>Fixed header</h3>
+
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message type (3)</td>
+			<td align="center">DUP flag</td>
+
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+
+	<dt>QoS level</dt>
+	<dd>Set to 1. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#qos-flag">QoS</a> for more details.</dd>
+
+
+	<dt>DUP flag</dt>
+	<dd>Set to zero (0). This means that the message is being sent for
+	the first time. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#dup-flag">DUP</a> for more details.
+	</dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd><p>Set to zero. This means do not retain. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#retain-flag">Retain</a> for more details.</p></dd>
+
+
+	<dt>Remaining Length field</dt>
+	<dd>The length of the variable header plus the length of the
+	payload. It can be a multibyte field.</dd>
+
+</dl>
+
+
+<h3>Variable header</h3>
+<p>The variable header contains the following fields:</p>
+<dl>
+
+	<dt>Topic name</dt>
+	<dd>A UTF-encoded string.
+   <p>This must not contain <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#appendix-a">Topic wildcard</a> characters.</p>
+   <p>When received by a client that subscribed using wildcard characters, 
+   this string will be the absolute topic specified by the originating publisher and <em>not</em> the
+   subscription string used by the client.</p>
+   </dd>
+
+
+	<dt>Message ID</dt>
+	<dd>Present for messages with QoS level 1 and QoS level 2. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#msg-id">Message identifiers</a> for more details.
+	</dd>
+
+</dl>
+<p>The table below shows an example variable header for a PUBLISH
+message.</p>
+<table>
+	<thead>
+		<tr>
+			<td>Field</td>
+			<td>Value</td>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>Topic Name:</td>
+			<td>"a/b"</td>
+		</tr>
+		<tr>
+			<td>QoS level</td>
+
+			<td>1</td>
+		</tr>
+		<tr>
+			<td>Message ID:</td>
+			<td>10</td>
+		</tr>
+	</tbody>
+
+</table>
+<p>The format of the variable header in this case is shown in the
+table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td align="center" colspan="10">Topic Name</td>
+		</tr>
+		<tr>
+			<td>byte 1</td>
+
+			<td>Length MSB (0)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td>Length LSB (3)</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 3</td>
+			<td align="center">'a' (0x61)</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 4</td>
+			<td align="center">'/' (0x2F)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+		</tr>
+		<tr>
+			<td>byte 5</td>
+			<td align="center">'b' (0x62)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td align="center" colspan="10">Message Identifier</td>
+		</tr>
+		<tr>
+			<td>byte 6</td>
+			<td>Message ID MSB (0)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 7</td>
+			<td>Message ID LSB (10)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>Contains the data for publishing. The content and format of the
+data is application specific. The Remaining Length field in the fixed
+header includes both the variable header length and the payload length. As such,
+it is valid for a PUBLISH to contain a 0-length payload.</p>
+<h3>Response</h3>
+<p>The response to a PUBLISH message depends on the QoS level. The
+table below shows the expected responses.</p>
+<table>
+	<thead>
+
+		<tr>
+			<td>QoS Level</td>
+			<td>Expected response</td>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>QoS&nbsp;0</td>
+
+			<td>None</td>
+		</tr>
+		<tr>
+			<td>QoS&nbsp;1</td>
+			<td>PUBACK</td>
+		</tr>
+		<tr>
+
+			<td>QoS&nbsp;2</td>
+			<td>PUBREC</td>
+		</tr>
+	</tbody>
+</table>
+
+<h3>Actions</h3>
+<p>PUBLISH messages can be sent either from a publisher to the
+server, or from the server to a subscriber. The action of the recipient
+when it receives a message depends on the QoS level of the message:</p>
+
+<dl>
+
+	<dt>QoS&nbsp;0</dt>
+	<dd>Make the message available to any interested parties.</dd>
+
+
+	<dt>QoS&nbsp;1</dt>
+	<dd>Log the message to persistent storage, make it available to
+	any interested parties, and return a PUBACK message to the sender.</dd>
+
+
+	<dt>QoS&nbsp;2</dt>
+	<dd>Log the message to persistent storage, do not make it
+	available to interested parties yet, and return a PUBREC message to the
+	sender.</dd>
+
+</dl>
+<p>If the server receives the message, interested parties means
+subscribers to the topic of the PUBLISH message. If a subscriber
+receives the message, interested parties means the application on the
+client which has subscribed to one or more topics, and is waiting for a
+message from the server.</p>
+<p>See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#qos-flows">Quality of Service levels and flows</a> for more details.</p>
+<p>Note that if a server implementation does not authorize a PUBLISH
+to be made by a client, it has no way of informing that client.  It must
+therefore make a positive acknowledgement, according to the normal QoS 
+rules, and the client will <em>not</em> be informed that it was not 
+authorized to publish the message.</p>
+
+
+<h2 id="puback">3.4. PUBACK - Publish acknowledgment</h2>
+<p>A PUBACK message is the response to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>
+message with QoS level 1. A PUBACK message is sent by a server in
+response to a PUBLISH message from a publishing client, and by a
+subscriber in response to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message from
+the server.</p>
+
+<h3>Fixed header</h3>
+
+<p>The table below shows the format of the fixed header.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (4)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (2)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+
+<dl>
+
+	<dt>QoS level</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>DUP flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+	<dt>Remaining Length field</dt>
+	<dd>This is the length of the variable header (2 bytes). It can be
+	a multibyte field.</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+<p>Contains the Message Identifier (Message ID) for the <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message that is being acknowledged. The
+table below shows the format of the variable header.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="8">Message ID MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+
+			<td align="center" colspan="8">Message ID LSB</td>
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+
+<h3>Actions</h3>
+
+<p>When the client receives the PUBACK message, it discards the
+original message, because it is also received (and logged) by the
+server.</p>
+
+
+<h2 id="pubrec">3.5. PUBREC - Assured publish received (part 1)</h2>
+<p>A PUBREC message is the response to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>
+message with QoS level 2. It is the second message of the QoS level 2
+protocol flow. A PUBREC message is sent by the server in response to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message from a publishing client, or by a
+subscriber in response to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message from
+the server.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (5)</td>
+			<td align="center">DUP flag</td>
+
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (2)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+
+	<dt>QoS level</dt>
+	<dd>Not used.</dd>
+
+	<dt>DUP flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>Remaining Length field</dt>
+	<dd>The length of the variable header (2 bytes). It can be a
+	multibyte field.</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+<p>The variable header contains the Message ID for the acknowledged
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>. The table below shows the format of the
+variable header.</p>
+<table class="bits">
+	<thead>
+
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="8">Message ID MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Message ID LSB</td>
+
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+<h3>Actions</h3>
+<p>When it receives a PUBREC message, the recipient sends a PUBREL
+message to the sender with the same Message ID as the PUBREC message.</p>
+
+
+<h2 id="pubrel">3.6. PUBREL - Assured Publish Release (part 2)</h2>
+<p>A PUBREL message is the response either from a publisher to a
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrec">PUBREC</a> message from the server, or from the 
+server to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrec">PUBREC</a> message
+from a subscriber. It is the third message in the QoS 2 protocol
+flow.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (6)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+
+			<td align="center" colspan="8">Remaining Length (2)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+		</tr>
+
+	</tbody>
+</table>
+<dl>
+
+	<dt>QoS level</dt>
+	<dd><p>PUBREL messages use QoS level 1 as an acknowledgement is expected 
+   in the form of a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubcomp">PUBCOMP</a>. Retries are handled in the same way as <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> messages.</p></dd>
+
+
+	<dt>DUP flag</dt>
+	<dd><p>Set to zero (0). This means that the message is being sent for
+	the first time. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#dup-flag">DUP</a> for more details.</p></dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>Remaining Length field</dt>
+	<dd>The length of the variable header (2 bytes). It can be a
+	multibyte field.</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+<p>The variable header contains the same Message ID as the <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrec">PUBREC</a>
+message that is being acknowledged. The table below shows the format of
+the variable header.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+
+			<td align="center" colspan="8">Message ID MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Message ID LSB</td>
+		</tr>
+	</tbody>
+
+</table>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+<h3>Actions</h3>
+<p>When the server receives a PUBREL message from a publisher, the
+server makes the original message available to interested subscribers,
+and sends a PUBCOMP message with the same Message ID to the publisher.
+When a subscriber receives a PUBREL message from the server, the
+subscriber makes the message available to the subscribing application
+and sends a PUBCOMP message to the server.</p>
+
+
+<h2 id="pubcomp">3.7. PUBCOMP - Assured publish complete (part 3)</h2>
+<p>This message is either the response from the server to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrel">PUBREL</a>
+
+message from a publisher, or the response from a subscriber to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pubrel">PUBREL</a>
+message from the server. It is the fourth and last message in the
+QoS 2 protocol flow.</p>
+
+<h3>Fixed header</h3>
+
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+
+			<td align="center" colspan="4">Message Type (7)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (2)</td>
+		</tr>
+
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+
+	<dt>QoS level</dt>
+
+	<dd>Not used.</dd>
+
+
+	<dt>DUP flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>Remaining Length field</dt>
+	<dd>The length of the variable header (2 bytes). It can be a
+	multibyte field.</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+<p>The variable header contains the same Message ID as the
+acknowledged PUBREL message.</p>
+<table class="bits">
+	<thead>
+
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="8">Message ID MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Message ID LSB</td>
+
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+<h3>Actions</h3>
+<p>When the client receives a PUBCOMP message, it discards the
+original message because it has been delivered, exactly once, to the
+server.</p>
+
+
+<h2 id="subscribe">3.8. SUBSCRIBE - Subscribe to named topics</h2>
+<p>The SUBSCRIBE message allows a client to register an interest in
+one or more topic names with the server. Messages published to these
+topics are delivered from the server to the client as <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>
+messages. The SUBSCRIBE message also specifies the QoS level at which
+the subscriber wants to receive published messages.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (8)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+
+		<tr>
+			<td></td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length</td>
+
+		</tr>
+	</tbody>
+</table>
+<dl>
+	<dt>QoS level</dt>
+	<dd>SUBSCRIBE messages use QoS level 1 to acknowledge multiple
+	subscription requests. The corresponding SUBACK message is identified
+	by matching the Message ID. Retries are handled in the same way as <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> messages.</dd>
+
+	<dt>DUP flag</dt>
+	<dd><p>Set to zero (0). This means that the message is being sent for
+	the first time. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#dup-flag">DUP</a> for more details.</p></dd>
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>Remaining Length field</dt>
+
+	<dd>The length of the payload. It can be a multibyte field.</dd>
+</dl>
+
+
+<h3>Variable header</h3>
+<p>The variable header contains a Message ID because a SUBSCRIBE
+message has a QoS level of 1.  See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#msg-id">Message identifiers</a> for more details.</p>
+<p>The table below shows an example format for the variable header
+with a Message ID of 10.</p>
+<table class="bits">
+
+	<thead>
+		<tr>
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td colspan="10">Message Identifier</td>
+		</tr>
+		<tr>
+			<td>byte 1</td>
+			<td>Message ID MSB (0)</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td>Message ID LSB (10)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>The payload of a SUBSCRIBE message contains a list of topic names
+to which the client wants to subscribe, and the QoS level at which the
+client wants to receive the messages. The strings are UTF-encoded, and
+the QoS level occupies 2 bits of a single byte. The topic strings may
+contain special <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#appendix-a">Topic wildcard</a> characters
+to represent a set of topics. These topic/QoS pairs
+are packed contiguously as shown in the example payload in the table
+below.</p>
+<table>
+	<tbody>
+		<tr>
+
+			<td>Topic name</td>
+			<td>"a/b"</td>
+		</tr>
+		<tr>
+			<td>Requested QoS</td>
+			<td>1</td>
+		</tr>
+
+		<tr>
+			<td>Topic name</td>
+			<td>"c/d"</td>
+		</tr>
+		<tr>
+			<td>Requested QoS</td>
+			<td>2</td>
+
+		</tr>
+	</tbody>
+</table>
+<p>Topic names in a SUBSCRIBE message are not compressed.</p>
+<p>The format of the example payload is shown in the table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th></th>
+			<th>Description</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td colspan="10">Topic name</td>
+
+		</tr>
+		<tr>
+			<td>byte 1</td>
+			<td>Length MSB (0)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td>byte 2</td>
+			<td>Length LSB (3)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 3</td>
+			<td align="center">'a' (0x61)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 4</td>
+			<td align="center">'/' (0x2F)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 5</td>
+			<td align="center">'b' (0x62)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td colspan="10">Requested QoS</td>
+		</tr>
+		<tr>
+			<td>byte 6</td>
+			<td>Requested QoS (1)</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td colspan="10">Topic Name</td>
+		</tr>
+		<tr>
+			<td>byte 7</td>
+
+			<td>Length MSB (0)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 8</td>
+			<td>Length LSB (3)</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 9</td>
+			<td align="center">'c' (0x63)</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 10</td>
+			<td align="center">'/' (0x2F)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+		</tr>
+		<tr>
+			<td>byte 11</td>
+			<td align="center">'d' (0x64)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+
+		<tr>
+			<td colspan="10">Requested QoS</td>
+		</tr>
+		<tr>
+			<td>byte 12</td>
+			<td>Requested QoS (2)</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<p>Assuming that the requested QoS level is granted, the client
+receives <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> messages at less than or equal
+to this level, depending on the QoS level of the original message from
+the publisher. For example, if a client has a QoS level 1 subscription
+to a particular topic, then a QoS level 0 <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>
+message to that topic is delivered to the client at QoS level 0. A QoS
+level 2 <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message to the same topic is
+downgraded to QoS level 1 for delivery to the client.</p>
+
+<p>A corollary to this is that subscribing to a topic at QoS level 2
+is equivalent to saying "I would like to receive messages on this topic
+at the QoS at which they are published".</p>
+
+<p>This means a publisher is responsible for determining
+the maximum QoS a message can be delivered at, but a subscriber is able to
+downgrade the QoS to one more suitable for its usage. The QoS of a message
+is never upgraded.</p>
+
+<p>The Requested QoS field is encoded in the byte following each
+UTF-encoded topic name as shown in the table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td>Reserved</td>
+			<td>Reserved</td>
+			<td>Reserved</td>
+
+			<td>Reserved</td>
+			<td>Reserved</td>
+			<td>Reserved</td>
+			<td align="center" colspan="2">QoS level</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td></td>
+			<td></td>
+		</tr>
+	</tbody>
+</table>
+<p>The upper 6 bits of this byte are not used in the current version
+of the protocol. They are reserved for future use.</p>
+<p>A request with both QoS level bits set should be considered an invalid packet
+and the connection closed.</p>
+
+<h3>Response</h3>
+<p>When it receives a SUBSCRIBE message from a client, the server
+responds with a SUBACK message.</p>
+<p>A server may start sending <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> messages due to the
+subscription before the client receives the SUBACK message.</p>
+
+<p>Note that if a server implementation does not authorize a SUBSCRIBE request
+to be made by a client, it has no way of informing that client.  It must
+therefore make a positive acknowledgement with a SUBACK, and the client 
+will <em>not</em> be informed that it was not authorized to subscribe.</p>
+
+<p>A server may chose to grant a lower level of QoS than the client requested. This
+could happen if the server is not able to provide the higher levels of QoS. For example,
+if the server does not provider a reliable persistence mechanism it may chose to only
+grant subscriptions at QoS 0.</p>
+
+
+<h2 id="suback">3.9. SUBACK - Subscription acknowledgement</h2>
+<p>A SUBACK message is sent by the server to the client to confirm receipt of a 
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">SUBSCRIBE</a> message.</p>
+<p>A SUBACK message contains a list of granted QoS levels. The order of granted
+QoS levels in the SUBACK message matches the order of the topic names in the 
+corresponding <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#subscribe">SUBSCRIBE</a> message.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (9)</td>
+			<td align="center">DUP flag</td>
+
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+	<dt>QoS level</dt>
+
+	<dd>Not used.</dd>
+
+	<dt>DUP flag</dt>
+	<dd>Not used.</dd>
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+	<dt>Remaining Length field</dt>
+	<dd>The length of the payload. It can be a multibyte field.</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+The variable header contains the Message ID for the SUBSCRIBE message 
+that is being acknowledged. The table below shows the format of the variable header.
+<table class="bits">
+	<thead>
+		<tr>
+
+			<th></th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+
+			<td>byte 1</td>
+			<td align="center" colspan="8">Message ID MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Message ID LSB</td>
+		</tr>
+
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>The payload contains a vector of granted QoS levels. Each level corresponds 
+to a topic name in the corresponding SUBSCRIBE message. The order of QoS levels 
+in the SUBACK message matches the order of topic name and Requested QoS pairs 
+in the SUBSCRIBE message. The Message ID in the variable header enables you to 
+match SUBACK messages with the corresponding SUBSCRIBE messages.</p>
+<p>The table below shows the Granted QoS field encoded in a byte.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td></td>
+			<td align="center">Reserved</td>
+
+			<td align="center">Reserved</td>
+			<td align="center">Reserved</td>
+			<td align="center">Reserved</td>
+			<td align="center">Reserved</td>
+			<td align="center">Reserved</td>
+			<td align="center" colspan="2">QoS level</td>
+
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center" colspan="2"></td>
+		</tr>
+	</tbody>
+</table>
+<p>The upper 6 bits of this byte are not used in the current version of the protocol. 
+They are reserved for future use.</p>
+<p>The table below shows an example payload.</p>
+
+<table>
+	<tbody><tr>
+		<td>Granted QoS</td>
+		<td>0</td>
+	</tr>
+	<tr>
+		<td>Granted QoS</td>
+		<td>2</td>
+
+	</tr>
+</tbody></table>
+<p>The table below shows the format of this payload.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td>Granted QoS (0)</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 1</td>
+			<td>Granted QoS (2)</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+
+<h2 id="unsubscribe">3.10. UNSUBSCRIBE - Unsubscribe from named topics</h2>
+<p>An UNSUBSCRIBE message is sent by the client to the server to
+unsubscribe from named topics.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows an example fixed header format.</p>
+
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (10)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+		</tr>
+
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+
+	<dt>QoS level</dt>
+
+	<dd>UNSUBSCRIBE messages use QoS level 1 to acknowledge multiple unsubscribe
+	requests. The corresponding UNSUBACK message is identified by the
+	Message ID. Retries are handled in the same way as <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a>
+	messages.</dd>
+
+	<dt>DUP flag</dt>
+	<dd><p>Set to zero (0). This means that the message is being sent for
+	the first time. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#dup-flag">DUP</a> for more details.</p></dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>Remaining Length</dt>
+	<dd>This is the length of the Payload. It can be a multibyte
+	field.</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+<p>The variable header contains a Message ID because an UNSUBSCRIBE
+message has a QoS level of 1. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#msg-id">Message identifiers</a> for more details.</p>
+<p>The table below shows an example format for the variable header
+with a Message ID of 10.</p>
+<table class="bits">
+	<thead>
+		<tr>
+
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td colspan="10">Message Identifier</td>
+		</tr>
+		<tr>
+			<td>byte 1</td>
+			<td>Message ID MSB (0)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td>Message ID LSB (10)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>The client unsubscribes from the list of topics named in the
+payload. The strings are UTF-encoded and are packed contiguously. Topic
+names in a UNSUBSCRIBE message are not compressed. The table below shows
+an example payload.</p>
+<table>
+	<tbody>
+		<tr>
+			<td>Topic Name</td>
+
+			<td>"a/b"</td>
+		</tr>
+		<tr>
+			<td>Topic Name</td>
+			<td>"c/d"</td>
+		</tr>
+	</tbody>
+</table>
+<p>The table below shows the format of this payload.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th></th>
+			<th>Description</th>
+			<th align="center">7</th>
+
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td colspan="10">Topic Name</td>
+		</tr>
+		<tr>
+
+			<td>byte 1</td>
+			<td>Length MSB (0)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+
+			<td>Length LSB (3)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 3</td>
+			<td align="center">'a' (0x61)</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 4</td>
+			<td align="center">'/' (0x2F)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 5</td>
+			<td align="center">'b' (0x62)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+		</tr>
+		<tr>
+			<td colspan="10">Topic Name</td>
+		</tr>
+		<tr>
+			<td>byte 6</td>
+			<td>Length MSB (0)</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+		<tr>
+			<td>byte 7</td>
+			<td>Length LSB (3)</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+		</tr>
+		<tr>
+			<td>byte 8</td>
+			<td align="center">'c' (0x63)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+		</tr>
+		<tr>
+			<td>byte 9</td>
+			<td align="center">'/' (0x2F)</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+		</tr>
+
+		<tr>
+			<td>byte 10</td>
+			<td align="center">'d' (0x64)</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+
+	</tbody>
+</table>
+
+<h3>Response</h3>
+<p>The server sends an UNSUBACK to a client in response to an
+UNSUBSCRIBE message.</p>
+
+
+<h2 id="unsuback">3.11. UNSUBACK - Unsubscribe acknowledgment</h2>
+<p>The UNSUBACK message is sent by the server to the client to
+confirm receipt of an <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsubscribe">UNSUBSCRIBE</a> message.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (11)</td>
+			<td align="center">DUP flag</td>
+
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining length (2)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<dl>
+
+	<dt>QoS level</dt>
+	<dd>Not used.</dd>
+
+	<dt>DUP flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>RETAIN flag</dt>
+	<dd>Not used.</dd>
+
+
+	<dt>Remaining Length</dt>
+	<dd>The length of the Variable Header (2 bytes).</dd>
+
+</dl>
+
+<h3>Variable header</h3>
+<p>The variable header contains the Message ID for the <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#unsubscribe">UNSUBSCRIBE</a>
+message that is being acknowledged. The table below shows the format of
+the variable header.</p>
+<table class="bits">
+
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="8">Message ID MSB</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Message ID LSB</td>
+
+		</tr>
+	</tbody>
+</table>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+
+
+<h2 id="pingreq">3.12. PINGREQ - PING request</h2>
+<p>The PINGREQ message is an "are you alive?" message that is sent
+from a connected client to the server.</p>
+<p>See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#keep-alive-timer">Keep Alive timer</a> for more details.</p>
+
+<h3>Fixed header</h3>
+<p>The table below shows the fixed header format.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+			<th align="center">6</th>
+
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+			<th align="center">0</th>
+
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (12)</td>
+			<td align="center">DUP flag</td>
+
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (0)</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<p>The DUP, QoS, and RETAIN flags are not used.</p>
+
+<h3>Variable header</h3>
+<p>There is no variable header.</p>
+
+<h3>Payload</h3>
+
+<p>There is no payload.</p>
+
+<h3>Response</h3>
+<p>The response to a PINGREQ message is a PINGRESP message.</p>
+
+
+<h2 id="pingresp">3.13. PINGRESP - PING response</h2>
+<p>A PINGRESP message is the response sent by a server to a <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#pingreq">PINGREQ</a>
+message and means "yes I am alive". </p>
+<p>See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#keep-alive-timer">Keep Alive timer</a> for more details.</p>
+
+<h3>Fixed header</h3>
+
+<p>The table below shows the fixed header format:</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+			<th align="center">7</th>
+
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+			<th align="center">1</th>
+
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+			<td align="center" colspan="4">Message Type (13)</td>
+
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+			<td align="center">1</td>
+
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">1</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (0)</td>
+		</tr>
+		<tr>
+
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<p>The DUP, QoS, and RETAIN flags are not used.</p>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+<h3>Variable header</h3>
+<p>There is no variable header.</p>
+
+
+
+
+<h2 id="disconnect">3.14. DISCONNECT - Disconnect notification</h2>
+<p>The DISCONNECT message is sent from the client to the server to
+indicate that it is about to close its TCP/IP connection. This allows
+for a clean disconnection, rather than just dropping the line.</p>
+
+<p>If the client had connected with the 
+<a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#clean-session-flag">clean session flag</a> set, then all previously 
+maintained information about the client will be discarded.</p>
+
+<p>A server should not rely on the client to close
+the TCP/IP connection after receiving a DISCONNECT.</p>
+
+<h3>Fixed header</h3>
+
+<p>The fixed header format is shown in the table below.</p>
+<table class="bits">
+	<thead>
+		<tr>
+			<th>bit</th>
+
+			<th align="center">7</th>
+			<th align="center">6</th>
+			<th align="center">5</th>
+			<th align="center">4</th>
+			<th align="center">3</th>
+			<th align="center">2</th>
+
+			<th align="center">1</th>
+			<th align="center">0</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>byte 1</td>
+
+			<td align="center" colspan="4">Message Type (14)</td>
+			<td align="center">DUP flag</td>
+			<td align="center" colspan="2">QoS level</td>
+			<td align="center">RETAIN</td>
+		</tr>
+		<tr>
+			<td></td>
+
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">1</td>
+			<td align="center">0</td>
+			<td align="center">x</td>
+			<td align="center">x</td>
+
+			<td align="center">x</td>
+			<td align="center">x</td>
+		</tr>
+		<tr>
+			<td>byte 2</td>
+			<td align="center" colspan="8">Remaining Length (0)</td>
+		</tr>
+
+		<tr>
+			<td></td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+
+			<td align="center">0</td>
+			<td align="center">0</td>
+			<td align="center">0</td>
+		</tr>
+	</tbody>
+</table>
+<p>The DUP, QoS, and RETAIN flags are not used in the DISCONNECT
+message.</p>
+
+<h3>Payload</h3>
+<p>There is no payload.</p>
+
+<h3>Variable header</h3>
+<p>There is no variable header.</p>
+</div>
+<div id="flows-section">
+<h1 id="flows">4. Flows</h1>
+<h2 id="qos-flows">4.1. Quality of Service levels and flows</h2>
+<p>MQTT delivers messages according to the levels defined in a
+Quality of Service (QoS). The levels are described below:</p>
+
+<dl>
+
+	<dt>QoS level 0: At most once delivery</dt>
+	<dd>The message is delivered according to the best efforts of the
+	underlying TCP/IP network. A response is not expected and no retry
+	semantics are defined in the protocol. The message arrives at the
+	server either once or not at all.
+	<p>The table below shows the QoS level 0 protocol flow.</p>
+	<table class="flow">
+		<thead>
+			<tr>
+				<th align="center">Client</th>
+
+				<th align="center">Message and direction</th>
+				<th align="center">Server</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>QoS = 0</td>
+
+				<td align="center">PUBLISH <br>
+				<code>----------&gt;</code></td>
+				<td><b>Action:</b> Publish message to subscribers</td>
+			</tr>
+		</tbody>
+	</table>
+
+	</dd>
+
+
+	<dt>QoS level 1: At least once delivery</dt>
+	<dd>The receipt of a message by the server is acknowledged by a
+	PUBACK message. If there is an identified failure of either the
+	communications link or the sending device, or the acknowledgement
+	message is not received after a specified period of time, the sender
+	resends the message with the DUP bit set in the message header. The
+	message arrives at the server at least once. Both SUBSCRIBE and
+	UNSUBSCRIBE messages use QoS level 1.
+	<p>A message with QoS level 1 has a Message ID in the message
+	header.</p>
+	<p>The table below shows the QoS level 1 protocol flow.</p>
+
+	<table class="flow">
+
+		<thead>
+			<tr>
+				<th align="center">Client</th>
+				<th align="center">Message and direction</th>
+				<th align="center">Server</th>
+			</tr>
+		</thead>
+
+		<tbody>
+			<tr>
+				<td>QoS = 1<br>
+				DUP = 0<br>
+				Message ID = x
+            <p><b>Action:</b> Store message</p></td>
+				<td align="center">PUBLISH <br>
+				<code>----------&gt;</code></td>
+
+				<td><b>Actions:</b>
+				<ul>
+					<li><p>Store message</p></li>
+					<li>Publish message to subscribers</li>
+					<li><p>Delete message</p></li>
+				</ul>
+				</td>
+			</tr>
+
+			<tr>
+				<td><b>Action:</b> Discard message</td>
+				<td align="center">PUBACK <br>
+				<code>&lt;----------</code></td>
+				<td></td>
+			</tr>
+
+		</tbody>
+	</table>
+	<p>If the client does not receive a PUBACK message (either within a
+	time period defined in the application, or if a failure is detected and
+	the communications session is restarted), the client may resend the <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> message with the DUP flag set.</p>
+	<p>When it receives a duplicate message from the client, the server
+	republishes the message to the subscribers, and sends another PUBACK
+	message.</p>
+	</dd>
+
+
+	<dt>QoS level 2: Exactly once delivery</dt>
+	<dd>Additional protocol flows above QoS level 1 ensure that
+	duplicate messages are not delivered to the receiving application. This
+	is the highest level of delivery, for use when duplicate messages are
+	not acceptable. There is an increase in network traffic, but it is
+	usually acceptable because of the importance of the message content.
+	<p>A message with QoS level 2 has a Message ID in the message
+	header.</p>
+	<p>The table below shows the QoS level 2 protocol flow.
+	There are two semantics available for how a PUBLISH flow should be handled
+	by the recipient. They affect the point within the flow that the message
+   is made available to the subscribers. The choice of semantic is implementation
+	specific and does not affect the guarantees of a QoS level 2 flow.</p>
+<p>
+	<table class="flow">
+		<thead>
+			<tr>
+				<th align="center">Client</th>
+				<th align="center">Message and direction</th>
+				<th align="center">Server</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>QoS = 2<br>
+				DUP = 0<br>
+				Message ID = x
+            <p><b>Action:</b> Store message</p></td>
+				<td align="center">PUBLISH <br>
+				<code>----------&gt;</code></td>
+				<td><b>Action:</b> Store message
+					<p align="center"><i>or</i></p>
+					<b>Actions:</b>
+					<ul>
+ 						<li>Store message ID</li>
+						<li>Publish message to subscribers</li>
+					</ul>
+				</td>
+
+			</tr>
+			<tr>
+				<td></td>
+				<td align="center">PUBREC <br>
+				<code>&lt;----------</code></td>
+				<td>Message ID = x</td>
+			</tr>
+
+			<tr>
+				<td>Message ID = x</td>
+				<td align="center">PUBREL <br>
+				<code>----------&gt;</code></td>
+				<td><b>Actions:</b>
+				<ul>
+					<li>Publish message to subscribers</li>
+					<li>Delete message</li>
+				</ul>
+				<p align="center"><i>or</i></p>
+				<b>Action:</b> Delete message ID
+				</td>
+			</tr>
+			<tr>
+				<td><b>Action:</b> Discard message</td>
+				<td align="center">PUBCOMP <br>
+
+				<code>&lt;----------</code></td>
+				<td>Message ID = x</td>
+			</tr>
+		</tbody>
+	</table>
+</p>
+	<p>If a failure is detected, or after a defined time period, the
+   protocol flow is retried from the last unacknowledged protocol message; either
+   the PUBLISH or PUBREL. See <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#retry">Message delivery retry</a> for more
+   details. The additional protocol flows ensure that the message is delivered to
+	subscribers once only.</p>
+	</dd>
+
+</dl>
+
+<h3>Assumptions for QoS levels 1 and 2</h3>
+<p>In any network, it is possible for devices or communication links
+to fail. If this happens, one end of the link might not know what is
+happening at the other end; these are known as <i>in doubt</i> windows.
+In these scenarios assumptions have to be made about the reliability of
+the devices and networks involved in message delivery.</p>
+<p>MQTT assumes that the client and server are generally reliable,
+and that the communications channel is more likely to be unreliable. If
+the client device fails, it is typically a catastrophic failure, rather
+than a transient one. The possibility of recovering data from the device
+is low. Some devices have non-volatile storage, for example flash ROM.
+The provision of more persistent storage on the client device protects
+the most critical data from some modes of failure.</p>
+<p>Beyond the basic failure of the communications link, the failure
+mode matrix becomes complex, resulting in more scenarios than the
+specification for MQTT can handle.</p>
+
+<h2 id="retry">4.2. Message delivery retry</h2>
+<p>Although TCP normally guarantees delivery of packets, there
+are certain scenarios where an MQTT message may not be received.
+In the case of MQTT messages that expect a response (QoS &gt;0 PUBLISH, PUBREL, SUBSCRIBE,
+UNSUBSCRIBE), if the response is not received within a certain time period,
+the sender may retry delivery. The sender should set the <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#dup-flag">DUP</a> flag
+on the message.</p>
+<p>The retry timeout should be a configurable option. However care must be taken to 
+ensure message delivery does not timeout while it is still being sent. For example, sending a
+large message over a slow network will naturally take longer than a small message over a fast network.
+Repeatedly retrying a timed-out message could often make matters worse so a strategy of increasing the
+timeout value across multiple retries should be used.
+</p>
+<p>When a client reconnects, if it is not marked <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#clean-session-flag">clean session</a>,
+both the client and server should redeliver any previous in-flight messages.</p>
+<p>Other than this "on reconnect" retry behaviour, clients are not required to
+retry message delivery. Brokers, however, should retry any unacknowledged message.</p>
+
+<h2 id="ordering">4.3. Message ordering</h2>
+<p>Message ordering can be affected by a number of factors, including
+how many in-flight <a href="https://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#publish">PUBLISH</a> flows a client allows and
+whether the client is single- or multi-threaded. For purposes of discussion, clients are 
+assumed to be single-threaded at the point packets are written to and read from the network.</p>
+<p>For an implementation to provide any guarantees regarding the ordering of messages
+it must ensure each stage of the message delivery flows are completed in the order they were started. 
+For example, in a series of QoS level 2 flows, the PUBREL flows must be sent in the same order as the original
+PUBLISH flows:</p>
+
+<table class="flow">
+		<thead>
+			<tr>
+				<th align="center">Client</th>
+
+				<th align="center">Message and direction</th>
+				<th align="center">Server</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBLISH 1<br><code>----------&gt;</code><br>
+					PUBLISH 2<br><code>----------&gt;</code><br>
+					PUBLISH 3<br><code>----------&gt;</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBREC 1<br><code>&lt;----------</code><br>
+					PUBREC 2<br><code>&lt;----------</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBREL 1<br><code>----------&gt;</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBREC 3<br><code>&lt;----------</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBREL 2<br><code>----------&gt;</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBCOMP 1<br><code>&lt;----------</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBREL 3<br><code>----------&gt;</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+			<tr>
+				<td>&nbsp;</td>
+				<td align="center">
+					PUBCOMP 2<br><code>&lt;----------</code><br>
+					PUBCOMP 3<br><code>&lt;----------</code><br>
+				</td>
+				<td>&nbsp;</td>
+			</tr>
+		</tbody>
+	</table>
+<p>The number of in-flight messages permitted also has an effect on the type of guarantees that can be made:
+</p><ul>
+<li><p>With an in-flight window of 1, each delivery flow is completed before the next one starts. This guarantees
+messages are delivered in the order they were submitted.</p></li>
+<li><p>With an in-flight window greater than 1, message ordering can only be guaranteed within
+the QoS level.</p></li>
+</ul>
+<p></p>
+</div> <!-- /flows -->
+</div> <!-- /main -->
+<div id="appendices">
+<div id="appendix-a">
+<h1>Appendix A - Topic wildcards</h1>
+<p>A subscription may contain special characters, which allow you to subscribe to 
+multiple topics at once.</p>
+<p>The topic level separator is used to introduce structure into the topic, and
+can therefore be specified within the topic for that purpose.  The multi-level
+wildcard and single-level wildcard can be used for subscriptions, but they
+cannot be used within a topic by the publisher of a message.</p>
+<dl>
+	<dt>Topic level separator</dt>
+	<dd>The forward slash (/) is used to separate each level within
+	a topic tree and provide a hierarchical structure to the topic space. The
+	use of the topic level separator is significant when the two wildcard characters
+	are encountered in topics specified by subscribers.</dd>
+	
+	<dt>Multi-level wildcard</dt>
+	<dd><p>The number sign (#) is a wildcard character that matches
+	any number of levels within a topic. For example, if you subscribe to <span><span class="filepath">finance/stock/ibm/#</span></span>, you receive
+	messages on these topics:</p>
+	<pre>   finance/stock/ibm
+   finance/stock/ibm/closingprice
+   finance/stock/ibm/currentprice</pre>
+	<p>The multi-level wildcard
+	can represent zero or more levels. Therefore, <em>finance/#</em> can also match
+	the singular <em>finance</em>, where <em>#</em> represents zero levels. The topic
+	level separator is meaningless in this context, because there are no levels
+	to separate.  </p>
+	<p> The multi-level wildcard can
+	be specified only on its own or next to the topic level separator character.
+	Therefore, <em>#</em> and <em>finance/#</em> are both valid, but <em>finance#</em> is
+	not valid. The multi-level wildcard must be the last character
+	used within the topic tree. For example, <em>finance/#</em> is valid but <em>finance/#/closingprice</em> is
+	not valid.</p></dd>
+
+	<dt>Single-level wildcard</dt>
+	<dd><p>The plus sign (+) is a wildcard character that matches only one topic
+	level. For example, <em>finance/stock/+</em> matches <em>finance/stock/ibm</em> and <em>finance/stock/xyz</em>,
+	but not <em>finance/stock/ibm/closingprice</em>. Also, because the single-level
+	wildcard matches only a single level, <em>finance/+</em> does not match <em>finance</em>.</p>
+	<p>The single-level wildcard can be used at any level in the topic tree, and in conjunction
+	with the multilevel wildcard. It must be used next to the topic level separator, 
+   except when it is specified on its own. Therefore, <em>+</em> and <em>finance/+</em> are
+	both valid, but <em>finance+</em> is not valid. The single-level
+	wildcard can be used at the end of the topic tree or within the topic tree.
+	For example, <em>finance/+</em> and <em>finance/+/ibm</em> are both valid.</p>
+	</dd>
+</dl>
+
+
+<h2>Topic semantics and usage</h2>
+<p>When you build an application,
+the design of the topic tree should take into account the following principles
+of topic name syntax and semantics:</p>
+
+<ul>
+	<li>A topic must be at least one character long.</li>
+	<li>Topic names are case sensitive.  For example, <em>ACCOUNTS</em> and <em>Accounts</em> are
+	two different topics.</li>
+	<li>Topic names can include the space character.  For example, <em>Accounts
+	payable</em> is a valid topic.</li>
+	<li>A leading "/" creates a distinct topic.  For example, <em>/finance</em> is
+	different from <em>finance</em>. <em>/finance</em> matches "+/+" and "/+", but
+	not "+".</li>
+	<li>Do not include the null character (Unicode <code>\x0000</code>) in
+	any topic.</li>
+</ul>
+
+<p>The following principles apply to the construction and content of a topic
+tree:</p>
+<ul>
+	<li>The length is limited to 64k but within that there are no limits to the
+	number of levels in a topic tree.</li>
+	<li>There can be any number of root nodes; that is, there can be any number
+	of topic trees.</li>
+</ul>
+</div>
+
+</div>
+
+
+
+
+</body></html>
