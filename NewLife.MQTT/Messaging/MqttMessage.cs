@@ -32,7 +32,7 @@ public abstract class MqttMessage : IAccessor
     /// </remarks>
     public Boolean Duplicate { get; set; }
 
-    /// <summary>QoS等级</summary>
+    /// <summary>QoS等级。0/1/2</summary>
     public QualityOfService QoS { get; set; }
 
     /// <summary>保持。仅针对PUBLISH消息。不同值，不同含义</summary>
@@ -108,11 +108,7 @@ public abstract class MqttMessage : IAccessor
         var ms = new MemoryStream();
         if (!OnWrite(ms, context)) return false;
 
-        var flag = 0;
-        flag |= ((Byte)Type << 4) & 0b1111_0000;
-        if (Duplicate) flag |= 0b0000_1000;
-        flag |= ((Byte)QoS << 1) & 0b0000_0110;
-        if (Retain) flag |= 0b0000_0001;
+        var flag = GetFlag();
 
         Length = (Int32)ms.Length;
 
@@ -123,6 +119,19 @@ public abstract class MqttMessage : IAccessor
         ms.CopyTo(stream);
 
         return true;
+    }
+
+    /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
+    /// <returns></returns>
+    protected virtual Byte GetFlag()
+    {
+        var flag = 0;
+        flag |= ((Byte)Type << 4) & 0b1111_0000;
+        if (Duplicate) flag |= 0b0000_1000;
+        flag |= ((Byte)QoS << 1) & 0b0000_0110;
+        if (Retain) flag |= 0b0000_0001;
+
+        return (Byte)flag;
     }
 
     /// <summary>子消息写入</summary>

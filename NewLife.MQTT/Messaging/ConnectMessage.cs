@@ -200,5 +200,9 @@ public sealed class ConnectMessage : MqttMessage
 
         return true;
     }
+
+    /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
+    /// <returns></returns>
+    protected override Byte GetFlag() => (Byte)((Byte)Type << 4);
     #endregion
 }

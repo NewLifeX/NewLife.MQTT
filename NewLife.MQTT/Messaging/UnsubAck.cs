@@ -14,14 +14,9 @@ public sealed class UnsubAck : MqttIdMessage
     public override String ToString() => $"{Type}[Id={Id}]";
     #endregion
 
-    /// <summary>根据请求创建响应</summary>
-    /// <param name="msg"></param>
+    #region 方法
+    /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>
-    public static UnsubAck CreateReply(UnsubscribeMessage msg)
-    {
-        return new UnsubAck
-        {
-            Id = msg.Id
-        };
-    }
+    protected override Byte GetFlag() => (Byte)((Byte)Type << 4);
+    #endregion
 }

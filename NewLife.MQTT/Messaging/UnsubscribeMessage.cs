@@ -20,7 +20,7 @@ public sealed class UnsubscribeMessage : MqttIdMessage
     public override String ToString() => TopicFilters == null ? Type + "" : $"{Type}[Topic={TopicFilters[0]}]";
     #endregion
 
-    #region 读写方法
+    #region 方法
     /// <summary>从数据流中读取消息</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
@@ -53,5 +53,25 @@ public sealed class UnsubscribeMessage : MqttIdMessage
 
         return true;
     }
+
+    /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
+    /// <returns></returns>
+    protected override Byte GetFlag()
+    {
+        Duplicate = false;
+        QoS = QualityOfService.AtLeastOnce;
+
+        var flag = 0;
+        flag |= ((Byte)Type << 4) & 0b1111_0000;
+        if (Duplicate) flag |= 0b0000_1000;
+        flag |= ((Byte)QoS << 1) & 0b0000_0110;
+        //if (Retain) flag |= 0b0000_0001;
+
+        return (Byte)flag;
+    }
+
+    /// <summary>根据请求创建响应</summary>
+    /// <returns></returns>
+    public UnsubAck CreateAck() => new() { Id = Id };
     #endregion
 }

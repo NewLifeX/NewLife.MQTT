@@ -7,7 +7,7 @@ public enum ConnectReturnCode
     Accepted = 0x00,
 
     /// <summary>拒绝不可用协议版本</summary>
-    RefusedUnacceptableProtocolVersion = 0X01,
+    RefusedUnacceptableProtocolVersion = 0x01,
 
     /// <summary>拒绝标识</summary>
     RefusedIdentifierRejected = 0x02,
@@ -27,6 +27,9 @@ public sealed class ConnAck : MqttMessage
 {
     #region 属性
     /// <summary>会话</summary>
+    /// <remarks>
+    /// v3.1中是保留码。
+    /// </remarks>
     public Boolean SessionPresent { get; set; }
 
     /// <summary>响应代码</summary>
@@ -65,5 +68,9 @@ public sealed class ConnAck : MqttMessage
 
         return true;
     }
+
+    /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
+    /// <returns></returns>
+    protected override Byte GetFlag() => (Byte)((Byte)Type << 4);
     #endregion
 }

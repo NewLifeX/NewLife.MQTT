@@ -66,8 +66,8 @@ public abstract class MqttHandler : IMqttHandler
         return message.QoS switch
         {
             QualityOfService.AtMostOnce => null,
-            QualityOfService.AtLeastOnce => new PubAck(),
-            QualityOfService.ExactlyOnce => new PubRec(),
+            QualityOfService.AtLeastOnce => message.CreateAck(),
+            QualityOfService.ExactlyOnce => message.CreateReceive(),
             _ => null,
         };
     }
@@ -76,13 +76,13 @@ public abstract class MqttHandler : IMqttHandler
     /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual PubComp OnPublishRelease(INetSession session, PubRel message) => new();
+    protected virtual PubComp OnPublishRelease(INetSession session, PubRel message) => message.CreateComplete();
 
     /// <summary>收到发布已接收消息时</summary>
     /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual PubRel OnPublishReceive(INetSession session, PubRec message) => new();
+    protected virtual PubRel OnPublishReceive(INetSession session, PubRec message) => message.CreateRelease();
 
     /// <summary>收到订阅请求时</summary>
     /// <param name="session">网络会话</param>
@@ -99,5 +99,5 @@ public abstract class MqttHandler : IMqttHandler
     /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual UnsubAck OnUnsubscribe(INetSession session, UnsubscribeMessage message) => new();
+    protected virtual UnsubAck OnUnsubscribe(INetSession session, UnsubscribeMessage message) => message.CreateAck();
 }
