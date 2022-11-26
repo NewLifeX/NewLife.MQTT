@@ -92,7 +92,7 @@ public abstract class MqttHandler : IMqttHandler
     {
         GrantedQos = message.Requests.Select(x => x.QualityOfService).ToList(),
         Id = message.Id,
-        QoS = message.QoS
+        //QoS = message.QoS
     };
 
     /// <summary>收到取消订阅时</summary>
