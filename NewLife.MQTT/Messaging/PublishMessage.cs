@@ -69,7 +69,7 @@ public sealed class PublishMessage : MqttIdMessage
     protected override Byte GetFlag()
     {
         Duplicate = false;
-        QoS = QualityOfService.AtLeastOnce;
+        //QoS = QualityOfService.AtLeastOnce;
         Retain = false;
 
         var flag = 0;
