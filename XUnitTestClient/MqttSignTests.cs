@@ -30,7 +30,7 @@ namespace XUnitTestClient
             var cs = sign.ClientId.Split('|', ',');
             Assert.Equal(8, cs.Length);
             Assert.Equal($"{productKey}.{deviceName}", cs[0]);
-            Assert.Equal("_v=newlife-mqtt-1.0", cs[2]);
+            Assert.Equal("_v=newlife-mqtt-1.2", cs[2]);
             Assert.Equal("language=C#", cs[3]);
             Assert.Equal("_m=NewLife.MQTT", cs[4]);
             Assert.Equal("securemode=3", cs[5]);
@@ -57,7 +57,7 @@ namespace XUnitTestClient
             var cs = client.ClientId.Split('|', ',');
             Assert.Equal(8, cs.Length);
             Assert.Equal($"{productKey}.{deviceName}", cs[0]);
-            Assert.Equal("_v=newlife-mqtt-1.0", cs[2]);
+            Assert.Equal("_v=newlife-mqtt-1.2", cs[2]);
             Assert.Equal("language=C#", cs[3]);
             Assert.Equal("_m=NewLife.MQTT", cs[4]);
             Assert.Equal("securemode=3", cs[5]);

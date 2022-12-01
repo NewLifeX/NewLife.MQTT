@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using NewLife;
 using NewLife.Log;
+using NewLife.Model;
 using NewLife.MQTT;
+using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Security;
+using NewLife.UnitTest;
 using Xunit;
 
 namespace XUnitTestClient
@@ -12,6 +15,7 @@ namespace XUnitTestClient
     [TestCaseOrderer("NewLife.UnitTest.DefaultOrderer", "NewLife.UnitTest")]
     public class MqttClientTests
     {
+        private MqttServer _server;
         private static MqttClient _client;
         private static readonly Queue<String> _mq = new Queue<String>();
 
@@ -42,7 +46,27 @@ namespace XUnitTestClient
             }
         }
 
-        [Fact]
+        [TestOrder(0)]
+        [Fact(Timeout = 3_000)]
+        public void TestServer()
+        {
+            var services = ObjectContainer.Current;
+            services.AddSingleton(XTrace.Log);
+            //services.AddSingleton<IMqttHandler, MqttHandler>();
+            services.AddSingleton<IMqttHandler, MqttController>();
+
+            _server = new MqttServer
+            {
+                Provider = services.BuildServiceProvider(),
+                Log = XTrace.Log,
+                SessionLog = XTrace.Log,
+            };
+
+            _server.Start();
+        }
+
+        [TestOrder(1)]
+        [Fact(Timeout = 3_000)]
         public async void TestConnect()
         {
             // 连接
@@ -52,6 +76,7 @@ namespace XUnitTestClient
             Assert.Equal(ConnectReturnCode.Accepted, rs.ReturnCode);
         }
 
+        [TestOrder(2)]
         [Fact(Timeout = 3_000)]
         public async void TestPublish()
         {
@@ -62,6 +87,7 @@ namespace XUnitTestClient
             //Assert.Equal(msg, _mq.Dequeue());
         }
 
+        [TestOrder(3)]
         [Theory(Timeout = 3_000)]
         [InlineData(QualityOfService.AtMostOnce)]
         [InlineData(QualityOfService.AtLeastOnce)]
@@ -90,6 +116,7 @@ namespace XUnitTestClient
             }
         }
 
+        [TestOrder(4)]
         [Fact(Timeout = 3_000)]
         public async void TestSubscribe()
         {
@@ -100,6 +127,7 @@ namespace XUnitTestClient
             Assert.Equal(QualityOfService.AtMostOnce, rs.GrantedQos[1]);
         }
 
+        [TestOrder(5)]
         [Fact(Timeout = 3_000)]
         public async void TestUnsubscribe()
         {
@@ -107,6 +135,7 @@ namespace XUnitTestClient
             Assert.NotNull(rs);
         }
 
+        [TestOrder(7)]
         [Fact(Timeout = 3_000)]
         public async void TestPing()
         {
@@ -114,6 +143,7 @@ namespace XUnitTestClient
             Assert.NotNull(rs);
         }
 
+        [TestOrder(10)]
         [Fact]
         public async void TestDisconnect()
         {

@@ -15,7 +15,7 @@ public interface IMqttHandler
 }
 
 /// <summary>MQTT处理器基类</summary>
-public abstract class MqttHandler : IMqttHandler
+public class MqttHandler : IMqttHandler
 {
     /// <summary>处理消息</summary>
     /// <param name="session">网络会话</param>

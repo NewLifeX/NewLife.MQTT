@@ -83,10 +83,10 @@ public sealed class PublishMessage : MqttIdMessage
 
     /// <summary>根据请求创建响应</summary>
     /// <returns></returns>
-    public PubAck CreateReceive() => new() { Id = Id };
+    public PubRec CreateReceive() => new() { Id = Id };
 
     /// <summary>根据请求创建响应</summary>
     /// <returns></returns>
-    public PubRec CreateAck() => new() { Id = Id };
+    public PubAck CreateAck() => new() { Id = Id };
     #endregion
 }
