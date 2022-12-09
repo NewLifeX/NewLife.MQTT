@@ -1,4 +1,7 @@
-﻿using NewLife.Log;
+﻿using System.Text;
+using System.Text.Unicode;
+using NewLife.Data;
+using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT;
 using NewLife.MQTT.Handlers;
@@ -22,7 +25,7 @@ namespace Test
 
             try
             {
-                Test2();
+                Test3();
                 //var mi = typeof(Program).GetMethod("Test" + idx, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
                 //if (mi != null) mi.Invoke(null, null);
             }
@@ -31,8 +34,11 @@ namespace Test
                 XTrace.WriteException(ex);
             }
 
-            Console.WriteLine("OK");
-            Console.Read();
+            Console.WriteLine("Ok");
+            while (true)
+            {
+                Console.ReadLine();
+            }
         }
 
         private static void Test1()
@@ -50,10 +56,10 @@ namespace Test
             {
                 XTrace.WriteLine(MqttTopicFilter.Matches(pub, item) + "");
             }
-
         }
 
         private static MqttServer _server;
+
         private static async void Test2()
         {
             var ioc = ObjectContainer.Current;
@@ -122,25 +128,39 @@ namespace Test
 
         private static MqttClient _mc;
 
+        /// <summary>
+        /// 测试完整发布订阅
+        /// </summary>
         private static async void Test3()
         {
             _mc = new MqttClient
             {
                 Log = XTrace.Log,
-                Server = "tcp://129.211.129.92:1883",
+                Server = "tcp://127.0.0.1:1883",
                 //UserName = "admin",
                 //Password = "admin",
                 ClientId = Guid.NewGuid() + "",
             };
 
             await _mc.ConnectAsync();
-
-            var rt = await _mc.SubscribeAsync("/test/#", (e) =>
+            //订阅“/test”主题
+            var rt = await _mc.SubscribeAsync("/test", (e) =>
             {
-                XTrace.WriteLine("sub:" + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
+                XTrace.WriteLine("收到消息:" + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
             });
-
-            Console.Read();
+            while (true)
+            {
+                //每2秒向“/test”主题发布一条消息
+                try
+                {
+                    var msg = "学无先后达者为师" + Rand.NextString(8);
+                    await _mc.PublishAsync("/test", msg);
+                }
+                catch (Exception ex)
+                {
+                }
+                await Task.Delay(2000);
+            }
         }
     }
 }

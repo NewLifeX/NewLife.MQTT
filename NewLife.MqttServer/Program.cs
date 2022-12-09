@@ -20,8 +20,11 @@ var star = new StarFactory();
 var set = MqttSetting.Current;
 
 // 注册MQTT Broker的指令处理器
-services.AddTransient<IMqttHandler, MqttController>();
+services.AddSingleton<DefaultManagedMqttClient, DefaultManagedMqttClient>();
+services.AddSingleton<IMqttHandler, MqttController>();
 
+// 注册后台任务 IHostedService
+var host = services.BuildHost();
 // 服务器
 var svr = new MqttServer()
 {
@@ -36,8 +39,6 @@ if (set.Debug) svr.SessionLog = XTrace.Log;
 
 svr.Start();
 
-// 注册后台任务 IHostedService
-var host = services.BuildHost();
 //host.Add<Worker>();
 
 // 异步阻塞，友好退出
