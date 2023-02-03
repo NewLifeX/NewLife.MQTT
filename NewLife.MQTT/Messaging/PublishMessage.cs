@@ -41,7 +41,7 @@ public sealed class PublishMessage : MqttIdMessage
         }
 
         //Payload = ReadData(stream);
-        Payload = stream.ReadBytes();
+        Payload = stream.ReadBytes(-1);
 
         return true;
     }
