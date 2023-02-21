@@ -1,4 +1,5 @@
 ﻿using NewLife.Data;
+using NewLife.Log;
 using NewLife.MQTT.Messaging;
 
 namespace NewLife.MQTT;
@@ -39,9 +40,19 @@ public class MqttFactory
     /// <returns></returns>
     public virtual MqttMessage ReadMessage(Packet pk)
     {
-        var msg = CreateMessage((MqttType)(pk[0] >> 4));
-        if (!msg.Read(pk.GetStream(), null)) return null;
+        try
+        {
+            var msg = CreateMessage((MqttType)(pk[0] >> 4));
+            if (!msg.Read(pk.GetStream(), null)) return null;
 
-        return msg;
+            return msg;
+        }
+        catch (XException)
+        {
+            // 解析数据异常时，把数据记录到埋点，方便分析异常指令
+            DefaultSpan.Current?.SetTag(pk);
+
+            throw;
+        }
     }
 }
