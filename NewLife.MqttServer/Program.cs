@@ -29,7 +29,7 @@ var host = services.BuildHost();
 var svr = new MqttServer()
 {
     Port = set.Port,
-    Provider = services.BuildServiceProvider(),
+    ServiceProvider = services.BuildServiceProvider(),
 
     Tracer = star.Tracer,
     Log = XTrace.Log,

@@ -57,7 +57,7 @@ namespace XUnitTestClient
 
             _server = new MqttServer
             {
-                Provider = services.BuildServiceProvider(),
+                ServiceProvider = services.BuildServiceProvider(),
                 Log = XTrace.Log,
                 SessionLog = XTrace.Log,
             };

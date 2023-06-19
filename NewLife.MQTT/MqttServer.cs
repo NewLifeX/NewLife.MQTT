@@ -9,8 +9,8 @@ namespace NewLife.MQTT;
 /// <summary>MQTT服务端</summary>
 public class MqttServer : NetServer<MqttSession>
 {
-    /// <summary>服务提供者</summary>
-    public IServiceProvider Provider { get; set; }
+    ///// <summary>服务提供者</summary>
+    //public IServiceProvider Provider { get; set; }
 
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
@@ -18,6 +18,8 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>启动</summary>
     protected override void OnStart()
     {
+        if (ServiceProvider == null) throw new NotSupportedException("未配置服务提供者ServiceProvider");
+
         Add(new MqttCodec());
 
         base.OnStart();
@@ -43,6 +45,16 @@ public class MqttSession : NetSession<MqttServer>
     /// <summary>指令处理器</summary>
     public IMqttHandler Handler { get; set; }
 
+    /// <summary>设备连接时，准备处理器</summary>
+    /// <exception cref="NotSupportedException"></exception>
+    protected override void OnConnected()
+    {
+        Handler ??= ServiceProvider.GetRequiredService<IMqttHandler>();
+        if (Handler == null) throw new NotSupportedException("未注册指令处理器");
+
+        base.OnConnected();
+    }
+
     /// <summary>接收指令</summary>
     /// <param name="e"></param>
     protected override void OnReceive(ReceivedEventArgs e)
@@ -53,9 +65,6 @@ public class MqttSession : NetSession<MqttServer>
         if (debug) WriteLog("<={0}", msg);
         if (msg != null)
         {
-            Handler ??= Host.Provider.GetRequiredService<IMqttHandler>();
-            if (Handler == null) throw new NotSupportedException("未注册指令处理器");
-
             MqttMessage result = null;
             using var span = Host.Tracer?.NewSpan($"mqtt:{msg.Type}", msg);
             try
