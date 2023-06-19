@@ -52,6 +52,8 @@ public class MqttSession : NetSession<MqttServer>
         Handler ??= ServiceProvider.GetRequiredService<IMqttHandler>();
         if (Handler == null) throw new NotSupportedException("未注册指令处理器");
 
+        if (Handler is MqttHandler handler) handler.Session = this;
+
         base.OnConnected();
     }
 
@@ -70,7 +72,7 @@ public class MqttSession : NetSession<MqttServer>
             try
             {
                 // 执行处理器
-                result = Handler.Process(this, msg);
+                result = Handler.Process(msg);
             }
             catch (Exception ex)
             {

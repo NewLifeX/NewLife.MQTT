@@ -2,7 +2,6 @@
 using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
-using NewLife.Net;
 
 namespace XUnitTestClient;
 
@@ -12,24 +11,24 @@ internal class MqttController : MqttHandler
 
     public MqttController(ILog log) => _log = log;
 
-    protected override ConnAck OnConnect(INetSession session, ConnectMessage message)
+    protected override ConnAck OnConnect(ConnectMessage message)
     {
-        _log.Info("客户端[{0}]连接 user={0} pass={1} clientId={2}", session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+        _log.Info("客户端[{0}]连接 user={0} pass={1} clientId={2}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
 
-        return base.OnConnect(session, message);
+        return base.OnConnect(message);
     }
 
-    protected override MqttMessage OnDisconnect(INetSession session, DisconnectMessage message)
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
     {
-        _log.Info("客户端[{0}]断开", session.Remote);
+        _log.Info("客户端[{0}]断开", Session.Remote);
 
-        return base.OnDisconnect(session, message);
+        return base.OnDisconnect(message);
     }
 
-    protected override MqttIdMessage OnPublish(INetSession session, PublishMessage message)
+    protected override MqttIdMessage OnPublish(PublishMessage message)
     {
         _log.Info("发布[{0}:qos={1}]: {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
 
-        return base.OnPublish(session, message);
+        return base.OnPublish(message);
     }
 }

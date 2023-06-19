@@ -102,25 +102,25 @@ internal class Program
 
         public MyHandler(ILog log) => _log = log;
 
-        protected override ConnAck OnConnect(INetSession session, ConnectMessage message)
+        protected override ConnAck OnConnect(ConnectMessage message)
         {
-            _log.Info("客户端[{0}]连接 user={1} pass={2} clientId={3}", session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+            _log.Info("客户端[{0}]连接 user={1} pass={2} clientId={3}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
 
-            return base.OnConnect(session, message);
+            return base.OnConnect(message);
         }
 
-        protected override MqttMessage OnDisconnect(INetSession session, DisconnectMessage message)
+        protected override MqttMessage OnDisconnect(DisconnectMessage message)
         {
-            _log.Info("客户端[{0}]断开", session.Remote);
+            _log.Info("客户端[{0}]断开", Session.Remote);
 
-            return base.OnDisconnect(session, message);
+            return base.OnDisconnect(message);
         }
 
-        protected override MqttIdMessage OnPublish(INetSession session, PublishMessage message)
+        protected override MqttIdMessage OnPublish(PublishMessage message)
         {
-            _log.Info("客户端[{0}]发布[{1}:qos={2}]: {3}", session.Remote, message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+            _log.Info("客户端[{0}]发布[{1}:qos={2}]: {3}", Session.Remote, message.Topic, (Int32)message.QoS, message.Payload.ToStr());
 
-            return base.OnPublish(session, message);
+            return base.OnPublish(message);
         }
     }
 
