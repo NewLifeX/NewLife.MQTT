@@ -41,7 +41,10 @@ if (set.Debug) svr.SessionLog = XTrace.Log;
 
 svr.Start();
 
-//host.Add<Worker>();
+if (star.Service != null)
+    _ = star.RegisterAsync("MqttServer", null);
+
+Host.RegisterExit((s, e) => svr.Stop(s + ""));
 
 // 异步阻塞，友好退出
 await host.RunAsync();
