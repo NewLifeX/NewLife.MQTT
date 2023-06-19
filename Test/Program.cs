@@ -45,13 +45,13 @@ internal class Program
         var pub = "/test/test/test/test";
         foreach (var item in sub)
         {
-            XTrace.WriteLine(MqttTopicFilter.Matches(pub, item) + "");
+            XTrace.WriteLine(MqttTopicFilter.IsMatch(pub, item) + "");
         }
         var sub1 = new String[] { "test/#", "/test/sss/test/test", "/test//#" };
 
         foreach (var item in sub1)
         {
-            XTrace.WriteLine(MqttTopicFilter.Matches(pub, item) + "");
+            XTrace.WriteLine(MqttTopicFilter.IsMatch(pub, item) + "");
         }
     }
 

@@ -9,8 +9,8 @@ namespace NewLife.MQTT;
 /// <summary>MQTT服务端</summary>
 public class MqttServer : NetServer<MqttSession>
 {
-    ///// <summary>服务提供者</summary>
-    //public IServiceProvider Provider { get; set; }
+    /// <summary>消息交换机</summary>
+    public MqttExchange Exchange { get; set; }
 
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
@@ -20,23 +20,15 @@ public class MqttServer : NetServer<MqttSession>
     {
         if (ServiceProvider == null) throw new NotSupportedException("未配置服务提供者ServiceProvider");
 
+        Exchange ??= ServiceProvider.GetService<MqttExchange>();
+        //Exchange ??= new MqttExchange(Tracer);
+        if (Exchange != null)
+            Exchange.Tracer ??= Tracer;
+
         Add(new MqttCodec());
 
         base.OnStart();
     }
-
-    ///// <summary>处理请求</summary>
-    ///// <param name="session"></param>
-    ///// <param name="message"></param>
-    ///// <returns></returns>
-    ///// <exception cref="NotSupportedException"></exception>
-    //public virtual MqttMessage Process(INetSession session, MqttMessage message)
-    //{
-    //    var handler = Provider.GetRequiredService<IMqttHandler>();
-    //    if (handler == null) throw new NotSupportedException("未注册指令处理器");
-
-    //    return handler.Process(session, message);
-    //}
 }
 
 /// <summary>会话</summary>
@@ -52,7 +44,11 @@ public class MqttSession : NetSession<MqttServer>
         Handler ??= ServiceProvider.GetRequiredService<IMqttHandler>();
         if (Handler == null) throw new NotSupportedException("未注册指令处理器");
 
-        if (Handler is MqttHandler handler) handler.Session = this;
+        if (Handler is MqttHandler handler)
+        {
+            handler.Session = this;
+            handler.Exchange = Host.Exchange;
+        }
 
         base.OnConnected();
     }

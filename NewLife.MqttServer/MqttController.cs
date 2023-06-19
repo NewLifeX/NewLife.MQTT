@@ -16,12 +16,12 @@ internal class MqttController : MqttHandler
     {
         defaultManagedMqttClient = dmmc;
         _log = log;
-        defaultManagedMqttClient?.StartAsync(default);
+        //defaultManagedMqttClient?.StartAsync(default);
     }
 
     protected override ConnAck OnConnect(ConnectMessage message)
     {
-        _log.Info("客户端[{0}]连接 user={0} pass={1} clientId={2}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+        _log.Info("客户端[{0}]连接 user={1} pass={2} clientId={3}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
 
         //将连接加入管理
         defaultManagedMqttClient.AddClient(Session);
@@ -42,7 +42,7 @@ internal class MqttController : MqttHandler
     {
         _log.Info("发布[{0}:qos={1}]: {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
 
-        defaultManagedMqttClient.Enqueue(message);
+        //defaultManagedMqttClient.Enqueue(message);
 
         return base.OnPublish(message);
     }

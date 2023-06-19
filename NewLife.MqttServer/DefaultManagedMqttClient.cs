@@ -49,7 +49,8 @@ public sealed class DefaultManagedMqttClient
         }
         else
         {
-            bag = new ConcurrentHashSet<String>(); bag.TryAdd(topic);
+            bag = new ConcurrentHashSet<String>();
+            bag.TryAdd(topic);
             _subscriptions.TryAdd(session.ID, bag);
         }
     }
@@ -72,7 +73,10 @@ public sealed class DefaultManagedMqttClient
 
     public void UnSubTopic(INetSession session, IList<String> topics)
     {
-        foreach (var topic in topics) { UnSubTopic(session, topic); }
+        foreach (var topic in topics)
+        {
+            UnSubTopic(session, topic);
+        }
     }
 
     public void Enqueue(PublishMessage item)

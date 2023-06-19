@@ -31,6 +31,7 @@ public class MqttTopicFilter
 
         return !topicFilterParts.Any(s => s == "#") || topicFilter.IndexOf("#") >= topicFilter.Length - 1;
     }
+
     /// <summary>
     /// 发布主题验证
     /// </summary>
@@ -50,7 +51,7 @@ public class MqttTopicFilter
     /// <param name="topicName">发布主题名称</param>
     /// <param name="topicFilter">订阅主题名称</param>
     /// <returns></returns>
-    public static Boolean Matches(String topicName, String topicFilter)
+    public static Boolean IsMatch(String topicName, String topicFilter)
     {
         if (!IsValidTopicName(topicName)) throw new Exception($"{topicName}:发布主题不符合规范");
         if (!IsValidTopicFilter(topicFilter)) throw new Exception($"{topicName}:订阅主题不符合规范");

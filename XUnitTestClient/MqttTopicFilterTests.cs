@@ -16,13 +16,13 @@ namespace XUnitTestClient
             var pub = "/test/test/test/test";
             foreach (var item in sub)
             {
-                Assert.True(MqttTopicFilter.Matches(pub, item));
+                Assert.True(MqttTopicFilter.IsMatch(pub, item));
             }
             var sub1 = new string[] { "test/#", "/test/sss/test/test", "/test//#" };
 
             foreach (var item in sub1)
             {
-                Assert.False(MqttTopicFilter.Matches(pub, item));
+                Assert.False(MqttTopicFilter.IsMatch(pub, item));
             }
         }
     }

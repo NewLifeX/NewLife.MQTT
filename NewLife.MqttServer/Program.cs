@@ -14,14 +14,16 @@ var services = ObjectContainer.Current;
 services.AddSingleton(XTrace.Log);
 
 // 配置星尘。自动读取配置文件 config/star.config 中的服务器地址
-var star = new StarFactory();
+var star = services.AddStardust();
 
 // 配置
 var set = MqttSetting.Current;
 
 // 注册MQTT Broker的指令处理器
 services.AddSingleton<DefaultManagedMqttClient, DefaultManagedMqttClient>();
-services.AddSingleton<IMqttHandler, MqttController>();
+services.AddTransient<IMqttHandler, MqttController>();
+//services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
 
 // 注册后台任务 IHostedService
 var host = services.BuildHost();

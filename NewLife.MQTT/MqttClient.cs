@@ -284,7 +284,7 @@ public class MqttClient : DisposeBase
         foreach (var item in _subs)
         {
             var sub = item.Value;
-            if (sub?.Callback != null && MqttTopicFilter.Matches(pm.Topic, sub.TopicFilter))
+            if (sub?.Callback != null && MqttTopicFilter.IsMatch(pm.Topic, sub.TopicFilter))
             {
                 sub.Callback(pm);
             }

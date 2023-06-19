@@ -11,7 +11,6 @@ namespace NewLife.MQTT.Handlers;
 public interface IMqttHandler
 {
     /// <summary>处理消息</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
     MqttMessage Process(MqttMessage message);
@@ -38,6 +37,9 @@ public class MqttHandler : IMqttHandler
     /// <summary>网络会话</summary>
     public INetSession Session { get; set; }
 
+    /// <summary>消息交换机</summary>
+    public MqttExchange Exchange { get; set; }
+
     #region 接收消息
     /// <summary>处理消息</summary>
     /// <param name="message">消息</param>
@@ -61,29 +63,37 @@ public class MqttHandler : IMqttHandler
     }
 
     /// <summary>客户端连接时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual ConnAck OnConnect(ConnectMessage message) => new() { ReturnCode = ConnectReturnCode.Accepted };
+    protected virtual ConnAck OnConnect(ConnectMessage message)
+    {
+        Exchange?.Add(Session.ID, this);
+
+        return new() { ReturnCode = ConnectReturnCode.Accepted };
+    }
 
     /// <summary>客户端断开时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual MqttMessage OnDisconnect(DisconnectMessage message) => null;
+    protected virtual MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        Exchange?.Remove(Session.ID);
+
+        return null;
+    }
 
     /// <summary>收到心跳时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
     protected virtual PingResponse OnPing(PingRequest message) => new();
 
     /// <summary>收到发布消息时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
     protected virtual MqttIdMessage OnPublish(PublishMessage message)
     {
+        Exchange?.Publish(message);
+
         return message.QoS switch
         {
             QualityOfService.AtMostOnce => null,
@@ -94,33 +104,51 @@ public class MqttHandler : IMqttHandler
     }
 
     /// <summary>收到发布消息时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
     protected virtual PubComp OnPublishRelease(PubRel message) => message.CreateComplete();
 
     /// <summary>收到发布已接收消息时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
     protected virtual PubRel OnPublishReceive(PubRec message) => message.CreateRelease();
 
     /// <summary>收到订阅请求时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual SubAck OnSubscribe(SubscribeMessage message) => new()
+    protected virtual SubAck OnSubscribe(SubscribeMessage message)
     {
-        GrantedQos = message.Requests.Select(x => x.QualityOfService).ToList(),
-        Id = message.Id,
-        //QoS = message.QoS
-    };
+        if (Exchange != null && message.Requests != null)
+        {
+            foreach (var item in message.Requests)
+            {
+                Exchange.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService);
+            }
+        }
+
+        return new()
+        {
+            GrantedQos = message.Requests.Select(x => x.QualityOfService).ToList(),
+            Id = message.Id,
+            //QoS = message.QoS
+        };
+    }
 
     /// <summary>收到取消订阅时</summary>
-    /// <param name="session">网络会话</param>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual UnsubAck OnUnsubscribe(UnsubscribeMessage message) => message.CreateAck();
+    protected virtual UnsubAck OnUnsubscribe(UnsubscribeMessage message)
+    {
+        if (Exchange != null && message.TopicFilters != null)
+        {
+            foreach (var item in message.TopicFilters)
+            {
+                Exchange.Unsubscribe(Session.ID, item);
+            }
+        }
+
+        return message.CreateAck();
+    }
     #endregion
 
     #region 发送消息
