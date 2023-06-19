@@ -104,7 +104,7 @@ internal class Program
 
         protected override ConnAck OnConnect(INetSession session, ConnectMessage message)
         {
-            _log.Info("客户端[{0}]连接 user={0} pass={1} clientId={2}", session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+            _log.Info("客户端[{0}]连接 user={1} pass={2} clientId={3}", session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
 
             return base.OnConnect(session, message);
         }
@@ -118,7 +118,7 @@ internal class Program
 
         protected override MqttIdMessage OnPublish(INetSession session, PublishMessage message)
         {
-            _log.Info("发布[{0}:qos={1}]: {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+            _log.Info("客户端[{0}]发布[{1}:qos={2}]: {3}", session.Remote, message.Topic, (Int32)message.QoS, message.Payload.ToStr());
 
             return base.OnPublish(session, message);
         }
