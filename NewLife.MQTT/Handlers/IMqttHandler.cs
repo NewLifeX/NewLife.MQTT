@@ -32,7 +32,7 @@ public interface IMqttHandler
 /// <remarks>
 /// 基类中各方法的默认实现主要是为了返回默认值。
 /// </remarks>
-public class MqttHandler : IMqttHandler
+public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 {
     /// <summary>网络会话</summary>
     public INetSession Session { get; set; }
@@ -260,6 +260,6 @@ public class MqttHandler : IMqttHandler
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    private void WriteLog(String format, params Object[] args) => Log?.Info($"[MqttServer]{format}", args);
+    public void WriteLog(String format, params Object[] args) => Log?.Info($"[MqttServer]{format}", args);
     #endregion
 }
