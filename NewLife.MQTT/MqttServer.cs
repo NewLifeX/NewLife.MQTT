@@ -53,6 +53,15 @@ public class MqttSession : NetSession<MqttServer>
         base.OnConnected();
     }
 
+    /// <summary>客户端连接已断开</summary>
+    /// <param name="reason"></param>
+    protected override void OnDisconnected(String reason)
+    {
+        Handler.Close(reason);
+
+        base.OnDisconnected(reason);
+    }
+
     /// <summary>接收指令</summary>
     /// <param name="e"></param>
     protected override void OnReceive(ReceivedEventArgs e)

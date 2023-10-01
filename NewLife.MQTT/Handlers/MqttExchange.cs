@@ -47,20 +47,26 @@ public class MqttExchange : DisposeBase
         var exp = DateTime.Now.Subtract(Expire);
         var dic = new Dictionary<Int32, IMqttHandler>();
         foreach (var item in _sessions)
+        {
             if (item.Value is MqttHandler handler)
+            {
                 if (handler.Session == null)
                     dic.Add(item.Key, item.Value);
                 else if (handler.Session is not NetSession session || session.Disposed || session.Session == null)
                     dic.Add(item.Key, item.Value);
                 else if (session.Session.LastTime < exp)
                     dic.Add(item.Key, item.Value);
+            }
+        }
 
         foreach (var item in dic)
         {
             _sessions.TryRemove(item.Key, out _);
 
             // 销毁过期会话，促使断开连接
-            item.Value.TryDispose();
+            var handler = item.Value;
+            handler.Close(nameof(RemoveNotAlive));
+            handler.TryDispose();
         }
     }
     #endregion

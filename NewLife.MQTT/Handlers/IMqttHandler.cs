@@ -26,6 +26,10 @@ public interface IMqttHandler
     /// <param name="message">消息</param>
     /// <returns></returns>
     Task<MqttIdMessage> PublishAsync(PublishMessage message);
+
+    /// <summary>关闭连接。网络连接被关闭时触发</summary>
+    /// <param name="reason"></param>
+    void Close(String reason);
 }
 
 /// <summary>MQTT处理器基类</summary>
@@ -248,6 +252,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         if (data is Byte[] buf) return buf;
         return data is String str ? (Packet)str.GetBytes() : (Packet)data.ToJson().GetBytes();
     }
+    #endregion
+
+    #region 辅助
+    /// <summary>关闭连接。网络连接被关闭时触发</summary>
+    /// <param name="reason"></param>
+    public virtual void Close(String reason) => Exchange?.Remove(Session.ID);
     #endregion
 
     #region 日志
