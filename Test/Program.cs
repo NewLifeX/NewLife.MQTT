@@ -3,7 +3,6 @@ using NewLife.Model;
 using NewLife.MQTT;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
-using NewLife.Net;
 using NewLife.Security;
 
 namespace Test;
@@ -22,7 +21,8 @@ internal class Program
 
         try
         {
-            Test2();
+            TestServer();
+            TestClient();
             //var mi = typeof(Program).GetMethod("Test" + idx, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             //if (mi != null) mi.Invoke(null, null);
         }
@@ -57,43 +57,24 @@ internal class Program
 
     private static MqttServer _server;
 
-    private static async void Test2()
+    private static void TestServer()
     {
-        var ioc = ObjectContainer.Current;
-        ioc.AddSingleton<ILog>(XTrace.Log);
-        ioc.AddTransient<IMqttHandler, MyHandler>();
+        var services = ObjectContainer.Current;
+        services.AddSingleton<ILog>(XTrace.Log);
+        services.AddTransient<IMqttHandler, MyHandler>();
+        services.AddSingleton<MqttExchange, MqttExchange>();
 
         var server = new MqttServer
         {
-            Port = 50001,
-            ServiceProvider = ioc.BuildServiceProvider(),
+            Port = 1883,
+            ServiceProvider = services.BuildServiceProvider(),
 
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };
-        //server.AddHandler(new MyHandler());
         server.Start();
 
         _server = server;
-
-        //var client = new MqttClient
-        //{
-        //    Server = "tcp://127.0.0.1:1883",
-        //    Log = XTrace.Log
-        //};
-
-        //await client.ConnectAsync();
-
-        //for (var i = 0; i < 10; i++)
-        //{
-        //    var qos = (QualityOfService)(i % 3);
-
-        //    await client.PublishAsync("test", new { name = "p" + i, value = Rand.Next() }, qos);
-
-        //    await Task.Delay(1000);
-        //}
-
-        //await client.DisconnectAsync();
     }
 
     private class MyHandler : MqttHandler
@@ -129,9 +110,9 @@ internal class Program
     /// <summary>
     /// 测试完整发布订阅
     /// </summary>
-    private static async void Test3()
+    private static async void TestClient()
     {
-        _mc = new MqttClient
+        var client = new MqttClient
         {
             Log = XTrace.Log,
             Server = "tcp://127.0.0.1:1883",
@@ -140,24 +121,29 @@ internal class Program
             ClientId = Guid.NewGuid() + "",
         };
 
-        await _mc.ConnectAsync();
-        //订阅“/test”主题
-        var rt = await _mc.SubscribeAsync("/test", (e) =>
+        await client.ConnectAsync();
+
+        // 订阅“/test”主题
+        var rt = await client.SubscribeAsync("/test", (e) =>
         {
             XTrace.WriteLine("收到消息:" + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
         });
+
+        // 每2秒向“/test”主题发布一条消息
         while (true)
         {
-            //每2秒向“/test”主题发布一条消息
             try
             {
                 var msg = "学无先后达者为师" + Rand.NextString(8);
-                await _mc.PublishAsync("/test", msg);
+                await client.PublishAsync("/test", msg);
             }
             catch (Exception ex)
             {
+                XTrace.WriteException(ex);
             }
             await Task.Delay(2000);
         }
+
+        _mc = client;
     }
 }
