@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;
@@ -24,7 +25,7 @@ public class MqttClient : DisposeBase
     public Int32 KeepAlive { get; set; } = 600;
 
     /// <summary>服务器地址</summary>
-    public String Server { get; set; }
+    public String? Server { get; set; }
 
     /// <summary>SSL协议。默认None，服务端Default，客户端不启用</summary>
     public SslProtocols SslProtocol { get; set; } = SslProtocols.Tls12;
@@ -34,13 +35,13 @@ public class MqttClient : DisposeBase
     public X509Certificate? Certificate { get; set; }
 
     /// <summary>客户端标识。应用可能多实例部署，ip@proccessid</summary>
-    public String ClientId { get; set; }
+    public String? ClientId { get; set; }
 
     /// <summary>用户名</summary>
-    public String UserName { get; set; }
+    public String? UserName { get; set; }
 
     /// <summary>密码</summary>
-    public String Password { get; set; }
+    public String? Password { get; set; }
 
     /// <summary>
     /// 清除会话，默认true
@@ -63,9 +64,9 @@ public class MqttClient : DisposeBase
     public Boolean IsConnected => _isConnected == true && _Client != null && _Client.Active && !_Client.Disposed;
 
     /// <summary>性能跟踪</summary>
-    public ITracer Tracer { get; set; }
+    public ITracer? Tracer { get; set; }
 
-    private ISocketClient _Client;
+    private ISocketClient? _Client;
 
     private Int32 _taskCanceledCount;
     #endregion
@@ -128,6 +129,8 @@ public class MqttClient : DisposeBase
             if (client != null && client.Active && !client.Disposed) return;
             _Client = null;
 
+            if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
+
             var uri = new NetUri(Server);
             if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
             if (uri.Port == 0) uri.Port = 1883;
@@ -172,7 +175,7 @@ public class MqttClient : DisposeBase
     /// <param name="msg">消息</param>
     /// <param name="waitForResponse">是否等待响应</param>
     /// <returns></returns>
-    protected virtual async Task<MqttMessage> SendAsync(MqttMessage msg, Boolean waitForResponse = true)
+    protected virtual async Task<MqttMessage?> SendAsync(MqttMessage msg, Boolean waitForResponse = true)
     {
         if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0))
             idm.Id = (UInt16)Interlocked.Increment(ref g_id);
@@ -191,6 +194,7 @@ public class MqttClient : DisposeBase
         Init();
 
         var client = _Client;
+        if (client == null) throw new ArgumentNullException(nameof(_Client));
         try
         {
             // 断开消息没有响应
@@ -267,7 +271,7 @@ public class MqttClient : DisposeBase
 
                 if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", rs);
 
-                ss.SendMessage(rs);
+                ss!.SendMessage(rs);
             }
         }
         catch (Exception ex)
@@ -279,11 +283,11 @@ public class MqttClient : DisposeBase
     }
 
     /// <summary>收到命令时</summary>
-    public event EventHandler<EventArgs<PublishMessage>> Received;
+    public event EventHandler<EventArgs<PublishMessage>>? Received;
 
     /// <summary>收到命令</summary>
     /// <param name="msg"></param>
-    protected virtual MqttMessage OnReceive(MqttMessage msg)
+    protected virtual MqttMessage? OnReceive(MqttMessage msg)
     {
         if (msg is PubRel pr) return new PubComp { Id = pr.Id };
         if (msg is not PublishMessage pm) return null;
@@ -324,12 +328,12 @@ public class MqttClient : DisposeBase
     /// <summary>
     /// 断开连接时
     /// </summary>
-    public event EventHandler<EventArgs> Disconnected;
+    public event EventHandler<EventArgs>? Disconnected;
 
     /// <summary>
     /// 连接成功时
     /// </summary>
-    public event EventHandler<EventArgs> Connected;
+    public event EventHandler<EventArgs>? Connected;
 
     /// <summary>连接服务端</summary>
     /// <returns></returns>
@@ -369,7 +373,7 @@ public class MqttClient : DisposeBase
         var rs = (await SendAsync(message)) as ConnAck;
 
         // 判断响应，是否成功连接
-        if (rs.ReturnCode != ConnectReturnCode.Accepted)
+        if (rs!.ReturnCode != ConnectReturnCode.Accepted)
         {
             var errMsg = $"连接失败，参数：{message.ToJson()}，原因：{rs.ReturnCode}";
             WriteLog(errMsg);
@@ -443,10 +447,11 @@ public class MqttClient : DisposeBase
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var pk = data as Packet;
         if (pk == null && data != null) pk = Serialize(data);
+        if (pk == null) throw new ArgumentNullException(nameof(data));
 
         var message = new PublishMessage
         {
@@ -469,7 +474,7 @@ public class MqttClient : DisposeBase
     /// <summary>发布消息</summary>
     /// <param name="message"></param>
     /// <returns></returns>
-    public async Task<MqttIdMessage> PublishAsync(PublishMessage message)
+    public async Task<MqttIdMessage?> PublishAsync(PublishMessage message)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
@@ -503,7 +508,7 @@ public class MqttClient : DisposeBase
     /// <param name="topicFilter">主题过滤器</param>
     /// <param name="callback">收到该主题消息时的回调</param>
     /// <returns></returns>
-    public async Task<SubAck> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null)
+    public async Task<SubAck?> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null)
     {
         var subscription = new Subscription(topicFilter, QualityOfService.AtMostOnce);
 
@@ -514,7 +519,7 @@ public class MqttClient : DisposeBase
     /// <param name="topicFilters">主题过滤器</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<SubAck> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce)
+    public async Task<SubAck?> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var subscriptions = topicFilters.Select(e => new Subscription(e, qos)).ToList();
 
@@ -525,7 +530,7 @@ public class MqttClient : DisposeBase
     /// <param name="subscriptions">订阅集合</param>
     /// <param name="callback">收到该主题消息时的回调</param>
     /// <returns></returns>
-    public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage>? callback = null)
+    public async Task<SubAck?> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage>? callback = null)
     {
         // 已订阅，不重复
         subscriptions = subscriptions.Where(e => !_subs.ContainsKey(e.TopicFilter)).ToList();
@@ -552,7 +557,7 @@ public class MqttClient : DisposeBase
     /// <summary>取消订阅主题</summary>
     /// <param name="topicFilters">主题过滤器</param>
     /// <returns></returns>
-    public async Task<UnsubAck> UnsubscribeAsync(params String[] topicFilters)
+    public async Task<UnsubAck?> UnsubscribeAsync(params String[] topicFilters)
     {
         var message = new UnsubscribeMessage
         {
@@ -576,11 +581,11 @@ public class MqttClient : DisposeBase
     #region 心跳
     /// <summary>心跳</summary>
     /// <returns></returns>
-    public async Task<PingResponse> PingAsync()
+    public async Task<PingResponse?> PingAsync()
     {
         if (!IsConnected)
         {
-            WriteLog("未连接成功，不发送ping报文"); return (PingResponse)null;
+            WriteLog("未连接成功，不发送ping报文"); return null;
         }
 
         var message = new PingRequest();
@@ -589,17 +594,17 @@ public class MqttClient : DisposeBase
         return rs;
     }
 
-    private TimerX _timerPing;
+    private TimerX? _timerPing;
     private void DoPing(Object state) => PingAsync().Wait();
     #endregion
 
     #region 日志
     /// <summary>日志</summary>
-    public ILog Log { get; set; }
+    public ILog Log { get; set; } = Logger.Null;
 
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object[] args) => Log?.Info($"[{Name}]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[{Name}]{format}", args);
     #endregion
 }

@@ -76,22 +76,22 @@ public sealed class ConnectMessage : MqttMessage
     public UInt16 KeepAliveInSeconds { get; set; }
 
     /// <summary>用户名</summary>
-    public String Username { get; set; }
+    public String? Username { get; set; }
 
     /// <summary>密码</summary>
-    public String Password { get; set; }
+    public String? Password { get; set; }
 
     /// <summary>客户端标识。必填项</summary>
-    public String ClientId { get; set; }
+    public String? ClientId { get; set; }
 
     /// <summary>遗嘱主题</summary>
-    public String WillTopicName { get; set; }
+    public String? WillTopicName { get; set; }
 
     /// <summary>遗嘱消息</summary>
-    public Packet WillMessage { get; set; }
+    public Packet? WillMessage { get; set; }
 
     /// <summary>属性集合。MQTT5.0</summary>
-    public IDictionary<Byte, UInt32> Properties { get; set; }
+    public IDictionary<Byte, UInt32>? Properties { get; set; }
     #endregion
 
     #region 构造

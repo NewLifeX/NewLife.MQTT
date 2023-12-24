@@ -186,26 +186,26 @@ public abstract class MqttMessage : IAccessor
     /// <summary>写字符串</summary>
     /// <param name="stream"></param>
     /// <param name="value"></param>
-    protected void WriteString(Stream stream, String value) => WriteData(stream, value?.GetBytes());
+    protected void WriteString(Stream stream, String? value) => WriteData(stream, value?.GetBytes());
 
     /// <summary>写字节数组</summary>
     /// <param name="stream"></param>
     /// <param name="buf"></param>
-    protected void WriteData(Stream stream, Byte[] buf)
+    protected void WriteData(Stream stream, Byte[]? buf)
     {
         var len = buf == null ? 0 : buf.Length;
         stream.Write(((UInt16)len).GetBytes(false));
-        if (len > 0) stream.Write(buf);
+        if (len > 0 && buf != null) stream.Write(buf);
     }
 
     /// <summary>写字节数组</summary>
     /// <param name="stream"></param>
     /// <param name="pk"></param>
-    protected void WriteData(Stream stream, Packet pk)
+    protected void WriteData(Stream stream, Packet? pk)
     {
         var len = pk == null ? 0 : pk.Total;
         stream.Write(((UInt16)len).GetBytes(false));
-        if (len > 0) pk.CopyTo(stream);
+        if (len > 0 && pk != null) pk.CopyTo(stream);
     }
     #endregion
 }

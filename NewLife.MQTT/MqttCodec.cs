@@ -18,7 +18,7 @@ public class MqttCodec : MessageCodec<MqttMessage>
     /// <param name="context"></param>
     /// <param name="msg"></param>
     /// <returns></returns>
-    protected override Object Encode(IHandlerContext context, MqttMessage msg)
+    protected override Object? Encode(IHandlerContext context, MqttMessage msg)
     {
         if (msg is MqttMessage cmd) return cmd.ToPacket();
 

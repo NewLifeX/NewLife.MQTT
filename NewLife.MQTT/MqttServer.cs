@@ -35,20 +35,23 @@ public class MqttServer : NetServer<MqttSession>
 public class MqttSession : NetSession<MqttServer>
 {
     /// <summary>指令处理器</summary>
-    public IMqttHandler Handler { get; set; }
+    public IMqttHandler Handler { get; set; } = null!;
 
     /// <summary>设备连接时，准备处理器</summary>
     /// <exception cref="NotSupportedException"></exception>
     protected override void OnConnected()
     {
-        Handler ??= ServiceProvider.GetRequiredService<IMqttHandler>();
-        if (Handler == null) throw new NotSupportedException("未注册指令处理器");
+        var handler = Handler;
+        handler ??= ServiceProvider?.GetRequiredService<IMqttHandler>();
+        if (handler == null) throw new NotSupportedException("未注册指令处理器");
 
-        if (Handler is MqttHandler handler)
+        if (handler is MqttHandler mqttHandler)
         {
-            handler.Session = this;
-            handler.Exchange = Host.Exchange;
+            mqttHandler.Session = this;
+            mqttHandler.Exchange = Host?.Exchange;
         }
+
+        Handler = handler;
 
         base.OnConnected();
     }
@@ -72,7 +75,7 @@ public class MqttSession : NetSession<MqttServer>
         if (debug) WriteLog("<={0}", msg);
         if (msg != null)
         {
-            MqttMessage result = null;
+            MqttMessage? result = null;
             using var span = Host.Tracer?.NewSpan($"mqtt:{msg.Type}", msg);
             try
             {

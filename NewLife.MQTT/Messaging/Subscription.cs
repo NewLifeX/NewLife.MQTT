@@ -13,7 +13,7 @@ public class Subscription : IEquatable<Subscription>
     public QualityOfService QualityOfService { get; }
 
     /// <summary>消息处理方法</summary>
-    public Action<PublishMessage> Callback { get; set; }
+    public Action<PublishMessage>? Callback { get; set; }
     #endregion
 
     #region 构造
