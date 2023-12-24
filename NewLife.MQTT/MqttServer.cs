@@ -10,7 +10,7 @@ namespace NewLife.MQTT;
 public class MqttServer : NetServer<MqttSession>
 {
     /// <summary>消息交换机</summary>
-    public MqttExchange Exchange { get; set; }
+    public MqttExchange? Exchange { get; set; }
 
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;

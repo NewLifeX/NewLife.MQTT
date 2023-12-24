@@ -14,7 +14,7 @@ public class MqttExchange : DisposeBase
     public TimeSpan Expire { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>链路追踪</summary>
-    public ITracer Tracer { get; set; }
+    public ITracer? Tracer { get; set; }
 
     /// <summary>本地缓存，保存设备的对象引用，具备定时清理能力</summary>
     private readonly ConcurrentDictionary<Int32, IMqttHandler> _sessions = new();

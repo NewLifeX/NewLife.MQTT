@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
@@ -25,8 +26,12 @@ public class MqttClient : DisposeBase
     /// <summary>服务器地址</summary>
     public String Server { get; set; }
 
-    /// <summary>是否进行SSL连接</summary>
-    public Boolean UseSSL { get; set; } = false;
+    /// <summary>SSL协议。默认None，服务端Default，客户端不启用</summary>
+    public SslProtocols SslProtocol { get; set; } = SslProtocols.Tls12;
+
+    /// <summary>X509证书。用于SSL连接时验证证书指纹，可以直接加载pem证书文件，未指定时不验证证书</summary>
+    /// <remarks>var cert = new X509Certificate2("file", "pass");</remarks>
+    public X509Certificate? Certificate { get; set; }
 
     /// <summary>客户端标识。应用可能多实例部署，ip@proccessid</summary>
     public String ClientId { get; set; }
@@ -137,10 +142,13 @@ public class MqttClient : DisposeBase
             // 关闭Tcp延迟以合并小包的算法，降低延迟
             if (client is TcpSession tcp) tcp.NoDelay = true;
 
-            if (UseSSL)
+            if (Certificate != null)
             {
-                if (client is TcpSession tcp2) tcp2.SslProtocol = SslProtocols.Tls12;
-                else throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
+                if (client is not TcpSession tcp2)
+                    throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
+
+                tcp2.SslProtocol = SslProtocol;
+                tcp2.Certificate = Certificate;
             }
 
             client.Received += Client_Received;
@@ -154,7 +162,7 @@ public class MqttClient : DisposeBase
             var p = KeepAlive * 1000 / 2;
             if (p > 0)
             {
-                if (_timerPing == null) _timerPing = new TimerX(DoPing, null, 5_000, p) { Async = true };
+                _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
             }
         }
     }
@@ -495,7 +503,7 @@ public class MqttClient : DisposeBase
     /// <param name="topicFilter">主题过滤器</param>
     /// <param name="callback">收到该主题消息时的回调</param>
     /// <returns></returns>
-    public async Task<SubAck> SubscribeAsync(String topicFilter, Action<PublishMessage> callback = null)
+    public async Task<SubAck> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null)
     {
         var subscription = new Subscription(topicFilter, QualityOfService.AtMostOnce);
 
@@ -517,7 +525,7 @@ public class MqttClient : DisposeBase
     /// <param name="subscriptions">订阅集合</param>
     /// <param name="callback">收到该主题消息时的回调</param>
     /// <returns></returns>
-    public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage> callback = null)
+    public async Task<SubAck> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage>? callback = null)
     {
         // 已订阅，不重复
         subscriptions = subscriptions.Where(e => !_subs.ContainsKey(e.TopicFilter)).ToList();
