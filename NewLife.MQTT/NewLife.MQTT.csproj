@@ -5,7 +5,7 @@
     <AssemblyTitle>新生命MQTT协议</AssemblyTitle>
     <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
     <Company>新生命开发团队</Company>
-    <Copyright>版权所有(C) 新生命开发团队 2002~2023</Copyright>
+    <Copyright>版权所有(C) 新生命开发团队 2002~2024</Copyright>
     <VersionPrefix>1.4</VersionPrefix>
     <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
@@ -61,6 +61,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="10.6.2023.1201" />
+    <PackageReference Include="NewLife.Core" Version="10.6.2024.101" />
   </ItemGroup>
 </Project>
