@@ -204,6 +204,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             QoS = qos,
         };
 
+        // 注意此处代码不要删除，是用来做消息转发给设备端之外的其他端使用的。
         if (AllowExchange)
             Exchange?.Publish(message);
 
