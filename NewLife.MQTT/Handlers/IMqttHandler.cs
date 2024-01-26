@@ -204,6 +204,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             QoS = qos,
         };
 
+        if (AllowExchange)
+            Exchange?.Publish(message);
+
         return await PublishAsync(message);
     }
 
