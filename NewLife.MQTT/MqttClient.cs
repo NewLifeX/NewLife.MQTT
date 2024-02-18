@@ -27,11 +27,21 @@ public class MqttClient : DisposeBase
     /// <summary>服务器地址</summary>
     public String? Server { get; set; }
 
-    /// <summary>SSL协议。默认None，服务端Default，客户端不启用</summary>
-    public SslProtocols SslProtocol { get; set; } = SslProtocols.Tls12;
+    /// <summary>是否进行SSL连接</summary>
+    [Obsolete("=>SslProtocol")]
+    public Boolean UseSSL { get => SslProtocol != SslProtocols.None; set => SslProtocol = SslProtocols.Tls12; }
+
+    /// <summary>SSL协议。默认None，一般使用Tls12来启用TLS</summary>
+    public SslProtocols SslProtocol { get; set; } = SslProtocols.None;
 
     /// <summary>X509证书。用于SSL连接时验证证书指纹，可以直接加载pem证书文件，未指定时不验证证书</summary>
-    /// <remarks>var cert = new X509Certificate2("file", "pass");</remarks>
+    /// <remarks>
+    /// 可以使用pfx证书文件，也可以使用pem证书文件。
+    /// 服务端必须指定证书，客户端可以不指定，除非服务端请求客户端证书。
+    /// </remarks>
+    /// <example>
+    /// var cert = new X509Certificate2("file", "pass");
+    /// </example>
     public X509Certificate? Certificate { get; set; }
 
     /// <summary>客户端标识。应用可能多实例部署，ip@proccessid</summary>
@@ -143,7 +153,11 @@ public class MqttClient : DisposeBase
             client.Add(new MqttCodec());
 
             // 关闭Tcp延迟以合并小包的算法，降低延迟
-            if (client is TcpSession tcp) tcp.NoDelay = true;
+            if (client is TcpSession tcp)
+            {
+                tcp.NoDelay = true;
+                tcp.DisconnectWhenEmptyData = false;
+            }
 
             if (Certificate != null)
             {

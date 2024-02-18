@@ -26,9 +26,9 @@ public interface IMqttHandler
     /// <param name="topic">主题</param>
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
-    /// <param name="AllowExchange">允许消息交换</param>
+    /// <param name="allowExchange">允许消息交换</param>
     /// <returns></returns>
-    Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean AllowExchange, QualityOfService qos = QualityOfService.AtMostOnce);
+    Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean allowExchange, QualityOfService qos = QualityOfService.AtMostOnce);
 
     /// <summary>发布消息</summary>
     /// <param name="message">消息</param>
@@ -189,9 +189,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <param name="topic">主题</param>
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
-    /// <param name="AllowExchange">允许消息交换</param>
+    /// <param name="allowExchange">允许消息交换</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean AllowExchange, QualityOfService qos = QualityOfService.AtMostOnce)
+    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean allowExchange, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var pk = data as Packet;
         if (pk == null && data != null) pk = Serialize(data);
@@ -205,7 +205,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         };
 
         // 注意此处代码不要删除，是用来做消息转发给设备端之外的其他端使用的。
-        if (AllowExchange)
+        if (allowExchange)
             Exchange?.Publish(message);
 
         return await PublishAsync(message);
