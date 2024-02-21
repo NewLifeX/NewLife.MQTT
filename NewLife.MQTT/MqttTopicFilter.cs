@@ -102,4 +102,62 @@ public class MqttTopicFilter
         }
         return matches;
     }
+
+    /// <summary>扩展主题，得到所有通配符组合</summary>
+    /// <remarks>
+    /// 在分布式MQTT集群中，发布主题时，需要将主题扩展为带有通配符的所有组合，然后逐个转发消息。
+    /// 可使用Redis的GetAll来获取各个通配符组合的订阅情况。
+    /// </remarks>
+    /// <param name="topic"></param>
+    /// <returns></returns>
+    public static IList<String> Expand(String topic)
+    {
+        // 去掉首尾/
+        topic = topic.Trim('/');
+
+        // 结果集合
+        var ts = new List<String>();
+
+        // 分割主题
+        var ss = topic.Split('/');
+
+        // 多级主题，递归处理
+        Expand(ss, 0, "", ts);
+
+        return ts;
+    }
+
+    private static void Expand(String[] ss, Int32 index, String topic, List<String> ts)
+    {
+        if (index >= ss.Length) return;
+
+        /*
+         * 到了最后一级时，加入结果集合。
+         * +和#不能同时出现
+         * 末尾不能是两个+，因为可以#替代
+         */
+
+        // 本级常规
+        {
+            if (index == ss.Length - 1)
+                ts.Add(topic + "/" + ss[index]);
+
+            Expand(ss, index + 1, topic + "/" + ss[index], ts);
+        }
+
+        // 单层通配符+
+        if (!topic.Contains('#'))
+        {
+            if (index == ss.Length - 1 && topic[^1] != '+')
+                ts.Add(topic + "/+");
+
+            Expand(ss, index + 1, topic + "/+", ts);
+        }
+
+        // 多层通配符#
+        if (!topic.Contains('+'))
+        {
+            ts.Add(topic + "/#");
+        }
+    }
 }
