@@ -117,32 +117,31 @@ public class MqttExchange : DisposeBase
         // 遍历所有Topic，找到匹配的订阅者
         foreach (var item in _topics)
         {
-            if (MqttTopicFilter.IsMatch(message.Topic, item.Key))
-            {
-                // 遍历所有订阅者
-                var subs = item.Value;
-                foreach (var elm in subs.ToArray())
-                {
-                    if (_sessions.TryGetValue(elm.Id, out var session))
-                    {
-                        //session.PublishAsync(message);
+            if (!MqttTopicFilter.IsMatch(message.Topic, item.Key)) continue;
 
-                        // 使用指定Qos发送消息
-                        var msg = new PublishMessage
-                        {
-                            Topic = message.Topic,
-                            Payload = message.Payload,
-                            QoS = elm.QoS,
-                        };
-                        session.PublishAsync(msg);
-                    }
-                    else
+            // 遍历所有订阅者
+            var subs = item.Value;
+            foreach (var sub in subs.ToArray())
+            {
+                if (_sessions.TryGetValue(sub.Id, out var session))
+                {
+                    //session.PublishAsync(message);
+
+                    // 使用指定Qos发送消息
+                    var msg = new PublishMessage
                     {
-                        // 没有找到订阅者，删除订阅关系
-                        lock (subs)
-                        {
-                            subs.Remove(elm);
-                        }
+                        Topic = message.Topic,
+                        Payload = message.Payload,
+                        QoS = sub.QoS,
+                    };
+                    session.PublishAsync(msg);
+                }
+                else
+                {
+                    // 没有找到订阅者，删除订阅关系
+                    lock (subs)
+                    {
+                        subs.Remove(sub);
                     }
                 }
             }
@@ -156,13 +155,13 @@ public class MqttExchange : DisposeBase
     public void Subscribe(Int32 sessionId, String topic, QualityOfService qos)
     {
         // 保存订阅关系
-        var set = _topics.GetOrAdd(topic, new List<SubscriptionItem>());
+        var subs = _topics.GetOrAdd(topic, []);
 
-        lock (set)
+        lock (subs)
         {
             // 删除旧的订阅关系
-            set.RemoveAll(e => e.Id == sessionId);
-            set.Add(new SubscriptionItem { Id = sessionId, QoS = qos });
+            subs.RemoveAll(e => e.Id == sessionId);
+            subs.Add(new SubscriptionItem { Id = sessionId, QoS = qos });
         }
     }
 
@@ -171,15 +170,15 @@ public class MqttExchange : DisposeBase
     /// <param name="topic"></param>
     public void Unsubscribe(Int32 sessionId, String topic)
     {
-        if (_topics.TryGetValue(topic, out var set))
+        if (_topics.TryGetValue(topic, out var subs))
         {
-            lock (set)
+            lock (subs)
             {
-                set.RemoveAll(e => e.Id == sessionId);
+                subs.RemoveAll(e => e.Id == sessionId);
             }
 
             // 没有订阅者了，删除主题
-            if (set.Count == 0) _topics.TryRemove(topic, out _);
+            if (subs.Count == 0) _topics.TryRemove(topic, out _);
         }
     }
     #endregion
