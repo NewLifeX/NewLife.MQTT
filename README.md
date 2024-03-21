@@ -153,6 +153,13 @@ var server = new MqttServer
 server.Start();
 ```
 
+## 集群
+集群管理，Join、Ping、Lease。  
+Join加入集群，告诉对方我是集群节点之一，启动时调用N-1次。  
+每15秒Ping一次所有节点，更新活跃时间。  
+Lease离开集群，调用N-1次。  
+每个节点根据最后活跃时间，定时剔除超时节点。  
+
 ## 新生命项目矩阵
 各项目默认支持net8.0/net7.0/netstandard2.1/netstandard2.0/net4.61，旧版（2022.1225）支持net4.5/net4.0/net2.0  
 

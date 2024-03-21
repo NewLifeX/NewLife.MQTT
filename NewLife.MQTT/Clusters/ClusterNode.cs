@@ -1,25 +1,37 @@
-﻿using NewLife.Log;
-using NewLife.Model;
+﻿using System.Runtime.Serialization;
+using NewLife.Log;
 using NewLife.Net;
 using NewLife.Remoting;
 
 namespace NewLife.MQTT.Clusters;
 
 /// <summary>集群节点</summary>
-public class ClusterNode
+public class ClusterNode : DisposeBase
 {
     #region 属性
     /// <summary>结点地址。唯一标识</summary>
     public String EndPoint { get; set; } = null!;
 
     /// <summary>会话连接</summary>
+    [IgnoreDataMember]
     public IApiSession? Session { get; set; }
 
+    [IgnoreDataMember]
     public IApiClient Client { get; set; }
 
     public Int32 Times { get; set; }
 
     public DateTime LastActive { get; set; }
+    #endregion
+
+    #region 构造
+    protected override void Dispose(Boolean disposing)
+    {
+        base.Dispose(disposing);
+
+        Session.TryDispose();
+        Client.TryDispose();
+    }
     #endregion
 
     #region 方法
@@ -49,11 +61,18 @@ public class ClusterNode
         return await Client.InvokeAsync<String>("Cluster/Echo", msg);
     }
 
-    public async Task<String> Join(NodeInfo info)
+    public async Task<NodeInfo> Join(NodeInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Join", info);
+        return await Client.InvokeAsync<NodeInfo>("Cluster/Join", info);
+    }
+
+    public async Task<NodeInfo> Ping(NodeInfo info)
+    {
+        Init();
+
+        return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
     }
 
     public async Task<String> Leave(NodeInfo info)

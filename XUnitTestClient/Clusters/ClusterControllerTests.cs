@@ -40,19 +40,40 @@ public class ClusterControllerTests
         var controller = _provider.GetRequiredService<ClusterController>();
         {
             var info = new NodeInfo { EndPoint = "127.0.0.1:12883" };
-            controller.Join(info);
+            var rs = controller.Join(info);
+            Assert.NotEmpty(rs.EndPoint);
 
             Assert.Equal(1, server.Nodes.Count);
+
+            var node = server.Nodes.FirstOrDefault().Value;
+            Assert.Equal(1, node.Times);
 
             info = new NodeInfo { EndPoint = "127.0.0.1:12883" };
-            controller.Join(info);
+            rs = controller.Join(info);
+            Assert.NotEmpty(rs.EndPoint);
 
             Assert.Equal(1, server.Nodes.Count);
 
+            node = server.Nodes.FirstOrDefault().Value;
+            Assert.Equal(1, node.Times);
+
             info = new NodeInfo { EndPoint = "127.0.0.1:22883" };
-            controller.Join(info);
+            rs = controller.Join(info);
+            Assert.NotEmpty(rs.EndPoint);
 
             Assert.Equal(2, server.Nodes.Count);
+
+            node = server.Nodes.Last().Value;
+            Assert.Equal(1, node.Times);
+
+            info = new NodeInfo { EndPoint = "127.0.0.1:22883" };
+            rs = controller.Ping(info);
+            Assert.NotEmpty(rs.EndPoint);
+
+            Assert.Equal(2, server.Nodes.Count);
+
+            node = server.Nodes.Last().Value;
+            Assert.Equal(2, node.Times);
         }
 
         {

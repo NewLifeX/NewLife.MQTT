@@ -73,6 +73,9 @@ public class ClusterServerTests
         var remoteNode = server.Nodes.Values.First();
         Assert.Equal(myNode.EndPoint, remoteNode.EndPoint);
 
+        var pong = await node.Ping(myNode);
+        Assert.NotEmpty(pong.EndPoint);
+
         await node.Leave(myNode);
         Assert.Empty(server.Nodes);
     }
