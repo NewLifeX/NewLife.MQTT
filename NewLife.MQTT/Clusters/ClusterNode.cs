@@ -21,10 +21,12 @@ public class ClusterNode : DisposeBase
 
     public Int32 Times { get; set; }
 
-    public DateTime LastActive { get; set; }
+    public DateTime LastActive { get; set; } = DateTime.Now;
     #endregion
 
     #region 构造
+    public override String ToString() => EndPoint ?? base.ToString();
+
     protected override void Dispose(Boolean disposing)
     {
         base.Dispose(disposing);

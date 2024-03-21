@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Net;
+using System.Threading;
 using NewLife;
 using NewLife.Log;
 using NewLife.Model;
@@ -78,6 +79,41 @@ public class ClusterServerTests
 
         await node.Leave(myNode);
         Assert.Empty(server.Nodes);
+    }
+
+    [Fact]
+    public void CreateCluster()
+    {
+        var servers = new ClusterServer[4];
+        for (var i = 0; i < servers.Length; i++)
+        {
+            servers[i] = new ClusterServer
+            {
+                Port = 2883 + ((i + 2) * 10000),
+                ServiceProvider = _server.ServiceProvider,
+
+                Log = XTrace.Log
+            };
+            servers[i].Start();
+        }
+
+        _server.Nodes.Clear();
+
+        // 加入集群
+        for (var i = 0; i < servers.Length; i++)
+        {
+            _server.AddNode(servers[i].GetNodeInfo().EndPoint);
+        }
+
+        Assert.Equal(servers.Length, _server.Nodes.Count);
+
+        //Thread.Sleep(1000);
+
+        // 验证集群
+        for (var i = 0; i < servers.Length; i++)
+        {
+            Assert.Equal(1, servers[i].Nodes.Count);
+        }
     }
 
     [Fact]

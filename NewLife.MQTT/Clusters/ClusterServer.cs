@@ -10,6 +10,9 @@ namespace NewLife.MQTT.Clusters;
 public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFeature, ITracerFeature
 {
     #region 属性
+    /// <summary>集群名称</summary>
+    public String Name { get; set; }
+
     /// <summary>集群端口。默认2883</summary>
     public Int32 Port { get; set; } = 2883;
 
@@ -28,6 +31,8 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
         //XTrace.WriteLine("new ClusterServer");
     }
 
+    public override String ToString() => Name ?? base.ToString();
+
     protected override void Dispose(Boolean disposing)
     {
         base.Dispose(disposing);
@@ -39,10 +44,13 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
     #region 启动停止
     public void Start()
     {
+        if (Name.IsNullOrEmpty()) Name = $"Cluster{Port}";
+
         ServiceProvider ??= ObjectContainer.Provider;
 
         var server = new ApiServer
         {
+            Name = Name,
             Port = Port,
             ServiceProvider = ServiceProvider,
 
@@ -121,16 +129,19 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
     #endregion
 
     #region 业务逻辑
+    /// <summary>添加集群节点，建立长连接</summary>
+    /// <param name="endpoint"></param>
+    public void AddNode(String endpoint)
+    {
+        var node = new ClusterNode { EndPoint = endpoint };
+        if (!Nodes.TryAdd(endpoint, node)) return;
+
+        // 马上开始连接并心跳
+        //_timer?.SetNext(200);
+
+        _ = node.Join(GetNodeInfo());
+    }
     #endregion
-
-    //#region 服务
-    //public Object GetService(Type serviceType)
-    //{
-    //    if (serviceType == typeof(ClusterServer)) return this;
-
-    //    return ServiceProvider.GetService(serviceType);
-    //}
-    //#endregion
 
     #region 日志
     public ITracer? Tracer { get; set; }
