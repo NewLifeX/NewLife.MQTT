@@ -1,6 +1,5 @@
 ﻿using System.Linq;
 using System.Net;
-using System.Threading;
 using NewLife;
 using NewLife.Log;
 using NewLife.Model;
@@ -31,7 +30,7 @@ public class ClusterServerTests
                 Log = XTrace.Log
             };
 
-            services.AddSingleton(_server);
+            //services.AddSingleton(_server);
         }
     }
 

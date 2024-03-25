@@ -19,6 +19,7 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
     /// <summary>集群节点集合</summary>
     public ConcurrentDictionary<String, ClusterNode> Nodes { get; } = new ConcurrentDictionary<String, ClusterNode>();
 
+    /// <summary>服务提供者。主要用于创建控制器实例，支持构造函数注入</summary>
     public IServiceProvider? ServiceProvider { get; set; }
 
     private ApiServer? _server;
@@ -26,13 +27,15 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
     #endregion
 
     #region 构造
-    public ClusterServer()
-    {
-        //XTrace.WriteLine("new ClusterServer");
-    }
+    /// <summary>实例化</summary>
+    public ClusterServer() { }
 
+    /// <summary>已重载。</summary>
+    /// <returns></returns>
     public override String ToString() => Name ?? base.ToString();
 
+    /// <summary>销毁</summary>
+    /// <param name="disposing"></param>
     protected override void Dispose(Boolean disposing)
     {
         base.Dispose(disposing);
@@ -42,6 +45,7 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
     #endregion
 
     #region 启动停止
+    /// <summary>启动服务</summary>
     public void Start()
     {
         if (Name.IsNullOrEmpty()) Name = $"Cluster{Port}";
@@ -58,6 +62,8 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
             Log = Log,
         };
 
+        // 传递集群实例到控制器
+        server["Cluster"] = this;
         server.Register<ClusterController>();
 
 #if DEBUG
@@ -71,7 +77,9 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
         _timer = new TimerX(DoPing, null, 1_000, 15_000) { Async = true };
     }
 
-    public void Stop(String reason)
+    /// <summary>停止服务</summary>
+    /// <param name="reason"></param>
+    public void Stop(String? reason)
     {
         // 所有节点退出
         //var myNode = GetNodeInfo();
@@ -91,6 +99,7 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
         _server = null;
     }
 
+    /// <summary>获取节点信息</summary>
     public NodeInfo GetNodeInfo() => new() { EndPoint = $"{NetHelper.MyIP()}:{Port}" };
 
     private void DoPing(Object state)

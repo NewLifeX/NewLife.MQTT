@@ -1,20 +1,37 @@
-﻿using NewLife.Remoting;
+﻿using NewLife.Data;
+using NewLife.Remoting;
 
 namespace NewLife.MQTT.Clusters;
 
 /// <summary>接口控制器。对外提供RPC接口</summary>
-public class ClusterController : IApi
+public class ClusterController : IApi, IActionFilter
 {
     #region 属性
-    public IApiSession Session { get; set; }
+    /// <summary>连接会话</summary>
+    public IApiSession Session { get; set; } = null!;
 
-    private readonly ClusterServer _cluster;
+    private ClusterServer _cluster = null!;
     #endregion
 
-    public ClusterController(ClusterServer cluster)
+    #region 构造
+    /// <summary>实例化</summary>
+    public ClusterController()
     {
-        _cluster = cluster;
+        //_cluster = cluster;
     }
+
+    /// <summary>执行前</summary>
+    /// <param name="filterContext"></param>
+    public void OnActionExecuting(ControllerContext filterContext)
+    {
+        var ss = Session = filterContext.Session!;
+        if (ss.Host is IExtend ext)
+            _cluster = (ext["Cluster"] as ClusterServer)!;
+    }
+
+    /// <summary>执行后</summary>
+    public void OnActionExecuted(ControllerContext filterContext) { }
+    #endregion
 
     #region 集群管理
     public String Echo(String msg) => msg;

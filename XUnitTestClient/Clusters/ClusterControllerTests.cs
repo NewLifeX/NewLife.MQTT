@@ -2,26 +2,30 @@
 using System.Linq;
 using NewLife.Model;
 using NewLife.MQTT.Clusters;
+using NewLife.Reflection;
+using NewLife.Remoting;
 using Xunit;
 
 namespace XUnitTestClient.Clusters;
 
 public class ClusterControllerTests
 {
+    static ClusterServer _server;
     static IServiceProvider _provider;
     public ClusterControllerTests()
     {
         var services = ObjectContainer.Current;
-        services.AddSingleton<ClusterServer>();
+        //services.AddSingleton<ClusterServer>();
         services.AddTransient<ClusterController>();
 
         _provider = ObjectContainer.Provider;
+        _server = new ClusterServer { ServiceProvider = _provider };
     }
 
     [Fact]
     public void EchoTest()
     {
-        var controller = new ClusterController(null);
+        var controller = new ClusterController();
         var msg = "Hello";
         var rs = controller.Echo(msg);
         Assert.Equal(msg, rs);
@@ -35,9 +39,14 @@ public class ClusterControllerTests
     [Fact]
     public void JoinTest()
     {
-        var server = _provider.GetRequiredService<ClusterServer>();
-
+        //var server = _provider.GetRequiredService<ClusterServer>();
+        var server = _server;
         var controller = _provider.GetRequiredService<ClusterController>();
+
+        //var context = new ControllerContext { Session = new ApiNetSession() };
+        //controller.OnActionExecuting(context);
+        controller.SetValue("_cluster", server);
+
         {
             var info = new NodeInfo { EndPoint = "127.0.0.1:12883" };
             var rs = controller.Join(info);
