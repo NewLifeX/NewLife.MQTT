@@ -8,7 +8,7 @@ using NewLife.Threading;
 namespace NewLife.MQTT.Clusters;
 
 /// <summary>集群服务器</summary>
-public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFeature, ITracerFeature
+public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 {
     #region 属性
     /// <summary>集群名称</summary>
@@ -69,7 +69,7 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
         server.Register<ClusterController>();
 
 #if DEBUG
-        server.EncoderLog = Log;
+        //server.EncoderLog = Log;
 #endif
 
         server.Start();
@@ -159,6 +159,6 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
 
     public ILog Log { get; set; } = Logger.Null;
 
-    public void WriteLog(String format, params Object[] args) => Log?.Info(format, args);
+    public void WriteLog(String format, params Object[] args) => Log?.Info($"[{Name}]{format}", args);
     #endregion
 }

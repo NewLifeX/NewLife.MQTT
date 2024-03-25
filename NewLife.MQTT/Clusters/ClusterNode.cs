@@ -22,6 +22,9 @@ public class ClusterNode : DisposeBase
     public Int32 Times { get; set; }
 
     public DateTime LastActive { get; set; } = DateTime.Now;
+
+    private NodeInfo _myNode;
+    private NodeInfo _remoteNode;
     #endregion
 
     #region 构造
@@ -30,6 +33,12 @@ public class ClusterNode : DisposeBase
     protected override void Dispose(Boolean disposing)
     {
         base.Dispose(disposing);
+
+        try
+        {
+            if (_remoteNode != null && _myNode != null) _ = Leave(_myNode).Wait(500);
+        }
+        catch { }
 
         Session.TryDispose();
         Client.TryDispose();
@@ -68,14 +77,21 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<NodeInfo>("Cluster/Join", info);
+        _myNode = info;
+
+        return _remoteNode = await Client.InvokeAsync<NodeInfo>("Cluster/Join", info);
     }
 
     public async Task<NodeInfo> Ping(NodeInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
+        _myNode = info;
+
+        if (_remoteNode == null)
+            return await Join(info);
+        else
+            return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
     }
 
     public async Task<String> Leave(NodeInfo info)

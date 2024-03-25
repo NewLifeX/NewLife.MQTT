@@ -1,5 +1,6 @@
 ﻿using NewLife.Log;
 using NewLife.Model;
+using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
@@ -11,6 +12,12 @@ public class MqttServer : NetServer<MqttSession>
 {
     /// <summary>消息交换机</summary>
     public MqttExchange? Exchange { get; set; }
+
+    /// <summary>集群节点。服务启动时，自动加入这些节点到集群中</summary>
+    public String[]? ClusterNodes { get; set; }
+
+    /// <summary>集群服务端</summary>
+    public ClusterServer? Cluster { get; set; }
 
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
@@ -25,9 +32,40 @@ public class MqttServer : NetServer<MqttSession>
         if (Exchange != null)
             Exchange.Tracer ??= Tracer;
 
+        // 创建集群
+        var cluster = Cluster;
+        var nodes = ClusterNodes;
+        if (cluster == null && nodes != null && nodes.Length > 0)
+            cluster = Cluster = new ClusterServer();
+
+        if (cluster != null)
+        {
+            cluster.ServiceProvider = ServiceProvider;
+            cluster.Log = Log;
+
+            cluster.Start();
+
+            if (nodes != null && nodes.Length > 0)
+            {
+                foreach (var item in nodes)
+                {
+                    cluster.AddNode(item);
+                }
+            }
+        }
+
         Add(new MqttCodec());
 
         base.OnStart();
+    }
+
+    /// <summary>停止</summary>
+    /// <param name="reason"></param>
+    protected override void OnStop(String? reason)
+    {
+        Cluster.TryDispose();
+
+        base.OnStop(reason);
     }
 }
 

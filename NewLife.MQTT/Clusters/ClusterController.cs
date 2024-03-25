@@ -69,6 +69,7 @@ public class ClusterController : IApi, IActionFilter
         if (_cluster.Nodes.TryRemove(endpoint, out var node))
         {
             _cluster.WriteLog("节点退出集群：{0}", node);
+            node.TryDispose();
         }
 
         return "OK";

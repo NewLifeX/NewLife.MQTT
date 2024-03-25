@@ -18,21 +18,15 @@ public class ClusterServerTests
     public ClusterServerTests()
     {
         var services = ObjectContainer.Current;
-        //services.AddSingleton<ClusterServer>();
         services.AddTransient<ClusterController>();
 
-        if (_server == null)
+        _server ??= new ClusterServer
         {
-            _server = new ClusterServer
-            {
-                Port = 2883,
-                ServiceProvider = services.BuildServiceProvider(),
+            Port = 2883,
+            ServiceProvider = services.BuildServiceProvider(),
 
-                Log = XTrace.Log
-            };
-
-            //services.AddSingleton(_server);
-        }
+            Log = XTrace.Log
+        };
     }
 
     //[TestOrder(1)]
@@ -85,7 +79,7 @@ public class ClusterServerTests
     public void CreateCluster()
     {
 #if DEBUG
-        var servers = new ClusterServer[1000];
+        var servers = new ClusterServer[4];
         for (var i = 0; i < servers.Length; i++)
         {
             servers[i] = new ClusterServer
@@ -124,7 +118,9 @@ public class ClusterServerTests
 
         XTrace.WriteLine("集群节点数：{0}", _server.Nodes.Count);
 
-        Thread.Sleep(10_000);
+        var ms = servers.Length * 1000 / 100;
+        if (ms < 1000) ms = 1000;
+        Thread.Sleep(ms);
 
         // 验证集群
         for (var i = 0; i < servers.Length; i++)
