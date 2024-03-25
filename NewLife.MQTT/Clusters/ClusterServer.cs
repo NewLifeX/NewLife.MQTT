@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using NewLife.Log;
 using NewLife.Model;
+using NewLife.Net;
 using NewLife.Remoting;
 using NewLife.Threading;
 
@@ -52,10 +53,11 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
 
         ServiceProvider ??= ObjectContainer.Provider;
 
-        var server = new ApiServer
+        var uri = new NetUri(NetType.Tcp, "*", Port);
+        var server = new ApiServer(uri)
         {
             Name = Name,
-            Port = Port,
+            //Port = Port,
             ServiceProvider = ServiceProvider,
 
             Tracer = Tracer,
@@ -146,9 +148,9 @@ public class ClusterServer : DisposeBase, IServer, /*IServiceProvider,*/ ILogFea
         if (!Nodes.TryAdd(endpoint, node)) return;
 
         // 马上开始连接并心跳
-        //_timer?.SetNext(200);
+        _timer?.SetNext(200);
 
-        _ = node.Join(GetNodeInfo());
+        //_ = node.Join(GetNodeInfo());
     }
     #endregion
 

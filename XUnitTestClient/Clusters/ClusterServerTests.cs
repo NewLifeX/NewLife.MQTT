@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Net;
+using System.Threading;
 using NewLife;
 using NewLife.Log;
 using NewLife.Model;
@@ -83,7 +84,8 @@ public class ClusterServerTests
     [Fact]
     public void CreateCluster()
     {
-        var servers = new ClusterServer[4];
+#if DEBUG
+        var servers = new ClusterServer[1000];
         for (var i = 0; i < servers.Length; i++)
         {
             servers[i] = new ClusterServer
@@ -95,6 +97,18 @@ public class ClusterServerTests
             };
             servers[i].Start();
         }
+#else
+        var servers = new ClusterServer[1000];
+        for (var i = 0; i < servers.Length; i++)
+        {
+            servers[i] = new ClusterServer
+            {
+                Port = 20000 + i + 1,
+                ServiceProvider = _server.ServiceProvider,
+            };
+            servers[i].Start();
+        }
+#endif
 
         _server.Nodes.Clear();
 
@@ -107,6 +121,10 @@ public class ClusterServerTests
         Assert.Equal(servers.Length, _server.Nodes.Count);
 
         //Thread.Sleep(1000);
+
+        XTrace.WriteLine("集群节点数：{0}", _server.Nodes.Count);
+
+        Thread.Sleep(10_000);
 
         // 验证集群
         for (var i = 0; i < servers.Length; i++)
