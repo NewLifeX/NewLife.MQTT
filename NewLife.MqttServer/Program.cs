@@ -1,4 +1,7 @@
-﻿using NewLife.Log;
+﻿using System;
+using NewLife;
+using NewLife.Configuration;
+using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT;
 using NewLife.MQTT.Handlers;
@@ -19,6 +22,14 @@ var star = services.AddStardust();
 // 配置
 var set = MqttSetting.Current;
 
+var parser = new CommandParser { IgnoreCase = true };
+var cfg = parser.Parse(args);
+if (cfg.TryGetValue("port", out var port)) set.Port = port.ToInt();
+if (cfg.TryGetValue("clusterPort", out var clusterPort)) set.ClusterPort = clusterPort.ToInt();
+if (cfg.TryGetValue("clusterNodes", out var clusterNodes)) set.ClusterNodes = clusterNodes;
+
+set.Save();
+
 // 注册MQTT Broker的指令处理器
 services.AddSingleton<DefaultManagedMqttClient, DefaultManagedMqttClient>();
 services.AddTransient<IMqttHandler, MqttController>();
@@ -31,6 +42,8 @@ var host = services.BuildHost();
 var svr = new MqttServer()
 {
     Port = set.Port,
+    ClusterPort = set.ClusterPort,
+    ClusterNodes = set.ClusterNodes.Split(",", ";"),
     ServiceProvider = services.BuildServiceProvider(),
 
     Tracer = star.Tracer,
@@ -42,7 +55,7 @@ if (set.Debug) svr.SessionLog = XTrace.Log;
 svr.Start();
 
 if (star.Service != null)
-    _ = star.RegisterAsync("MqttServer", null);
+    _ = star.RegisterAsync("MqttServer", $"tcp://*:{svr.Port}");
 
 Host.RegisterExit((s, e) => svr.Stop(s + ""));
 

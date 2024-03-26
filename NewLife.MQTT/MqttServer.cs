@@ -13,6 +13,9 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>消息交换机</summary>
     public IMqttExchange? Exchange { get; set; }
 
+    /// <summary>集群端口。指定后将自动创建集群</summary>
+    public Int32 ClusterPort { get; set; }
+
     /// <summary>集群节点。服务启动时，自动加入这些节点到集群中</summary>
     public String[]? ClusterNodes { get; set; }
 
@@ -34,19 +37,36 @@ public class MqttServer : NetServer<MqttSession>
         if (exchange is ITracerFeature feature)
             feature.Tracer ??= Tracer;
 
+        Exchange = exchange;
+
         // 创建集群
+        CreateCluster();
+
+        Add(new MqttCodec());
+
+        base.OnStart();
+    }
+
+    /// <summary>创建集群</summary>
+    protected virtual void CreateCluster()
+    {
         var cluster = Cluster;
         var nodes = ClusterNodes;
-        if (cluster == null && nodes != null && nodes.Length > 0)
-            cluster = Cluster = new ClusterServer();
+        if (cluster == null && (nodes != null && nodes.Length > 0 || ClusterPort > 0))
+            cluster = Cluster = new ClusterServer { Port = ClusterPort };
 
         if (cluster != null)
         {
+            var exchange = Exchange ?? throw new NotSupportedException("未配置消息交换机Exchange");
+
+            // 启动集群服务
             cluster.ServiceProvider = ServiceProvider;
             cluster.Log = Log;
-
             cluster.Start();
 
+            ClusterPort = cluster.Port;
+
+            // 添加集群节点
             if (nodes != null && nodes.Length > 0)
             {
                 foreach (var item in nodes)
@@ -55,21 +75,16 @@ public class MqttServer : NetServer<MqttSession>
                 }
             }
 
-            var exchange2 = ServiceProvider.GetService<ClusterExchange>();
+            // 创建集群交换机
+            var exchange2 = ServiceProvider?.GetService<ClusterExchange>();
             exchange2 ??= new ClusterExchange();
 
             exchange2.Cluster = cluster;
             exchange2.Inner = exchange;
             exchange2.Tracer = Tracer;
 
-            exchange = exchange2;
+            Exchange = exchange2;
         }
-
-        Exchange = exchange;
-
-        Add(new MqttCodec());
-
-        base.OnStart();
     }
 
     /// <summary>停止</summary>
