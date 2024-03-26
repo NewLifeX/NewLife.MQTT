@@ -12,7 +12,7 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 {
     #region 属性
     /// <summary>集群名称</summary>
-    public String Name { get; set; }
+    public String Name { get; set; } = null!;
 
     /// <summary>集群端口。默认2883</summary>
     public Int32 Port { get; set; } = 2883;
@@ -142,15 +142,25 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     #region 业务逻辑
     /// <summary>添加集群节点，建立长连接</summary>
     /// <param name="endpoint"></param>
-    public void AddNode(String endpoint)
+    public Boolean AddNode(String endpoint)
     {
+        // 跳过自己
+        var uri = new NetUri(endpoint);
+        var ip = NetHelper.MyIP();
+        if ((uri.Address == ip || uri.Address.IsLocal()) && uri.Port == Port) return false;
+
+        // 本地环回地址，替换为外网地址
+        if (uri.Address.IsLocal()) endpoint = $"{ip}:{uri.Port}";
+
         var node = new ClusterNode { EndPoint = endpoint };
-        if (!Nodes.TryAdd(endpoint, node)) return;
+        if (!Nodes.TryAdd(endpoint, node)) return false;
 
         // 马上开始连接并心跳
         _timer?.SetNext(200);
 
         //_ = node.Join(GetNodeInfo());
+
+        return true;
     }
     #endregion
 

@@ -25,10 +25,16 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
 
+    /// <summary>已重载。</summary>
+    /// <returns></returns>
+    public override String ToString() => Name ?? base.ToString();
+
     /// <summary>启动</summary>
     protected override void OnStart()
     {
         if (ServiceProvider == null) throw new NotSupportedException("未配置服务提供者ServiceProvider");
+
+        Name = $"Mqtt{Port}";
 
         var exchange = Exchange;
         exchange ??= ServiceProvider.GetService<IMqttExchange>();
@@ -65,6 +71,7 @@ public class MqttServer : NetServer<MqttSession>
             cluster.Start();
 
             ClusterPort = cluster.Port;
+            Name = $"Mqtt{Port}-Cluster{ClusterPort}";
 
             // 添加集群节点
             if (nodes != null && nodes.Length > 0)

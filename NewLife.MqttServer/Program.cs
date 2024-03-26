@@ -54,6 +54,9 @@ if (set.Debug) svr.SessionLog = XTrace.Log;
 
 svr.Start();
 
+if (Runtime.Windows)
+    Console.Title = svr + "";
+
 if (star.Service != null)
     _ = star.RegisterAsync("MqttServer", $"tcp://*:{svr.Port}");
 

@@ -22,5 +22,5 @@ public class MqttSetting : XmlConfig<MqttSetting>
 
     /// <summary>集群节点。其它节点地址，逗号分隔</summary>
     [Description("集群节点。其它节点地址，逗号分隔")]
-    public String ClusterNodes { get; set; }
+    public String ClusterNodes { get; set; } = "";
 }

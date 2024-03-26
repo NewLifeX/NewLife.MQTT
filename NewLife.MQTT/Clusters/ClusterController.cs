@@ -45,7 +45,8 @@ public class ClusterController : IApi, IActionFilter
         node.Times = 1;
         node.LastActive = DateTime.Now;
 
-        _cluster.WriteLog("节点加入集群：{0}", node);
+        //if (node.Times == 1)
+        _cluster.WriteLog("节点加入集群：{0}，来自：{1}", node, Session);
 
         return _cluster.GetNodeInfo();
     }
@@ -68,7 +69,7 @@ public class ClusterController : IApi, IActionFilter
 
         if (_cluster.Nodes.TryRemove(endpoint, out var node))
         {
-            _cluster.WriteLog("节点退出集群：{0}", node);
+            _cluster.WriteLog("节点退出集群：{0}，来自：{1}", node, Session);
             node.TryDispose();
         }
 

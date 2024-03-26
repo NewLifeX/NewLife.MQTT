@@ -55,10 +55,10 @@ public class ClusterNode : DisposeBase
 
         var client = new ApiClient(uri.ToString())
         {
-            //Log = XTrace.Log
+            Log = XTrace.Log
         };
 #if DEBUG
-        client.Log = client.Log;
+        client.Log = XTrace.Log;
         client.EncoderLog = client.Log;
 #endif
         client.Open();
