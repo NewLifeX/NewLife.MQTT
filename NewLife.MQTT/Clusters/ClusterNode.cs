@@ -58,8 +58,8 @@ public class ClusterNode : DisposeBase
             Log = XTrace.Log
         };
 #if DEBUG
-        client.Log = XTrace.Log;
-        client.EncoderLog = client.Log;
+        //client.Log = XTrace.Log;
+        //client.EncoderLog = client.Log;
 #endif
         client.Open();
 

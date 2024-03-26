@@ -58,7 +58,12 @@ if (Runtime.Windows)
     Console.Title = svr + "";
 
 if (star.Service != null)
+{
     _ = star.RegisterAsync("MqttServer", $"tcp://*:{svr.Port}");
+
+    if (svr.Cluster != null)
+        _ = star.RegisterAsync("MqttCluster", $"tcp://*:{svr.ClusterPort}");
+}
 
 Host.RegisterExit((s, e) => svr.Stop(s + ""));
 
