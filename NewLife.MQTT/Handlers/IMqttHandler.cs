@@ -50,7 +50,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     public INetSession Session { get; set; } = null!;
 
     /// <summary>消息交换机</summary>
-    public MqttExchange? Exchange { get; set; }
+    public IMqttExchange? Exchange { get; set; }
 
     #region 接收消息
     /// <summary>处理消息</summary>
@@ -130,11 +130,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual SubAck OnSubscribe(SubscribeMessage message)
     {
-        if (Exchange != null && message.Requests != null)
+        var exchange = Exchange;
+        if (exchange != null && message.Requests != null)
         {
             foreach (var item in message.Requests)
             {
-                Exchange.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService);
+                exchange.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService);
             }
         }
 
@@ -151,11 +152,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual UnsubAck OnUnsubscribe(UnsubscribeMessage message)
     {
-        if (Exchange != null && message.TopicFilters != null)
+        var exchange = Exchange;
+        if (exchange != null && message.TopicFilters != null)
         {
             foreach (var item in message.TopicFilters)
             {
-                Exchange.Unsubscribe(Session.ID, item);
+                exchange.Unsubscribe(Session.ID, item);
             }
         }
 

@@ -23,7 +23,7 @@ var set = MqttSetting.Current;
 services.AddSingleton<DefaultManagedMqttClient, DefaultManagedMqttClient>();
 services.AddTransient<IMqttHandler, MqttController>();
 //services.AddTransient<IMqttHandler, MqttHandler>();
-services.AddSingleton<MqttExchange, MqttExchange>();
+services.AddSingleton<IMqttExchange, MqttExchange>();
 
 // 注册后台任务 IHostedService
 var host = services.BuildHost();

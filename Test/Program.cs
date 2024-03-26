@@ -62,7 +62,7 @@ internal class Program
         var services = ObjectContainer.Current;
         services.AddSingleton<ILog>(XTrace.Log);
         services.AddTransient<IMqttHandler, MyHandler>();
-        services.AddSingleton<MqttExchange, MqttExchange>();
+        services.AddSingleton<IMqttExchange, MqttExchange>();
 
         var server = new MqttServer
         {

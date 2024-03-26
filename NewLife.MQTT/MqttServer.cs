@@ -11,7 +11,7 @@ namespace NewLife.MQTT;
 public class MqttServer : NetServer<MqttSession>
 {
     /// <summary>消息交换机</summary>
-    public MqttExchange? Exchange { get; set; }
+    public IMqttExchange? Exchange { get; set; }
 
     /// <summary>集群节点。服务启动时，自动加入这些节点到集群中</summary>
     public String[]? ClusterNodes { get; set; }
@@ -27,10 +27,12 @@ public class MqttServer : NetServer<MqttSession>
     {
         if (ServiceProvider == null) throw new NotSupportedException("未配置服务提供者ServiceProvider");
 
-        Exchange ??= ServiceProvider.GetService<MqttExchange>();
-        //Exchange ??= new MqttExchange(Tracer);
-        if (Exchange != null)
-            Exchange.Tracer ??= Tracer;
+        var exchange = Exchange;
+        exchange ??= ServiceProvider.GetService<IMqttExchange>();
+        exchange ??= new MqttExchange();
+
+        if (exchange is ITracerFeature feature)
+            feature.Tracer ??= Tracer;
 
         // 创建集群
         var cluster = Cluster;
@@ -52,7 +54,18 @@ public class MqttServer : NetServer<MqttSession>
                     cluster.AddNode(item);
                 }
             }
+
+            var exchange2 = ServiceProvider.GetService<ClusterExchange>();
+            exchange2 ??= new ClusterExchange();
+
+            exchange2.Cluster = cluster;
+            exchange2.Inner = exchange;
+            exchange2.Tracer = Tracer;
+
+            exchange = exchange2;
         }
+
+        Exchange = exchange;
 
         Add(new MqttCodec());
 
@@ -80,7 +93,8 @@ public class MqttSession : NetSession<MqttServer>
     protected override void OnConnected()
     {
         var handler = Handler;
-        handler ??= ServiceProvider?.GetRequiredService<IMqttHandler>();
+        handler ??= ServiceProvider?.GetService<IMqttHandler>();
+        handler ??= new MqttHandler();
         if (handler == null) throw new NotSupportedException("未注册指令处理器");
 
         if (handler is MqttHandler mqttHandler)
@@ -98,7 +112,7 @@ public class MqttSession : NetSession<MqttServer>
     /// <param name="reason"></param>
     protected override void OnDisconnected(String reason)
     {
-        Handler.Close(reason);
+        Handler?.Close(reason);
 
         base.OnDisconnected(reason);
     }
@@ -118,7 +132,7 @@ public class MqttSession : NetSession<MqttServer>
             try
             {
                 // 执行处理器
-                result = Handler.Process(msg);
+                result = Handler?.Process(msg);
             }
             catch (Exception ex)
             {
@@ -127,7 +141,7 @@ public class MqttSession : NetSession<MqttServer>
                 var hex = e.Packet?.ToHex(1024);
                 span?.SetError(ex, hex);
 
-                XTrace.WriteLine(hex);
+                if (!hex.IsNullOrEmpty()) XTrace.WriteLine(hex);
             }
 
             // 处理响应

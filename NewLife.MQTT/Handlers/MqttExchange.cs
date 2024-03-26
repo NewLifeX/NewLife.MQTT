@@ -6,8 +6,8 @@ using NewLife.Threading;
 
 namespace NewLife.MQTT.Handlers;
 
-/// <summary>消息交换机</summary>
-public class MqttExchange : DisposeBase
+/// <summary>消息交换机。提供会话管理与消息转发</summary>
+public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 {
     #region 属性
     /// <summary>会话过期时间。默认10分钟</summary>
@@ -18,17 +18,12 @@ public class MqttExchange : DisposeBase
 
     /// <summary>本地缓存，保存设备的对象引用，具备定时清理能力</summary>
     private readonly ConcurrentDictionary<Int32, IMqttHandler> _sessions = new();
-    private readonly TimerX _timer;
+    private TimerX? _timer;
     #endregion
 
     #region 构造
-    /// <summary>会话管理</summary>
-    /// <param name="tracer"></param>
-    public MqttExchange(ITracer tracer)
-    {
-        _timer = new TimerX(RemoveNotAlive, null, 30_000, 30_000);
-        Tracer = tracer;
-    }
+    /// <summary>实例化交换机</summary>
+    public MqttExchange() { }
 
     /// <summary>销毁</summary>
     /// <param name="disposing"></param>
@@ -37,6 +32,37 @@ public class MqttExchange : DisposeBase
         base.Dispose(disposing);
 
         _timer.TryDispose();
+    }
+    #endregion
+
+    #region 会话管理
+    /// <summary>添加会话</summary>
+    /// <param name="sessionId"></param>
+    /// <param name="session"></param>
+    /// <returns></returns>
+    public Boolean Add(Int32 sessionId, IMqttHandler session)
+    {
+        _timer ??= new TimerX(RemoveNotAlive, null, 30_000, 30_000);
+
+        return _sessions.TryAdd(sessionId, session);
+    }
+
+    /// <summary>获取会话</summary>
+    /// <param name="sessionId"></param>
+    /// <param name="session"></param>
+    /// <returns></returns>
+    public Boolean TryGetValue(Int32 sessionId, out IMqttHandler session) => _sessions.TryGetValue(sessionId, out session);
+
+    /// <summary>删除会话</summary>
+    /// <param name="sessionId"></param>
+    /// <returns></returns>
+    public Boolean Remove(Int32 sessionId)
+    {
+        if (!_sessions.TryRemove(sessionId, out var session)) return false;
+
+        session.TryDispose();
+
+        return true;
     }
 
     private void RemoveNotAlive(Object state)
@@ -71,32 +97,6 @@ public class MqttExchange : DisposeBase
     }
     #endregion
 
-    #region 会话管理
-    /// <summary>添加会话</summary>
-    /// <param name="sessionId"></param>
-    /// <param name="session"></param>
-    /// <returns></returns>
-    public Boolean Add(Int32 sessionId, IMqttHandler session) => _sessions.TryAdd(sessionId, session);
-
-    /// <summary>获取会话</summary>
-    /// <param name="sessionId"></param>
-    /// <param name="session"></param>
-    /// <returns></returns>
-    public Boolean TryGetValue(Int32 sessionId, out IMqttHandler session) => _sessions.TryGetValue(sessionId, out session);
-
-    /// <summary>删除会话</summary>
-    /// <param name="sessionId"></param>
-    /// <returns></returns>
-    public Boolean Remove(Int32 sessionId)
-    {
-        if (!_sessions.TryRemove(sessionId, out var session)) return false;
-
-        session.TryDispose();
-
-        return true;
-    }
-    #endregion
-
     #region 消息管理
     class SubscriptionItem
     {
@@ -112,7 +112,7 @@ public class MqttExchange : DisposeBase
     /// 找到匹配该主题的订阅者，然后发送消息
     /// </remarks>
     /// <param name="message"></param>
-    public void Publish(PublishMessage message)
+    public virtual void Publish(PublishMessage message)
     {
         // 遍历所有Topic，找到匹配的订阅者
         foreach (var item in _topics)
@@ -152,7 +152,7 @@ public class MqttExchange : DisposeBase
     /// <param name="sessionId"></param>
     /// <param name="topic"></param>
     /// <param name="qos"></param>
-    public void Subscribe(Int32 sessionId, String topic, QualityOfService qos)
+    public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos)
     {
         // 保存订阅关系
         var subs = _topics.GetOrAdd(topic, []);
@@ -168,7 +168,7 @@ public class MqttExchange : DisposeBase
     /// <summary>取消主题订阅</summary>
     /// <param name="sessionId"></param>
     /// <param name="topic"></param>
-    public void Unsubscribe(Int32 sessionId, String topic)
+    public virtual void Unsubscribe(Int32 sessionId, String topic)
     {
         if (_topics.TryGetValue(topic, out var subs))
         {
