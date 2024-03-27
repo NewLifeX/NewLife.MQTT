@@ -45,6 +45,8 @@ public class ClusterController : IApi, IActionFilter
         node.Times = 1;
         node.LastActive = DateTime.Now;
 
+        Session["Node"] = node;
+
         //if (node.Times == 1)
         _cluster.WriteLog("节点加入集群：{0}，来自：{1}", node, Session);
 
@@ -78,22 +80,33 @@ public class ClusterController : IApi, IActionFilter
     #endregion
 
     #region 订阅管理
-    public String Subscribe()
+    public String Subscribe(SubscriptionInfo info)
     {
+        var node = Session["Node"] as ClusterNode;
+        info.Node = node;
+
+        var exchange = _cluster.Exchange;
+        exchange?.AddSubscription(info);
+
         return "OK";
     }
 
-    public String Unsubscribe()
+    public String Unsubscribe(SubscriptionInfo info)
     {
+        var exchange = _cluster.Exchange;
+        exchange?.RemoveSubscription(info);
+
         return "OK";
     }
     #endregion
 
     #region 消息管理
-    public String Publish()
+    public String Publish(PublishInfo info)
     {
+        var exchange = _cluster.Exchange;
+        exchange?.Publish(info);
+
         return "OK";
     }
     #endregion
-
 }

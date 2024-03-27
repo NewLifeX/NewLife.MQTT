@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Serialization;
 using NewLife.Log;
+using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Remoting;
 
@@ -101,18 +102,18 @@ public class ClusterNode : DisposeBase
         return await Client.InvokeAsync<String>("Cluster/Leave", info);
     }
 
-    public async Task<String> Subscribe()
+    public async Task<String> Subscribe(SubscriptionInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Subscribe");
+        return await Client.InvokeAsync<String>("Cluster/Subscribe", info);
     }
 
-    public async Task<String> Unsubscribe()
+    public async Task<String> Unsubscribe(SubscriptionInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Unsubscribe");
+        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", info);
     }
 
     public async Task<String> Ping()
@@ -122,11 +123,11 @@ public class ClusterNode : DisposeBase
         return await Client.InvokeAsync<String>("Cluster/Ping");
     }
 
-    public async Task<String> Publish()
+    public async Task<String> Publish(PublishInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Publish");
+        return await Client.InvokeAsync<String>("Cluster/Publish", info);
     }
     #endregion
 }

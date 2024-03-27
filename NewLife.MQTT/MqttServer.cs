@@ -4,6 +4,7 @@ using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
+using NewLife.Reflection;
 
 namespace NewLife.MQTT;
 
@@ -91,6 +92,7 @@ public class MqttServer : NetServer<MqttSession>
             exchange2.Tracer = Tracer;
 
             Exchange = exchange2;
+            cluster.Exchange = exchange2;
         }
     }
 

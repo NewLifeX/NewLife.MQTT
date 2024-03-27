@@ -1,4 +1,5 @@
-﻿using NewLife.Log;
+﻿using System.Collections.Concurrent;
+using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 
@@ -16,6 +17,9 @@ public class ClusterExchange : DisposeBase, IMqttExchange, ITracerFeature
 
     /// <summary>内部交换机</summary>
     public IMqttExchange Inner { get; set; } = null!;
+
+    /// <summary>主题订阅集合</summary>
+    private ConcurrentDictionary<String, List<SubscriptionInfo>> _topics = new();
 
     /// <summary>链路追踪</summary>
     public ITracer? Tracer { get; set; }
@@ -45,13 +49,85 @@ public class ClusterExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <param name="sessionId"></param>
     /// <param name="topic"></param>
     /// <param name="qos"></param>
-    public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos) => Inner.Subscribe(sessionId, topic, qos);//todo 向其它节点广播订阅关系
+    public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos)
+    {
+        Inner.Subscribe(sessionId, topic, qos);
+
+        // 向其它节点广播订阅关系
+        var info = new SubscriptionInfo
+        {
+            Topic = topic,
+            Endpoint = Cluster.GetNodeInfo().EndPoint,
+            RemoteEndpoint = sessionId + "",
+        };
+        Parallel.ForEach(Cluster.Nodes, item =>
+        {
+            try
+            {
+                var node = item.Value;
+                _ = node.Subscribe(info);
+            }
+            catch (Exception ex)
+            {
+                XTrace.WriteException(ex);
+            }
+        });
+    }
 
     /// <summary>取消主题订阅</summary>
     /// <param name="sessionId"></param>
     /// <param name="topic"></param>
-    public virtual void Unsubscribe(Int32 sessionId, String topic) => Inner.Unsubscribe(sessionId, topic);//todo 向其它节点广播取消订阅关系
+    public virtual void Unsubscribe(Int32 sessionId, String topic)
+    {
+        Inner.Unsubscribe(sessionId, topic);
 
+        // 向其它节点广播取消订阅关系
+        var info = new SubscriptionInfo
+        {
+            Topic = topic,
+            Endpoint = Cluster.GetNodeInfo().EndPoint,
+            RemoteEndpoint = sessionId + "",
+        };
+        Parallel.ForEach(Cluster.Nodes, item =>
+        {
+            try
+            {
+                var node = item.Value;
+                _ = node.Unsubscribe(info);
+            }
+            catch (Exception ex)
+            {
+                XTrace.WriteException(ex);
+            }
+        });
+    }
+
+    /// <summary>添加远程订阅关系</summary>
+    /// <param name="info"></param>
+    public void AddSubscription(SubscriptionInfo info)
+    {
+        var subs = _topics.GetOrAdd(info.Topic, k => []);
+        lock (subs)
+        {
+            if (!subs.Any(e => e.Endpoint == info.Endpoint)) subs.Add(info);
+        }
+    }
+
+    /// <summary>移除远程订阅关系</summary>
+    /// <param name="info"></param>
+    public void RemoveSubscription(SubscriptionInfo info)
+    {
+        if (_topics.TryGetValue(info.Topic, out var subs))
+        {
+            lock (subs)
+            {
+                subs.RemoveAll(e => e.Endpoint == info.Endpoint);
+            }
+
+            // 没有订阅者了，删除主题
+            if (subs.Count == 0) _topics.TryRemove(info.Topic, out _);
+        }
+    }
     #endregion
 
     #region 转发消息
@@ -60,7 +136,46 @@ public class ClusterExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// 找到匹配该主题的订阅者，然后发送消息
     /// </remarks>
     /// <param name="message"></param>
-    public virtual void Publish(PublishMessage message) => Inner.Publish(message);//todo 查找其它节点订阅关系，然后转发消息
+    public virtual void Publish(PublishMessage message)
+    {
+        Inner.Publish(message);
 
+        PublishInfo? info = null;
+
+        // 查找其它节点订阅关系，然后转发消息
+        // 遍历所有Topic，找到匹配的订阅者
+        foreach (var item in _topics)
+        {
+            if (!MqttTopicFilter.IsMatch(message.Topic, item.Key)) continue;
+
+            // 遍历所有订阅者
+            var subs = item.Value;
+            foreach (var sub in subs.ToArray())
+            {
+                if (Cluster.Nodes.TryGetValue(sub.Endpoint, out var node))
+                {
+                    info ??= new PublishInfo
+                    {
+                        Message = message,
+                    };
+
+                    node.Publish(info);
+                }
+                else
+                {
+                    // 没有找到订阅者，删除订阅关系
+                    lock (subs)
+                    {
+                        subs.Remove(sub);
+                    }
+                }
+            }
+        }
+    }
+
+    public void Publish(PublishInfo info)
+    {
+        Inner.Publish(info.Message);
+    }
     #endregion
 }
