@@ -80,21 +80,35 @@ public class ClusterController : IApi, IActionFilter
     #endregion
 
     #region 订阅管理
-    public String Subscribe(SubscriptionInfo info)
+    public String Subscribe(SubscriptionInfo[] infos)
     {
         var node = Session["Node"] as ClusterNode;
-        info.Node = node;
+        //info.Node = node;
 
-        var exchange = _cluster.Exchange;
-        exchange?.AddSubscription(info);
+        // 集群订阅3，收到节点广播的订阅关系
+        var exchange = _cluster.ClusterExchange;
+        if (exchange != null)
+        {
+            foreach (var item in infos)
+            {
+                exchange.AddSubscription(item);
+            }
+        }
 
         return "OK";
     }
 
-    public String Unsubscribe(SubscriptionInfo info)
+    public String Unsubscribe(SubscriptionInfo[] infos)
     {
-        var exchange = _cluster.Exchange;
-        exchange?.RemoveSubscription(info);
+        // 集群取消订阅3，收到节点广播的订阅关系
+        var exchange = _cluster.ClusterExchange;
+        if (exchange != null)
+        {
+            foreach (var item in infos)
+            {
+                exchange.RemoveSubscription(item);
+            }
+        }
 
         return "OK";
     }
@@ -103,8 +117,9 @@ public class ClusterController : IApi, IActionFilter
     #region 消息管理
     public String Publish(PublishInfo info)
     {
+        // 集群发布3，收到其它节点转发的消息
         var exchange = _cluster.Exchange;
-        exchange?.Publish(info);
+        exchange?.Publish(info.Message);
 
         return "OK";
     }

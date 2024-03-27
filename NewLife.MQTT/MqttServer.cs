@@ -88,11 +88,10 @@ public class MqttServer : NetServer<MqttSession>
             exchange2 ??= new ClusterExchange();
 
             exchange2.Cluster = cluster;
-            exchange2.Inner = exchange;
             exchange2.Tracer = Tracer;
 
-            Exchange = exchange2;
-            cluster.Exchange = exchange2;
+            cluster.Exchange = exchange;
+            cluster.ClusterExchange = exchange2;
         }
     }
 
@@ -125,6 +124,7 @@ public class MqttSession : NetSession<MqttServer>
         {
             mqttHandler.Session = this;
             mqttHandler.Exchange = Host?.Exchange;
+            mqttHandler.ClusterExchange = Host?.Cluster?.ClusterExchange;
         }
 
         Handler = handler;

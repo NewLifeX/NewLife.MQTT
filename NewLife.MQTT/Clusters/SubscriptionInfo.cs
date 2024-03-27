@@ -24,7 +24,7 @@ public class SubscriptionInfo
     [XmlIgnore, IgnoreDataMember]
     public DateTime UpdateTime { get; set; }
 
-    [XmlIgnore, IgnoreDataMember]
-    public ClusterNode? Node { get; set; }
+    //[XmlIgnore, IgnoreDataMember]
+    //public ClusterNode? Node { get; set; }
     #endregion
 }

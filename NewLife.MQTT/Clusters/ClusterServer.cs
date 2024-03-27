@@ -21,7 +21,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>集群节点集合</summary>
     public ConcurrentDictionary<String, ClusterNode> Nodes { get; } = new ConcurrentDictionary<String, ClusterNode>();
 
-    public ClusterExchange? Exchange { get; set; }
+    public IMqttExchange? Exchange { get; set; }
+
+    public ClusterExchange? ClusterExchange { get; set; }
 
     /// <summary>服务提供者。主要用于创建控制器实例，支持构造函数注入</summary>
     public IServiceProvider? ServiceProvider { get; set; }

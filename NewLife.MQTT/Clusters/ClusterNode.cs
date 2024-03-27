@@ -102,18 +102,18 @@ public class ClusterNode : DisposeBase
         return await Client.InvokeAsync<String>("Cluster/Leave", info);
     }
 
-    public async Task<String> Subscribe(SubscriptionInfo info)
+    public async Task<String> Subscribe(SubscriptionInfo[] infos)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Subscribe", info);
+        return await Client.InvokeAsync<String>("Cluster/Subscribe", infos);
     }
 
-    public async Task<String> Unsubscribe(SubscriptionInfo info)
+    public async Task<String> Unsubscribe(SubscriptionInfo[] infos)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", info);
+        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", infos);
     }
 
     public async Task<String> Ping()

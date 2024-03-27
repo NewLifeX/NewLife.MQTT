@@ -1,5 +1,6 @@
 ﻿using NewLife.Data;
 using NewLife.Log;
+using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Serialization;
@@ -51,6 +52,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
     /// <summary>消息交换机</summary>
     public IMqttExchange? Exchange { get; set; }
+
+    /// <summary>集群消息交换机</summary>
+    public ClusterExchange? ClusterExchange { get; set; }
 
     #region 接收消息
     /// <summary>处理消息</summary>
@@ -106,6 +110,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         Exchange?.Publish(message);
 
+        // 集群发布1，收到客户端发布消息
+        ClusterExchange?.Publish(Session, message);
+
         return message.QoS switch
         {
             QualityOfService.AtMostOnce => null,
@@ -130,14 +137,21 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual SubAck OnSubscribe(SubscribeMessage message)
     {
+        if (message.Requests == null || message.Requests.Count == 0)
+            return new SubAck { Id = message.Id };
+
         var exchange = Exchange;
-        if (exchange != null && message.Requests != null)
+        if (exchange != null)
         {
             foreach (var item in message.Requests)
             {
                 exchange.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService);
             }
         }
+
+        // 集群订阅1，接收订阅请求
+        var exchange2 = ClusterExchange;
+        exchange2?.Subscribe(Session, message);
 
         return new()
         {
@@ -160,6 +174,10 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 exchange.Unsubscribe(Session.ID, item);
             }
         }
+
+        // 集群取消订阅1
+        var exchange2 = ClusterExchange;
+        exchange2?.Unsubscribe(Session, message);
 
         return message.CreateAck();
     }
@@ -208,7 +226,10 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         // 注意此处代码不要删除，是用来做消息转发给设备端之外的其他端使用的。
         if (allowExchange)
+        {
             Exchange?.Publish(message);
+            ClusterExchange?.Publish(Session, message);
+        }
 
         return await PublishAsync(message);
     }
