@@ -48,7 +48,7 @@ public class ClusterController : IApi, IActionFilter
         Session["Node"] = node;
 
         //if (node.Times == 1)
-        _cluster.WriteLog("节点加入集群：{0}，来自：{1}", node, Session);
+        _cluster.WriteLog("节点[{0}]加入集群，来自：{1}", node, Session);
 
         return _cluster.GetNodeInfo();
     }
@@ -71,7 +71,7 @@ public class ClusterController : IApi, IActionFilter
 
         if (_cluster.Nodes.TryRemove(endpoint, out var node))
         {
-            _cluster.WriteLog("节点退出集群：{0}，来自：{1}", node, Session);
+            _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Session);
             node.TryDispose();
         }
 
@@ -84,6 +84,8 @@ public class ClusterController : IApi, IActionFilter
     {
         var node = Session["Node"] as ClusterNode;
         //info.Node = node;
+
+        _cluster.WriteLog("节点[{0}]订阅：{1}", node, infos.Join(",", e => e.Topic));
 
         // 集群订阅3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
@@ -100,7 +102,12 @@ public class ClusterController : IApi, IActionFilter
 
     public String Unsubscribe(SubscriptionInfo[] infos)
     {
-        // 集群取消订阅3，收到节点广播的订阅关系
+        var node = Session["Node"] as ClusterNode;
+        //info.Node = node;
+
+        _cluster.WriteLog("节点[{0}]退订：{1}", node, infos.Join(",", e => e.Topic));
+
+        // 集群退订3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
         if (exchange != null)
         {

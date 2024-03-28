@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;

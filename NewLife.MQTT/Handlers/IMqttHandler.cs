@@ -175,7 +175,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             }
         }
 
-        // 集群取消订阅1
+        // 集群退订1
         var exchange2 = ClusterExchange;
         exchange2?.Unsubscribe(Session, message);
 

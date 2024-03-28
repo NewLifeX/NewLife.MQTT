@@ -65,7 +65,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             RemoteEndpoint = session.Remote + "",
         }).ToArray();
 
-        // 集群取消订阅2，向其它节点广播取消订阅关系
+        // 集群退订2，向其它节点广播取消订阅关系
         Parallel.ForEach(Cluster.Nodes, item =>
         {
             try
@@ -96,7 +96,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <param name="info"></param>
     public void RemoveSubscription(SubscriptionInfo info)
     {
-        // 集群取消订阅4，删除订阅关系
+        // 集群退订4，删除订阅关系
         if (_topics.TryGetValue(info.Topic, out var subs))
         {
             lock (subs)
