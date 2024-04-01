@@ -1,12 +1,11 @@
 ﻿using System;
 using System.ComponentModel;
 using NewLife.Configuration;
-using NewLife.Xml;
 
 namespace NewLife.MQTTServer;
 
 [Config("MqttServer")]
-public class MqttSetting : XmlConfig<MqttSetting>
+public class MqttSetting : Config<MqttSetting>
 {
     /// <summary>调试开关。默认 false</summary>
     [Description("调试开关。默认 false")]
