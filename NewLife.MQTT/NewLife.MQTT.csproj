@@ -6,7 +6,7 @@
     <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
     <Company>新生命开发团队</Company>
     <Copyright>版权所有(C) 新生命开发团队 2002~2024</Copyright>
-    <VersionPrefix>1.4</VersionPrefix>
+    <VersionPrefix>2.0</VersionPrefix>
     <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
     <FileVersion>$(Version)</FileVersion>
@@ -29,7 +29,7 @@
     <RepositoryUrl>https://github.com/NewLifeX/NewLife.MQTT</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>新生命团队;X组件;NewLife;$(AssemblyName)</PackageTags>
-    <PackageReleaseNotes>新增IMqttHandler.Close</PackageReleaseNotes>
+    <PackageReleaseNotes>支持MQTT集群</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -61,7 +61,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="10.8.2024.325-beta0633" />
-    <PackageReference Include="NewLife.Remoting" Version="2.7.2024.325-beta1243" />
+    <PackageReference Include="NewLife.Core" Version="10.9.2024.402" />
+    <PackageReference Include="NewLife.Remoting" Version="2.8.2024.402" />
   </ItemGroup>
 </Project>
