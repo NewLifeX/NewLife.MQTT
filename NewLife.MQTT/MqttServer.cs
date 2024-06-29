@@ -4,7 +4,7 @@ using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
-using NewLife.Reflection;
+using NewLife.Serialization;
 
 namespace NewLife.MQTT;
 
@@ -23,6 +23,9 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>集群服务端</summary>
     public ClusterServer? Cluster { get; set; }
 
+    /// <summary>Json序列化主机</summary>
+    public IJsonHost? JsonHost { get; set; }
+
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
 
@@ -36,6 +39,8 @@ public class MqttServer : NetServer<MqttSession>
         if (ServiceProvider == null) throw new NotSupportedException("未配置服务提供者ServiceProvider");
 
         Name = $"Mqtt{Port}";
+
+        JsonHost ??= ServiceProvider.GetService<IJsonHost>() ?? JsonHelper.Default;
 
         var exchange = Exchange;
         exchange ??= ServiceProvider.GetService<IMqttExchange>();
@@ -109,13 +114,13 @@ public class MqttServer : NetServer<MqttSession>
 public class MqttSession : NetSession<MqttServer>
 {
     /// <summary>指令处理器</summary>
-    public IMqttHandler Handler { get; set; } = null!;
+    public IMqttHandler MqttHandler { get; set; } = null!;
 
     /// <summary>设备连接时，准备处理器</summary>
     /// <exception cref="NotSupportedException"></exception>
     protected override void OnConnected()
     {
-        var handler = Handler;
+        var handler = MqttHandler;
         handler ??= ServiceProvider?.GetService<IMqttHandler>();
         handler ??= new MqttHandler();
         if (handler == null) throw new NotSupportedException("未注册指令处理器");
@@ -123,11 +128,12 @@ public class MqttSession : NetSession<MqttServer>
         if (handler is MqttHandler mqttHandler)
         {
             mqttHandler.Session = this;
-            mqttHandler.Exchange = Host?.Exchange;
-            mqttHandler.ClusterExchange = Host?.Cluster?.ClusterExchange;
+            mqttHandler.Exchange = Host.Exchange;
+            mqttHandler.ClusterExchange = Host.Cluster?.ClusterExchange;
+            mqttHandler.JsonHost = Host.JsonHost ?? ServiceProvider?.GetService<IJsonHost>() ?? JsonHelper.Default;
         }
 
-        Handler = handler;
+        MqttHandler = handler;
 
         base.OnConnected();
     }
@@ -136,7 +142,7 @@ public class MqttSession : NetSession<MqttServer>
     /// <param name="reason"></param>
     protected override void OnDisconnected(String reason)
     {
-        Handler?.Close(reason);
+        MqttHandler?.Close(reason);
 
         base.OnDisconnected(reason);
     }
@@ -156,7 +162,7 @@ public class MqttSession : NetSession<MqttServer>
             try
             {
                 // 执行处理器
-                result = Handler?.Process(msg);
+                result = MqttHandler?.Process(msg);
             }
             catch (Exception ex)
             {

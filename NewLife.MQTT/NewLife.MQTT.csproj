@@ -41,6 +41,10 @@
   <ItemGroup>
     <Compile Remove="Handlers\MqttHandler.cs" />
     <Compile Remove="Handlers\MqttTypeAttribute.cs" />
+    <Compile Remove="Models\PruningRadixTrie.cs" />
+    <Compile Remove="Models\SubscriptionManager.cs" />
+    <Compile Remove="Models\Trie.cs" />
+    <Compile Remove="Models\TrieNode.cs" />
   </ItemGroup>
   
   <ItemGroup>
@@ -61,7 +65,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="10.10.2024.507" />
+    <PackageReference Include="NewLife.Core" Version="10.10.2024.601" />
     <PackageReference Include="NewLife.Remoting" Version="2.8.2024.402" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
   </ItemGroup>
 </Project>

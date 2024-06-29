@@ -56,14 +56,16 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>集群消息交换机</summary>
     public ClusterExchange? ClusterExchange { get; set; }
 
+    /// <summary>Json序列化主机</summary>
+    public IJsonHost JsonHost { get; set; } = null!;
+
     #region 接收消息
     /// <summary>处理消息</summary>
     /// <param name="message">消息</param>
     /// <returns></returns>
     public virtual MqttMessage? Process(MqttMessage message)
     {
-        MqttMessage? rs = null;
-        rs = message.Type switch
+        var rs = message.Type switch
         {
             MqttType.Connect => OnConnect((message as ConnectMessage)!),
             MqttType.Publish => OnPublish((message as PublishMessage)!),
@@ -272,7 +274,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
-                WriteLog("=> {0} {1}", msg, pm.Payload.ToStr());
+                WriteLog("=> {0} {1}", msg, pm.Payload?.ToStr());
             else
                 WriteLog("=> {0}", msg);
         }
@@ -308,7 +310,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         if (data is Packet pk) return pk;
         if (data is Byte[] buf) return buf;
-        return data is String str ? (Packet)str.GetBytes() : (Packet)data.ToJson().GetBytes();
+        if (data is String str) return str.GetBytes();
+
+        return JsonHost.Write(data).GetBytes();
     }
     #endregion
 

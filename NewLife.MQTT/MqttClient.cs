@@ -57,6 +57,9 @@ public class MqttClient : DisposeBase
     /// </summary>
     public Boolean CleanSession { get; set; } = true;
 
+    /// <summary>Json序列化主机</summary>
+    public IJsonHost JsonHost { get; set; } = JsonHelper.Default;
+
     /// <summary>
     /// 断开后是否自动重连
     /// </summary>
@@ -199,7 +202,7 @@ public class MqttClient : DisposeBase
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
-                WriteLog("=> {0} {1}", msg, pm.Payload.ToStr());
+                WriteLog("=> {0} {1}", msg, pm.Payload?.ToStr());
             else
                 WriteLog("=> {0}", msg);
         }
@@ -268,7 +271,7 @@ public class MqttClient : DisposeBase
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
-                WriteLog("<= {0} {1}", msg, pm.Payload.ToStr());
+                WriteLog("<= {0} {1}", msg, pm.Payload?.ToStr());
             else
                 WriteLog("<= {0}", msg);
         }
@@ -444,17 +447,6 @@ public class MqttClient : DisposeBase
     #endregion
 
     #region 发布
-    ///// <summary>
-    ///// PublicAsync=>PublishAsync
-    ///// </summary>
-    ///// <param name="topic"></param>
-    ///// <param name="data"></param>
-    ///// <param name="qos"></param>
-    ///// <returns></returns>
-    //[Obsolete("PublicAsync=>PublishAsync", true)]
-    //public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
-    //    QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
-
     /// <summary>发布消息</summary>
     /// <param name="topic">主题</param>
     /// <param name="data">消息数据</param>
@@ -475,14 +467,6 @@ public class MqttClient : DisposeBase
 
         return await PublishAsync(message);
     }
-
-    ///// <summary>
-    ///// PublicAsync=>PublishAsync
-    ///// </summary>
-    ///// <param name="message"></param>
-    ///// <returns></returns>
-    //[Obsolete("PublicAsync=>PublishAsync")]
-    //public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
 
     /// <summary>发布消息</summary>
     /// <param name="message"></param>
@@ -512,7 +496,7 @@ public class MqttClient : DisposeBase
         if (data is Byte[] buf) return buf;
         if (data is String str) return str.GetBytes();
 
-        return data.ToJson().GetBytes();
+        return JsonHost.Write(data).GetBytes();
     }
     #endregion
 
@@ -525,7 +509,7 @@ public class MqttClient : DisposeBase
     {
         var subscription = new Subscription(topicFilter, QualityOfService.AtMostOnce);
 
-        return await SubscribeAsync(new[] { subscription }, callback);
+        return await SubscribeAsync([subscription], callback);
     }
 
     /// <summary>订阅主题</summary>
