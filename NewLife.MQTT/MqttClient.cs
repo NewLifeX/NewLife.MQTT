@@ -57,8 +57,8 @@ public class MqttClient : DisposeBase
     /// </summary>
     public Boolean CleanSession { get; set; } = true;
 
-    /// <summary>Json序列化主机</summary>
-    public IJsonHost JsonHost { get; set; } = JsonHelper.Default;
+    /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
+    public IPacketEncoder Encoder { get; set; } = new DefaultPacketEncoder();
 
     /// <summary>
     /// 断开后是否自动重连
@@ -209,8 +209,7 @@ public class MqttClient : DisposeBase
 
         Init();
 
-        var client = _Client;
-        if (client == null) throw new ArgumentNullException(nameof(_Client));
+        var client = _Client ?? throw new ArgumentNullException(nameof(_Client));
         try
         {
             // 断开消息没有响应
@@ -455,7 +454,7 @@ public class MqttClient : DisposeBase
     public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var pk = data as Packet;
-        if (pk == null && data != null) pk = Serialize(data);
+        if (pk == null && data != null) pk = Encoder.Encode(data);
         if (pk == null) throw new ArgumentNullException(nameof(data));
 
         var message = new PublishMessage
@@ -485,18 +484,6 @@ public class MqttClient : DisposeBase
         }
 
         return rs;
-    }
-
-    /// <summary>把对象序列化为数据，字节数组和字符串以外的复杂类型，走Json序列化</summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    protected virtual Packet Serialize(Object data)
-    {
-        if (data is Packet pk) return pk;
-        if (data is Byte[] buf) return buf;
-        if (data is String str) return str.GetBytes();
-
-        return JsonHost.Write(data).GetBytes();
     }
     #endregion
 

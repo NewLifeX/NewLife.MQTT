@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
-    <PackageReference Include="NewLife.Core" Version="10.10.2024.601" />
+    <PackageReference Include="NewLife.Core" Version="10.10.2024.629-beta1346" />
     <PackageReference Include="NewLife.UnitTest" Version="1.0.2024.102-beta0146" />
     <PackageReference Include="xunit" Version="2.8.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1">

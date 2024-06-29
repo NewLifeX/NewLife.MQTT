@@ -1,4 +1,5 @@
-﻿using NewLife.Log;
+﻿using NewLife.Data;
+using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
@@ -23,8 +24,8 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>集群服务端</summary>
     public ClusterServer? Cluster { get; set; }
 
-    /// <summary>Json序列化主机</summary>
-    public IJsonHost? JsonHost { get; set; }
+    /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
+    public IPacketEncoder Encoder { get; set; } = null!;
 
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
@@ -40,7 +41,13 @@ public class MqttServer : NetServer<MqttSession>
 
         Name = $"Mqtt{Port}";
 
-        JsonHost ??= ServiceProvider.GetService<IJsonHost>() ?? JsonHelper.Default;
+        //JsonHost ??= ServiceProvider.GetService<IJsonHost>() ?? JsonHelper.Default;
+        Encoder ??= ServiceProvider.GetService<IPacketEncoder>() ?? new DefaultPacketEncoder();
+        if (Encoder is DefaultPacketEncoder encoder)
+        {
+            var jsonHost = ServiceProvider.GetService<IJsonHost>();
+            if (jsonHost != null) encoder.JsonHost = jsonHost;
+        }
 
         var exchange = Exchange;
         exchange ??= ServiceProvider.GetService<IMqttExchange>();
@@ -130,7 +137,7 @@ public class MqttSession : NetSession<MqttServer>
             mqttHandler.Session = this;
             mqttHandler.Exchange = Host.Exchange;
             mqttHandler.ClusterExchange = Host.Cluster?.ClusterExchange;
-            mqttHandler.JsonHost = Host.JsonHost ?? ServiceProvider?.GetService<IJsonHost>() ?? JsonHelper.Default;
+            mqttHandler.Encoder = Host.Encoder;
         }
 
         MqttHandler = handler;
