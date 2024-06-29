@@ -34,8 +34,14 @@ public class ClusterController : IApi, IActionFilter
     #endregion
 
     #region 集群管理
+    /// <summary></summary>
+    /// <param name="msg"></param>
+    /// <returns></returns>
     public String Echo(String msg) => msg;
 
+    /// <summary>加入集群</summary>
+    /// <param name="info"></param>
+    /// <returns></returns>
     public NodeInfo Join(NodeInfo info)
     {
         var endpoint = info.EndPoint;
@@ -53,6 +59,9 @@ public class ClusterController : IApi, IActionFilter
         return _cluster.GetNodeInfo();
     }
 
+    /// <summary>心跳</summary>
+    /// <param name="info"></param>
+    /// <returns></returns>
     public NodeInfo Ping(NodeInfo info)
     {
         var endpoint = info.EndPoint;
@@ -65,6 +74,9 @@ public class ClusterController : IApi, IActionFilter
         return _cluster.GetNodeInfo();
     }
 
+    /// <summary>离开集群</summary>
+    /// <param name="info"></param>
+    /// <returns></returns>
     public String Leave(NodeInfo info)
     {
         var endpoint = info.EndPoint;
@@ -80,6 +92,9 @@ public class ClusterController : IApi, IActionFilter
     #endregion
 
     #region 订阅管理
+    /// <summary>订阅</summary>
+    /// <param name="infos"></param>
+    /// <returns></returns>
     public String Subscribe(SubscriptionInfo[] infos)
     {
         var node = Session["Node"] as ClusterNode;
@@ -100,6 +115,9 @@ public class ClusterController : IApi, IActionFilter
         return "OK";
     }
 
+    /// <summary>取消订阅</summary>
+    /// <param name="infos"></param>
+    /// <returns></returns>
     public String Unsubscribe(SubscriptionInfo[] infos)
     {
         var node = Session["Node"] as ClusterNode;
@@ -122,6 +140,9 @@ public class ClusterController : IApi, IActionFilter
     #endregion
 
     #region 消息管理
+    /// <summary>发布消息</summary>
+    /// <param name="info"></param>
+    /// <returns></returns>
     public String Publish(PublishInfo info)
     {
         // 集群发布3，收到其它节点转发的消息

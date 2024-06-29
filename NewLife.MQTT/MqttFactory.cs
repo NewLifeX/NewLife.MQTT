@@ -32,13 +32,14 @@ public class MqttFactory
                 break;
         }
 
-        return null;
+        throw new NotSupportedException($"{type}");
+        //return null;
     }
 
     /// <summary>读取消息</summary>
     /// <param name="pk"></param>
     /// <returns></returns>
-    public virtual MqttMessage ReadMessage(Packet pk)
+    public virtual MqttMessage? ReadMessage(Packet pk)
     {
         try
         {

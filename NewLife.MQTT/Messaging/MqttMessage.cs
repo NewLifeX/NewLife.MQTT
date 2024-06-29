@@ -76,7 +76,7 @@ public abstract class MqttMessage : IAccessor
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    public virtual Boolean Read(Stream stream, Object context)
+    public virtual Boolean Read(Stream stream, Object? context)
     {
         var flag = stream.ReadByte();
         if (flag < 0) return false;
@@ -97,12 +97,12 @@ public abstract class MqttMessage : IAccessor
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected virtual Boolean OnRead(Stream stream, Object context) => true;
+    protected virtual Boolean OnRead(Stream stream, Object? context) => true;
 
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    public virtual Boolean Write(Stream stream, Object context)
+    public virtual Boolean Write(Stream stream, Object? context)
     {
         // 子消息先写入，再写头部，因为头部需要负载长度
         var ms = new MemoryStream();
@@ -138,7 +138,7 @@ public abstract class MqttMessage : IAccessor
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected virtual Boolean OnWrite(Stream stream, Object context) => true;
+    protected virtual Boolean OnWrite(Stream stream, Object? context) => true;
 
     /// <summary>消息转为字节数组</summary>
     /// <returns></returns>

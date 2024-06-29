@@ -139,7 +139,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
                         RemoteEndpoint = session.Remote + "",
                     };
 
-                    node.Publish(info);
+                    _ = node.Publish(info);
                 }
                 else
                 {

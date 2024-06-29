@@ -7,10 +7,10 @@ public sealed class PublishMessage : MqttIdMessage
 {
     #region 属性
     /// <summary>主题</summary>
-    public String Topic { get; set; }
+    public String Topic { get; set; } = null!;
 
     /// <summary>负载数据</summary>
-    public Packet Payload { get; set; }
+    public Packet? Payload { get; set; }
     #endregion
 
     #region 构造
@@ -31,7 +31,7 @@ public sealed class PublishMessage : MqttIdMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         Topic = ReadString(stream);
 
@@ -49,7 +49,7 @@ public sealed class PublishMessage : MqttIdMessage
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         WriteString(stream, Topic);
 

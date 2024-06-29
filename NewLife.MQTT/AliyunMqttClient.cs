@@ -59,11 +59,11 @@ public class AliyunMqttClient : MqttClient
 
     /// <summary>收到属性上报</summary>
     /// <param name="pm"></param>
-    protected virtual void OnPostProperty(PublishMessage pm) => WriteLog("OnPostProperty:{0}", pm.Payload.ToStr());
+    protected virtual void OnPostProperty(PublishMessage pm) => WriteLog("OnPostProperty:{0}", pm.Payload?.ToStr());
 
     /// <summary>收到属性设置</summary>
     /// <param name="pm"></param>
-    protected virtual void OnSetProperty(PublishMessage pm) => WriteLog("OnSetProperty:{0}", pm.Payload.ToStr());
+    protected virtual void OnSetProperty(PublishMessage pm) => WriteLog("OnSetProperty:{0}", pm.Payload?.ToStr());
     #endregion
 
     #region 时钟同步
@@ -77,6 +77,6 @@ public class AliyunMqttClient : MqttClient
 
     /// <summary>收到时间同步</summary>
     /// <param name="pm"></param>
-    protected void OnSyncTime(PublishMessage pm) => WriteLog("OnSyncTime:{0}", pm.Payload.ToStr());
+    protected void OnSyncTime(PublishMessage pm) => WriteLog("OnSyncTime:{0}", pm.Payload?.ToStr());
     #endregion
 }

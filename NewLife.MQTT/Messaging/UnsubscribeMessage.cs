@@ -5,7 +5,7 @@ public sealed class UnsubscribeMessage : MqttIdMessage
 {
     #region 属性
     /// <summary>主题过滤器</summary>
-    public IList<String> TopicFilters { get; set; }
+    public IList<String> TopicFilters { get; set; } = [];
     #endregion
 
     #region 构造
@@ -25,7 +25,7 @@ public sealed class UnsubscribeMessage : MqttIdMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         if (!base.OnRead(stream, context)) return false;
 
@@ -42,7 +42,7 @@ public sealed class UnsubscribeMessage : MqttIdMessage
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         if (!base.OnWrite(stream, context)) return false;
 

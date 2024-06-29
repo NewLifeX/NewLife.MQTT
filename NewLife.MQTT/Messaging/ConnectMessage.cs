@@ -107,7 +107,7 @@ public sealed class ConnectMessage : MqttMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         // 协议名
         ProtocolName = ReadString(stream);
@@ -163,7 +163,7 @@ public sealed class ConnectMessage : MqttMessage
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         // 协议名
         WriteString(stream, ProtocolName);

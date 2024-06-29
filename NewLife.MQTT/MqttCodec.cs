@@ -40,12 +40,19 @@ public class MqttCodec : MessageCodec<MqttMessage>
     /// <returns></returns>
     protected override IList<MqttMessage> Decode(IHandlerContext context, Packet pk)
     {
-        var ss = context.Owner as IExtend;
+        if (context.Owner is not IExtend ss) return [];
+
         if (ss["Codec"] is not PacketCodec pc)
             ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
 
         var pks = pc.Parse(pk);
-        var list = pks.Select(_Factory.ReadMessage).ToList();
+        //var list = pks.Select(_Factory.ReadMessage).ToList();
+        var list = new List<MqttMessage>();
+        foreach (var item in pks)
+        {
+            var msg = _Factory.ReadMessage(item);
+            if (msg != null) list.Add(msg);
+        }
 
         return list;
     }
@@ -65,7 +72,7 @@ public class MqttCodec : MessageCodec<MqttMessage>
     /// <param name="request"></param>
     /// <param name="response"></param>
     /// <returns></returns>
-    protected override Boolean IsMatch(Object request, Object response)
+    protected override Boolean IsMatch(Object? request, Object? response)
     {
         if (request is not MqttMessage req || response is not MqttMessage res) return false;
 

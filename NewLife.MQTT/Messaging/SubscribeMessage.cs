@@ -5,7 +5,7 @@ public sealed class SubscribeMessage : MqttIdMessage
 {
     #region 属性
     /// <summary>请求集合</summary>
-    public IList<Subscription> Requests { get; set; }
+    public IList<Subscription> Requests { get; set; } = [];
     #endregion
 
     #region 构造
@@ -25,7 +25,7 @@ public sealed class SubscribeMessage : MqttIdMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         if (!base.OnRead(stream, context)) return false;
 
@@ -43,7 +43,7 @@ public sealed class SubscribeMessage : MqttIdMessage
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         if (!base.OnWrite(stream, context)) return false;
 
