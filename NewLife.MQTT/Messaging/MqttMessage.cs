@@ -151,7 +151,14 @@ public abstract class MqttMessage : IAccessor
 
     /// <summary>转数据包</summary>
     /// <returns></returns>
-    public virtual Packet ToPacket() => ToArray();
+    public virtual IPacket ToPacket()
+    {
+        var ms = new MemoryStream();
+        Write(ms, null);
+
+        ms.Position = 0;
+        return new ArrayPacket(ms);
+    }
     #endregion
 
     #region 辅助
@@ -201,7 +208,7 @@ public abstract class MqttMessage : IAccessor
     /// <summary>写字节数组</summary>
     /// <param name="stream"></param>
     /// <param name="pk"></param>
-    protected void WriteData(Stream stream, Packet? pk)
+    protected void WriteData(Stream stream, IPacket? pk)
     {
         var len = pk == null ? 0 : pk.Total;
         stream.Write(((UInt16)len).GetBytes(false));

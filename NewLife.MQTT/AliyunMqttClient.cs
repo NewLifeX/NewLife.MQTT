@@ -1,4 +1,5 @@
-﻿using NewLife.MQTT.Messaging;
+﻿using NewLife.Data;
+using NewLife.MQTT.Messaging;
 
 namespace NewLife.MQTT;
 

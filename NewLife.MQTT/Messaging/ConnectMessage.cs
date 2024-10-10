@@ -88,7 +88,7 @@ public sealed class ConnectMessage : MqttMessage
     public String? WillTopicName { get; set; }
 
     /// <summary>遗嘱消息</summary>
-    public Packet? WillMessage { get; set; }
+    public Byte[] WillMessage { get; set; }
 
     /// <summary>属性集合。MQTT5.0</summary>
     public IDictionary<Byte, UInt32>? Properties { get; set; }

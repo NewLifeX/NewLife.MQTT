@@ -38,7 +38,7 @@ public class MqttCodec : MessageCodec<MqttMessage>
     /// <param name="context"></param>
     /// <param name="pk"></param>
     /// <returns></returns>
-    protected override IList<MqttMessage> Decode(IHandlerContext context, Packet pk)
+    protected override IList<MqttMessage> Decode(IHandlerContext context, IPacket pk)
     {
         if (context.Owner is not IExtend ss) return [];
 

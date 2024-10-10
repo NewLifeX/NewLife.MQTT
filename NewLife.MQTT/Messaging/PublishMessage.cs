@@ -10,7 +10,7 @@ public sealed class PublishMessage : MqttIdMessage
     public String Topic { get; set; } = null!;
 
     /// <summary>负载数据</summary>
-    public Packet? Payload { get; set; }
+    public IPacket? Payload { get; set; }
     #endregion
 
     #region 构造
@@ -41,7 +41,7 @@ public sealed class PublishMessage : MqttIdMessage
         }
 
         //Payload = ReadData(stream);
-        Payload = stream.ReadBytes(-1);
+        Payload = (ArrayPacket)stream.ReadBytes(-1);
 
         return true;
     }

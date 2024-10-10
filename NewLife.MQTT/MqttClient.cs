@@ -453,7 +453,7 @@ public class MqttClient : DisposeBase
     /// <returns></returns>
     public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
-        var pk = data as Packet;
+        var pk = data as IPacket;
         if (pk == null && data != null) pk = Encoder.Encode(data);
         if (pk == null) throw new ArgumentNullException(nameof(data));
 

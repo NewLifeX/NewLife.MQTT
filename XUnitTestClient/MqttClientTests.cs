@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NewLife;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT;

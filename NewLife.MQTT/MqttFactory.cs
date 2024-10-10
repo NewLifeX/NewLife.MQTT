@@ -39,7 +39,7 @@ public class MqttFactory
     /// <summary>读取消息</summary>
     /// <param name="pk"></param>
     /// <returns></returns>
-    public virtual MqttMessage? ReadMessage(Packet pk)
+    public virtual MqttMessage? ReadMessage(IPacket pk)
     {
         try
         {
