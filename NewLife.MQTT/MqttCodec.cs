@@ -43,7 +43,7 @@ public class MqttCodec : MessageCodec<MqttMessage>
         if (context.Owner is not IExtend ss) return [];
 
         if (ss["Codec"] is not PacketCodec pc)
-            ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), Offset = 1 };
+            ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), GetLength2 = p => GetLength(p, 1, 0) };
 
         var pks = pc.Parse(pk);
         //var list = pks.Select(_Factory.ReadMessage).ToList();

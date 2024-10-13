@@ -57,16 +57,17 @@ public abstract class MqttMessage : IAccessor
     /// <summary>已重载</summary>
     public override String ToString()
     {
+        var name = GetType().Name;
         return Type switch
         {
-            MqttType.Connect => $"{GetType().Name}[Type={Type}]",
-            MqttType.ConnAck or MqttType.Disconnect => $"{GetType().Name}[Type={Type}]",
-            MqttType.Publish => $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
-            MqttType.PubAck or MqttType.PubRec or MqttType.PubRel or MqttType.PubComp => $"{GetType().Name}[Type={Type}]",
-            MqttType.Subscribe => $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
-            MqttType.SubAck or MqttType.UnSubscribe or MqttType.UnSubAck => $"{GetType().Name}[Type={Type}]",
-            MqttType.PingReq or MqttType.PingResp => $"{GetType().Name}[Type={Type}]",
-            _ => $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
+            MqttType.Connect => $"{name}[Type={Type}]",
+            MqttType.ConnAck or MqttType.Disconnect => $"{name}[Type={Type}]",
+            MqttType.Publish => $"{name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
+            MqttType.PubAck or MqttType.PubRec or MqttType.PubRel or MqttType.PubComp => $"{name}[Type={Type}]",
+            MqttType.Subscribe => $"{name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
+            MqttType.SubAck or MqttType.UnSubscribe or MqttType.UnSubAck => $"{name}[Type={Type}]",
+            MqttType.PingReq or MqttType.PingResp => $"{name}[Type={Type}]",
+            _ => $"{name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
         };
     }
     #endregion

@@ -16,7 +16,7 @@ namespace XUnitTestClient;
 [TestCaseOrderer("NewLife.UnitTest.DefaultOrderer", "NewLife.UnitTest")]
 public class MqttClientTests
 {
-    private MqttServer _server;
+    private static MqttServer _server;
     private static MqttClient _client;
     private static readonly Queue<String> _mq = new Queue<String>();
 
