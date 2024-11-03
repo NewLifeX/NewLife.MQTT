@@ -1,5 +1,4 @@
-﻿using System.Net;
-using NewLife.Data;
+﻿using NewLife.Data;
 using NewLife.Model;
 using NewLife.Net;
 
@@ -14,7 +13,7 @@ public class ProxyCodec : Handler
     /// <returns></returns>
     public override Object? Read(IHandlerContext context, Object message)
     {
-        if (message is IPacket pk)
+        if (message is IPacket pk && context is NetHandlerContext ctx && ctx.Data is ReceivedEventArgs e)
         {
             var data = pk.GetSpan();
             if (ProxyMessage.FastValidHeader(data))
@@ -27,11 +26,25 @@ public class ProxyCodec : Handler
                     {
                         ext["Proxy"] = msg;
 
-                        if (context is NetHandlerContext ctx && ctx.Data is ReceivedEventArgs e)
-                        {
-                            // 修改远程地址
-                            e.Remote = msg.GetClient().EndPoint;
-                        }
+                        // 修改远程地址
+                        e.Remote = msg.GetClient().EndPoint;
+                    }
+
+                    message = pk.Slice(rs);
+                }
+            }
+            else if (ProxyMessageV2.FastValidHeader(data))
+            {
+                var msg = new ProxyMessageV2();
+                var rs = msg.Read(data);
+                if (rs > 0)
+                {
+                    if (context is IExtend ext)
+                    {
+                        ext["Proxy"] = msg;
+
+                        // 修改远程地址
+                        e.Remote = msg.Client!.EndPoint;
                     }
 
                     message = pk.Slice(rs);
