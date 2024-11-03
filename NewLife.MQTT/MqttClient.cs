@@ -439,7 +439,7 @@ public class MqttClient : DisposeBase
         WriteLog("断开连接");
         Disconnected?.Invoke(this, e);
 
-        if (!Reconnect) return;
+        if (Disposed || !Reconnect) return;
         WriteLog("尝试重新连接");
         ConnectAsync().GetAwaiter();
     }
