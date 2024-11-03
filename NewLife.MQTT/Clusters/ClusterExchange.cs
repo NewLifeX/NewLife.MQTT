@@ -27,7 +27,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <summary>订阅主题</summary>
     /// <param name="session"></param>
     /// <param name="message"></param>
-    public virtual void Subscribe(INetSession session, SubscribeMessage message)
+    public virtual void Subscribe(MqttSession session, SubscribeMessage message)
     {
         var myEndpoint = Cluster.GetNodeInfo().EndPoint;
         var infos = message.Requests.Select(e => new SubscriptionInfo
@@ -55,7 +55,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <summary>取消主题订阅</summary>
     /// <param name="session"></param>
     /// <param name="message"></param>
-    public virtual void Unsubscribe(INetSession session, UnsubscribeMessage message)
+    public virtual void Unsubscribe(MqttSession session, UnsubscribeMessage message)
     {
         var myEndpoint = Cluster.GetNodeInfo().EndPoint;
         var infos = message.TopicFilters.Select(e => new SubscriptionInfo
@@ -117,7 +117,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// </remarks>
     /// <param name="session"></param>
     /// <param name="message"></param>
-    public virtual void Publish(INetSession session, PublishMessage message)
+    public virtual void Publish(MqttSession session, PublishMessage message)
     {
         PublishInfo? info = null;
 

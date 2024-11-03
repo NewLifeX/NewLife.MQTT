@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
+using NewLife.MQTT.ProxyProtocol;
 using NewLife.Net;
 using NewLife.Serialization;
 using NewLife.Threading;
@@ -64,6 +65,9 @@ public class MqttClient : DisposeBase
     /// 断开后是否自动重连
     /// </summary>
     public Boolean Reconnect { get; set; } = true;
+
+    /// <summary>启用ProxyProtocol。仿造MQTT报文通过nginx/haproxy时的封包，仅用于测试，实际应用没有意义，默认false</summary>
+    public Boolean EnableProxyProtocol { get; set; }
 
     /// <summary>
     /// 连接成功后赋值为true
@@ -152,6 +156,8 @@ public class MqttClient : DisposeBase
 
             client.Log = Log;
             client.Timeout = Timeout;
+
+            if (EnableProxyProtocol) client.Add(new ProxyCodec());
             client.Add(new MqttCodec());
 
             // 关闭Tcp延迟以合并小包的算法，降低延迟
@@ -440,6 +446,7 @@ public class MqttClient : DisposeBase
         Disconnected?.Invoke(this, e);
 
         if (Disposed || !Reconnect) return;
+
         WriteLog("尝试重新连接");
         ConnectAsync().GetAwaiter();
     }

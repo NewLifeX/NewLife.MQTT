@@ -2,8 +2,6 @@
 using NewLife.Log;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
-using NewLife.Net;
-using NewLife.Serialization;
 
 namespace NewLife.MQTT.Handlers;
 
@@ -48,7 +46,7 @@ public interface IMqttHandler
 public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 {
     /// <summary>网络会话</summary>
-    public INetSession Session { get; set; } = null!;
+    public MqttSession Session { get; set; } = null!;
 
     /// <summary>消息交换机</summary>
     public IMqttExchange? Exchange { get; set; }
