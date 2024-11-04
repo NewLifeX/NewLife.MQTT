@@ -1,7 +1,5 @@
-﻿using System.Net;
-using System.Text;
+﻿using System.Text;
 using NewLife.Collections;
-using NewLife.Data;
 using NewLife.Net;
 
 namespace NewLife.MQTT.ProxyProtocol;
@@ -27,8 +25,8 @@ public class ProxyMessage
     #endregion
 
     #region 核心读写方法
-    private static readonly Byte[] _Magic = [(Byte)'P', (Byte)'R', (Byte)'O', (Byte)'X', (Byte)'Y', (Byte)' '];
-    private static readonly Byte[] _NewLine = [(Byte)'\r', (Byte)'\n'];
+    private static readonly Byte[] _Magic = "PROXY ".GetBytes();
+    private static readonly Byte[] _NewLine = "\r\n".GetBytes();
 
     /// <summary>快速验证协议头</summary>
     /// <param name="data"></param>

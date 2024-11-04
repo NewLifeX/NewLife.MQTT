@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using NewLife;
 using NewLife.Data;
@@ -15,7 +14,7 @@ namespace XUnitTestClient;
 public class ProxyProtocolTests
 {
     [Fact]
-    public void Test1()
+    public void TestPPv1()
     {
         var str = "PROXY TCP4 10.10.10.10 192.168.0.1 12345 80\r\n";
         var msg = new ProxyMessage();
@@ -28,6 +27,22 @@ public class ProxyProtocolTests
         Assert.Equal("192.168.0.1", msg.ProxyIP);
         Assert.Equal(12345, msg.ClientPort);
         Assert.Equal(80, msg.ProxyPort);
+    }
+
+    [Fact]
+    public void TestPPv2()
+    {
+        var str = "0D0A0D0A000D0A515549540A2111000CC0A801B4C0A80118F74C075B102E0006";
+        var buf = str.ToHex();
+        var msg = new ProxyMessageV2();
+        var rs = msg.Read(buf);
+
+        Assert.True(rs > 0);
+        Assert.Equal(28, rs);
+        Assert.Equal(0x02, msg.Version);
+        Assert.Equal(0x01, msg.Command);
+        Assert.Equal("tcp://192.168.1.180:63308", msg.Client + "");
+        Assert.Equal("tcp://192.168.1.24:1883", msg.Proxy + "");
     }
 
     [Fact]
