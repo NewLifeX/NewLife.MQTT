@@ -157,7 +157,7 @@ public class MqttClient : DisposeBase
             client.Log = Log;
             client.Timeout = Timeout;
 
-            if (EnableProxyProtocol) client.Add(new ProxyCodec());
+            if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
             client.Add(new MqttCodec());
 
             // 关闭Tcp延迟以合并小包的算法，降低延迟

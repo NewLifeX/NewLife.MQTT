@@ -7,6 +7,9 @@ namespace NewLife.MQTT.ProxyProtocol;
 /// <summary>ProxyProtocol编码器</summary>
 public class ProxyCodec : Handler
 {
+    /// <summary>客户端模式。客户端模式对发出数据包加头，默认false</summary>
+    public Boolean Client { get; set; }
+
     /// <summary>解析数据包，如果是ProxyProtocol协议则解码后返回</summary>
     /// <param name="context"></param>
     /// <param name="message"></param>
@@ -61,7 +64,7 @@ public class ProxyCodec : Handler
     /// <returns></returns>
     public override Object? Write(IHandlerContext context, Object message)
     {
-        if (message is IPacket pk && context.Owner is ISocketRemote remote)
+        if (Client && message is IPacket pk && context.Owner is ISocketRemote remote)
         {
             var msg = new ProxyMessage
             {
