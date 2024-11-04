@@ -42,7 +42,10 @@ public class ProxyCodec : Handler
                 var rs = msg.Read(data);
                 if (rs > 0)
                 {
-                    if (context is IExtend ext)
+                    // Local模式只是代理给后端的健康检测包，不需要处理
+                    if (msg.Command != 0x01) return msg;
+
+                    if (context is IExtend ext && msg.Command == 0x01 && msg.Client != null)
                     {
                         ext["Proxy"] = msg;
 

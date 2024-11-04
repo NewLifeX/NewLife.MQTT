@@ -46,6 +46,22 @@ public class ProxyProtocolTests
     }
 
     [Fact]
+    public void TestPPv2Local()
+    {
+        var str = "0D0A0D0A000D0A515549540A20000000";
+        var buf = str.ToHex();
+        var msg = new ProxyMessageV2();
+        var rs = msg.Read(buf);
+
+        Assert.True(rs > 0);
+        Assert.Equal(16, rs);
+        Assert.Equal(0x02, msg.Version);
+        Assert.Equal(0x00, msg.Command);
+        Assert.Null(msg.Client);
+        Assert.Null(msg.Proxy);
+    }
+
+    [Fact]
     public async Task TestProxyProtocol()
     {
         XTrace.WriteLine("测试ProxyProtocol");
