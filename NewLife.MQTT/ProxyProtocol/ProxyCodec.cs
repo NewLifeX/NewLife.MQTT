@@ -16,7 +16,7 @@ public class ProxyCodec : Handler
     /// <returns></returns>
     public override Object? Read(IHandlerContext context, Object message)
     {
-        if (message is IPacket pk && context is NetHandlerContext ctx && ctx.Data is ReceivedEventArgs e)
+        if (message is IPacket pk && context is NetHandlerContext ctx)
         {
             var data = pk.GetSpan();
             if (ProxyMessage.FastValidHeader(data))
@@ -30,7 +30,7 @@ public class ProxyCodec : Handler
                         ext["Proxy"] = msg;
 
                         // 修改远程地址
-                        e.Remote = msg.GetClient().EndPoint;
+                        ctx.Remote = msg.GetClient().EndPoint;
                     }
 
                     message = pk.Slice(rs);
@@ -50,7 +50,7 @@ public class ProxyCodec : Handler
                         ext["Proxy"] = msg;
 
                         // 修改远程地址
-                        e.Remote = msg.Client!.EndPoint;
+                        ctx.Remote = msg.Client!.EndPoint;
                     }
 
                     message = pk.Slice(rs);
