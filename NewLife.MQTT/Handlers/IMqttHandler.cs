@@ -241,12 +241,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
-        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce).ConfigureAwait(false)) as MqttIdMessage;
 
         if (rs is PubRec)
         {
             var rel = new PubRel();
-            var cmp = (await SendAsync(rel, true)) as PubComp;
+            var cmp = (await SendAsync(rel, true).ConfigureAwait(false)) as PubComp;
             return cmp;
         }
 
@@ -287,7 +287,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 return null;
             }
 
-            var rs = await client.SendMessageAsync(msg);
+            var rs = await client.SendMessageAsync(msg).ConfigureAwait(false);
 
             if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs as MqttMessage);
 

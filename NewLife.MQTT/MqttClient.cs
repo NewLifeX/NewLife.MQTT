@@ -226,7 +226,7 @@ public class MqttClient : DisposeBase
                 return null;
             }
 
-            var rs = await client.SendMessageAsync(msg);
+            var rs = await client.SendMessageAsync(msg).ConfigureAwait(false);
 
             // 重置
             _taskCanceledCount = 0;
@@ -391,7 +391,7 @@ public class MqttClient : DisposeBase
         // 心跳
         if (KeepAlive > 0 && message.KeepAliveInSeconds == 0) message.KeepAliveInSeconds = (UInt16)KeepAlive;
 
-        var rs = (await SendAsync(message)) as ConnAck;
+        var rs = (await SendAsync(message).ConfigureAwait(false)) as ConnAck;
 
         // 判断响应，是否成功连接
         if (rs!.ReturnCode != ConnectReturnCode.Accepted)
@@ -414,7 +414,7 @@ public class MqttClient : DisposeBase
                 Requests = _subs.Values.ToArray(),
             };
 
-            var rs2 = (await SendAsync(message2)) as SubAck;
+            var rs2 = (await SendAsync(message2).ConfigureAwait(false)) as SubAck;
             if (rs2 == null) _subs.Clear();
         }
 
@@ -427,7 +427,7 @@ public class MqttClient : DisposeBase
     {
         var message = new DisconnectMessage();
 
-        await SendAsync(message, false);
+        await SendAsync(message, false).ConfigureAwait(false);
 
         var e = new EventArgs();
         Disconnected?.Invoke(this, e);
@@ -481,12 +481,12 @@ public class MqttClient : DisposeBase
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
-        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce).ConfigureAwait(false)) as MqttIdMessage;
 
         if (rs is PubRec)
         {
             var rel = new PubRel();
-            var cmp = (await SendAsync(rel, true)) as PubComp;
+            var cmp = (await SendAsync(rel, true).ConfigureAwait(false)) as PubComp;
             return cmp;
         }
 

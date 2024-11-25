@@ -81,7 +81,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Echo", msg);
+        return await Client.InvokeAsync<String>("Cluster/Echo", msg).ConfigureAwait(false);
     }
 
     /// <summary>加入集群</summary>
@@ -91,7 +91,7 @@ public class ClusterNode : DisposeBase
 
         _myNode = info;
 
-        return _remoteNode = await Client.InvokeAsync<NodeInfo>("Cluster/Join", info);
+        return _remoteNode = await Client.InvokeAsync<NodeInfo>("Cluster/Join", info).ConfigureAwait(false);
     }
 
     /// <summary>心跳</summary>
@@ -104,7 +104,7 @@ public class ClusterNode : DisposeBase
         if (_remoteNode == null)
             return await Join(info);
         else
-            return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
+            return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info).ConfigureAwait(false);
     }
 
     /// <summary>离开集群</summary>
@@ -112,7 +112,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Leave", info);
+        return await Client.InvokeAsync<String>("Cluster/Leave", info).ConfigureAwait(false);
     }
 
     /// <summary>订阅</summary>
@@ -122,7 +122,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Subscribe", infos);
+        return await Client.InvokeAsync<String>("Cluster/Subscribe", infos).ConfigureAwait(false);
     }
 
     /// <summary>退订</summary>
@@ -132,7 +132,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", infos);
+        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", infos).ConfigureAwait(false);
     }
 
     /// <summary>心跳</summary>
@@ -141,7 +141,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Ping");
+        return await Client.InvokeAsync<String>("Cluster/Ping").ConfigureAwait(false);
     }
 
     /// <summary>发布</summary>
@@ -149,7 +149,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Publish", info);
+        return await Client.InvokeAsync<String>("Cluster/Publish", info).ConfigureAwait(false);
     }
     #endregion
 }
