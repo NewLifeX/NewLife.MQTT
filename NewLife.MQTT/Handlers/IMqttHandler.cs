@@ -189,7 +189,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var pk = data as IPacket;
         if (pk == null && data != null) pk = Encoder.Encode(data);
@@ -202,7 +202,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             QoS = qos,
         };
 
-        return await PublishAsync(message);
+        return PublishAsync(message);
     }
 
     /// <summary>发布消息</summary>
@@ -211,7 +211,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <param name="qos">服务质量</param>
     /// <param name="allowExchange">允许消息交换</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean allowExchange, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean allowExchange, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var pk = data as IPacket;
         if (pk == null && data != null) pk = Encoder.Encode(data);
@@ -231,7 +231,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             ClusterExchange?.Publish(Session, message);
         }
 
-        return await PublishAsync(message);
+        return PublishAsync(message);
     }
 
     /// <summary>发布消息</summary>

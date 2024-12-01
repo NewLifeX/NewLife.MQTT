@@ -77,11 +77,11 @@ public class ClusterNode : DisposeBase
     /// <summary>回响</summary>
     /// <param name="msg"></param>
     /// <returns></returns>
-    public async Task<String?> Echo(String msg)
+    public Task<String?> Echo(String msg)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Echo", msg).ConfigureAwait(false);
+        return Client.InvokeAsync<String>("Cluster/Echo", msg);
     }
 
     /// <summary>加入集群</summary>
@@ -95,61 +95,61 @@ public class ClusterNode : DisposeBase
     }
 
     /// <summary>心跳</summary>
-    public async Task<NodeInfo?> Ping(NodeInfo info)
+    public Task<NodeInfo?> Ping(NodeInfo info)
     {
         Init();
 
         _myNode = info;
 
         if (_remoteNode == null)
-            return await Join(info);
+            return Join(info);
         else
-            return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info).ConfigureAwait(false);
+            return Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
     }
 
     /// <summary>离开集群</summary>
-    public async Task<String?> Leave(NodeInfo info)
+    public Task<String?> Leave(NodeInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Leave", info).ConfigureAwait(false);
+        return Client.InvokeAsync<String>("Cluster/Leave", info);
     }
 
     /// <summary>订阅</summary>
     /// <param name="infos"></param>
     /// <returns></returns>
-    public async Task<String?> Subscribe(SubscriptionInfo[] infos)
+    public Task<String?> Subscribe(SubscriptionInfo[] infos)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Subscribe", infos).ConfigureAwait(false);
+        return Client.InvokeAsync<String>("Cluster/Subscribe", infos);
     }
 
     /// <summary>退订</summary>
     /// <param name="infos"></param>
     /// <returns></returns>
-    public async Task<String?> Unsubscribe(SubscriptionInfo[] infos)
+    public Task<String?> Unsubscribe(SubscriptionInfo[] infos)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", infos).ConfigureAwait(false);
+        return Client.InvokeAsync<String>("Cluster/Unsubscribe", infos);
     }
 
     /// <summary>心跳</summary>
     /// <returns></returns>
-    public async Task<String?> Ping()
+    public Task<String?> Ping()
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Ping").ConfigureAwait(false);
+        return Client.InvokeAsync<String>("Cluster/Ping");
     }
 
     /// <summary>发布</summary>
-    public async Task<String?> Publish(PublishInfo info)
+    public Task<String?> Publish(PublishInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Publish", info).ConfigureAwait(false);
+        return Client.InvokeAsync<String>("Cluster/Publish", info);
     }
     #endregion
 }

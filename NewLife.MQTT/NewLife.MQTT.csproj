@@ -19,6 +19,8 @@
     <Nullable>enable</Nullable>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>..\Doc\newlife.snk</AssemblyOriginatorKeyFile>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <WarningsAsErrors>CA2007</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -65,8 +67,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.0.2024.1115" />
-    <PackageReference Include="NewLife.Remoting" Version="3.2.2024.1116" />
+    <PackageReference Include="NewLife.Core" Version="11.0.2024.1130-beta0449" />
+    <PackageReference Include="NewLife.Remoting" Version="3.2.2024.1124-beta1544" />
   </ItemGroup>
 
   <ItemGroup>

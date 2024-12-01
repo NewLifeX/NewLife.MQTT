@@ -358,7 +358,7 @@ public class MqttClient : DisposeBase
 
     /// <summary>连接服务端</summary>
     /// <returns></returns>
-    public async Task<ConnAck> ConnectAsync()
+    public Task<ConnAck> ConnectAsync()
     {
         if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
 
@@ -370,7 +370,7 @@ public class MqttClient : DisposeBase
             CleanSession = CleanSession,
         };
 
-        return await ConnectAsync(message);
+        return ConnectAsync(message);
     }
 
     /// <summary>连接服务端</summary>
@@ -458,7 +458,7 @@ public class MqttClient : DisposeBase
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var pk = data as IPacket;
         if (pk == null && data != null) pk = Encoder.Encode(data);
@@ -471,7 +471,7 @@ public class MqttClient : DisposeBase
             QoS = qos,
         };
 
-        return await PublishAsync(message);
+        return PublishAsync(message);
     }
 
     /// <summary>发布消息</summary>
@@ -499,22 +499,22 @@ public class MqttClient : DisposeBase
     /// <param name="topicFilter">主题过滤器</param>
     /// <param name="callback">收到该主题消息时的回调</param>
     /// <returns></returns>
-    public async Task<SubAck?> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null)
+    public Task<SubAck?> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null)
     {
         var subscription = new Subscription(topicFilter, QualityOfService.AtMostOnce);
 
-        return await SubscribeAsync([subscription], callback);
+        return SubscribeAsync([subscription], callback);
     }
 
     /// <summary>订阅主题</summary>
     /// <param name="topicFilters">主题过滤器</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<SubAck?> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<SubAck?> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce)
     {
         var subscriptions = topicFilters.Select(e => new Subscription(e, qos)).ToList();
 
-        return await SubscribeAsync(subscriptions);
+        return SubscribeAsync(subscriptions);
     }
 
     /// <summary>订阅主题</summary>
@@ -532,7 +532,7 @@ public class MqttClient : DisposeBase
             Requests = subscriptions,
         };
 
-        var rs = (await SendAsync(message)) as SubAck;
+        var rs = (await SendAsync(message).ConfigureAwait(false)) as SubAck;
         if (rs != null)
         {
             foreach (var item in subscriptions)
@@ -555,7 +555,7 @@ public class MqttClient : DisposeBase
             TopicFilters = topicFilters,
         };
 
-        var rs = (await SendAsync(message)) as UnsubAck;
+        var rs = (await SendAsync(message).ConfigureAwait(false)) as UnsubAck;
         if (rs != null)
         {
 
@@ -581,7 +581,7 @@ public class MqttClient : DisposeBase
 
         var message = new PingRequest();
 
-        var rs = (await SendAsync(message)) as PingResponse;
+        var rs = (await SendAsync(message).ConfigureAwait(false)) as PingResponse;
         return rs;
     }
 

@@ -76,13 +76,13 @@ var client = new MqttClient
     ClientId = Guid.NewGuid() + "",
 };
 
-await client.ConnectAsync();
+await client.ConnectAsync().ConfigureAwait(false);
 
 // 订阅“/test”主题
 var rt = await client.SubscribeAsync("/test", (e) =>
 {
     XTrace.WriteLine("收到消息:" + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
-});
+}).ConfigureAwait(false);
 
 // 每2秒向“/test”主题发布一条消息
 while (true)
@@ -90,13 +90,13 @@ while (true)
     try
     {
         var msg = "学无先后达者为师" + Rand.NextString(8);
-        await client.PublishAsync("/test", msg);
+        await client.PublishAsync("/test", msg).ConfigureAwait(false);
     }
     catch (Exception ex)
     {
         XTrace.WriteException(ex);
     }
-    await Task.Delay(2000);
+    await Task.Delay(2000).ConfigureAwait(false);
 }
 ```
 客户端连接服务端有几个要素：`服务端地址`、`用户名`、`密码`、`客户端标识`，然后通过`ConnectAsync`连接服务端。  
