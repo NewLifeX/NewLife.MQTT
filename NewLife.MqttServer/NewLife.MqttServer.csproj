@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.Core" Version="11.1.2024.1206" />
-    <PackageReference Include="NewLife.Stardust" Version="3.2.2024.1203" />
+    <PackageReference Include="NewLife.Stardust" Version="3.2.2024.1211" />
   </ItemGroup>
 
   <ItemGroup>
