@@ -135,60 +135,59 @@ public class MqttClient : DisposeBase
     #endregion
 
     #region 核心方法
-    private void Init()
+    private async Task InitAsync(CancellationToken cancellationToken)
     {
         var client = _Client;
         if (client != null && client.Active && !client.Disposed) return;
-        lock (this)
+        if (!Monitor.TryEnter(this, Timeout)) return;
+
+        client = _Client;
+        if (client != null && client.Active && !client.Disposed) return;
+        _Client = null;
+
+        if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
+
+        var uri = new NetUri(Server);
+        if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+        if (uri.Port == 0) uri.Port = 1883;
+        WriteLog("正在连接[{0}]", uri);
+
+        client = uri.CreateRemote();
+
+        client.Log = Log;
+        client.Timeout = Timeout;
+
+        if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
+        client.Add(new MqttCodec());
+
+        // 关闭Tcp延迟以合并小包的算法，降低延迟
+        if (client is TcpSession tcp)
         {
-            client = _Client;
-            if (client != null && client.Active && !client.Disposed) return;
-            _Client = null;
+            tcp.NoDelay = true;
+            //tcp.DisconnectWhenEmptyData = false;
+        }
 
-            if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
+        if (Certificate != null)
+        {
+            if (client is not TcpSession tcp2)
+                throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
 
-            var uri = new NetUri(Server);
-            if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
-            if (uri.Port == 0) uri.Port = 1883;
-            WriteLog("正在连接[{0}]", uri);
+            tcp2.SslProtocol = SslProtocol;
+            tcp2.Certificate = Certificate;
+        }
 
-            client = uri.CreateRemote();
+        client.Received += Client_Received;
+        client.Closed += Client_Closed;
+        client.Error += Client_Error;
+        await client.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            client.Log = Log;
-            client.Timeout = Timeout;
+        _Client = client;
 
-            if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
-            client.Add(new MqttCodec());
-
-            // 关闭Tcp延迟以合并小包的算法，降低延迟
-            if (client is TcpSession tcp)
-            {
-                tcp.NoDelay = true;
-                //tcp.DisconnectWhenEmptyData = false;
-            }
-
-            if (Certificate != null)
-            {
-                if (client is not TcpSession tcp2)
-                    throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
-
-                tcp2.SslProtocol = SslProtocol;
-                tcp2.Certificate = Certificate;
-            }
-
-            client.Received += Client_Received;
-            client.Closed += Client_Closed;
-            client.Error += Client_Error;
-            client.Open();
-
-            _Client = client;
-
-            // 打开心跳定时器
-            var p = KeepAlive * 1000 / 2;
-            if (p > 0)
-            {
-                _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
-            }
+        // 打开心跳定时器
+        var p = KeepAlive * 1000 / 2;
+        if (p > 0)
+        {
+            _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
         }
     }
 
@@ -214,7 +213,7 @@ public class MqttClient : DisposeBase
                 WriteLog("=> {0}", msg);
         }
 
-        Init();
+        await InitAsync(cancellationToken).ConfigureAwait(false);
 
         var client = _Client ?? throw new ArgumentNullException(nameof(_Client));
         try
