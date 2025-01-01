@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using NewLife;
 using NewLife.Log;
 using NewLife.Model;
@@ -47,7 +48,7 @@ public class ClusterServerTests
     }
 
     [Fact]
-    public async void JoinTest()
+    public async Task JoinTest()
     {
         XTrace.WriteLine(nameof(JoinTest));
 

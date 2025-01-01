@@ -95,7 +95,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         Exchange?.Remove(Session.ID);
 
-        return null;
+        return new DisconnectMessage();
     }
 
     /// <summary>收到心跳时</summary>
