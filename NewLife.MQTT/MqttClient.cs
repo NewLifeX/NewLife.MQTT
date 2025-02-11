@@ -594,7 +594,7 @@ public class MqttClient : DisposeBase
     }
 
     private TimerX? _timerPing;
-    private void DoPing(Object state) => PingAsync().Wait();
+    private async Task DoPing(Object state) => await PingAsync().ConfigureAwait(false);
     #endregion
 
     #region 日志
