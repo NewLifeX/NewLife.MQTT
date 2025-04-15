@@ -208,12 +208,6 @@ public class MqttSession : NetSession<MqttServer>
         // 父级 OnReceive 触发事件，调用 NetServer.OnReceive
         base.OnReceive(e);
 
-        if (msg != null && msg.Type == MqttType.Disconnect)
-        {
-            // 等一会，等断开响应到达客户端
-            Thread.Sleep(500);
-
-            Dispose();
-        }
+        if (msg != null && msg.Type == MqttType.Disconnect) Dispose();
     }
 }

@@ -429,7 +429,7 @@ public class MqttClient : DisposeBase
     {
         var message = new DisconnectMessage();
 
-        await SendAsync(message, true, cancellationToken).ConfigureAwait(false);
+        await SendAsync(message, false, cancellationToken).ConfigureAwait(false);
 
         var e = new EventArgs();
         Disconnected?.Invoke(this, e);
