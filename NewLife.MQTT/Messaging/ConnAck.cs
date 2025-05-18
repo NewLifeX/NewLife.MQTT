@@ -49,7 +49,7 @@ public sealed class ConnAck : MqttMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         SessionPresent = stream.ReadByte() > 0;
         ReturnCode = (ConnectReturnCode)stream.ReadByte();
@@ -61,7 +61,7 @@ public sealed class ConnAck : MqttMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         stream.Write((Byte)(SessionPresent ? 1 : 0));
         stream.Write((Byte)ReturnCode);

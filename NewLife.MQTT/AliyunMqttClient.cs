@@ -1,4 +1,5 @@
-﻿using NewLife.MQTT.Messaging;
+﻿using NewLife.Data;
+using NewLife.MQTT.Messaging;
 
 namespace NewLife.MQTT;
 
@@ -46,24 +47,24 @@ public class AliyunMqttClient : MqttClient
     /// <returns></returns>
     public virtual async Task PostProperty(Object data)
     {
-        await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post_reply", OnPostProperty);
+        await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post_reply", OnPostProperty).ConfigureAwait(false);
         await PublishAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post", new
         {
             //id = 1,
             @params = data,
             method = "thing.event.property.post"
-        });
+        }).ConfigureAwait(false);
 
-        await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/service/property/set", OnSetProperty);
+        await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/service/property/set", OnSetProperty).ConfigureAwait(false);
     }
 
     /// <summary>收到属性上报</summary>
     /// <param name="pm"></param>
-    protected virtual void OnPostProperty(PublishMessage pm) => WriteLog("OnPostProperty:{0}", pm.Payload.ToStr());
+    protected virtual void OnPostProperty(PublishMessage pm) => WriteLog("OnPostProperty:{0}", pm.Payload?.ToStr());
 
     /// <summary>收到属性设置</summary>
     /// <param name="pm"></param>
-    protected virtual void OnSetProperty(PublishMessage pm) => WriteLog("OnSetProperty:{0}", pm.Payload.ToStr());
+    protected virtual void OnSetProperty(PublishMessage pm) => WriteLog("OnSetProperty:{0}", pm.Payload?.ToStr());
     #endregion
 
     #region 时钟同步
@@ -71,12 +72,12 @@ public class AliyunMqttClient : MqttClient
     /// <returns></returns>
     public async Task SyncTime()
     {
-        await SubscribeAsync($"/ext/ntp/{ProductKey}/{DeviceName}/response", OnSyncTime);
-        await PublishAsync($"/ext/ntp/{ProductKey}/{DeviceName}/request", new { version = "1.0" });
+        await SubscribeAsync($"/ext/ntp/{ProductKey}/{DeviceName}/response", OnSyncTime).ConfigureAwait(false);
+        await PublishAsync($"/ext/ntp/{ProductKey}/{DeviceName}/request", new { version = "1.0" }).ConfigureAwait(false);
     }
 
     /// <summary>收到时间同步</summary>
     /// <param name="pm"></param>
-    protected void OnSyncTime(PublishMessage pm) => WriteLog("OnSyncTime:{0}", pm.Payload.ToStr());
+    protected void OnSyncTime(PublishMessage pm) => WriteLog("OnSyncTime:{0}", pm.Payload?.ToStr());
     #endregion
 }

@@ -1,10 +1,12 @@
-﻿using NewLife.Log;
+﻿using NewLife.Data;
+using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
+using NewLife.MQTT.ProxyProtocol;
 using NewLife.Net;
-using NewLife.Reflection;
+using NewLife.Serialization;
 
 namespace NewLife.MQTT;
 
@@ -23,6 +25,9 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>集群服务端</summary>
     public ClusterServer? Cluster { get; set; }
 
+    /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
+    public IPacketEncoder Encoder { get; set; } = null!;
+
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer() => Port = 1883;
 
@@ -33,12 +38,20 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>启动</summary>
     protected override void OnStart()
     {
-        if (ServiceProvider == null) throw new NotSupportedException("未配置服务提供者ServiceProvider");
+        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
 
         Name = $"Mqtt{Port}";
 
+        //JsonHost ??= ServiceProvider.GetService<IJsonHost>() ?? JsonHelper.Default;
+        Encoder ??= provider.GetService<IPacketEncoder>() ?? new DefaultPacketEncoder();
+        if (Encoder is DefaultPacketEncoder encoder)
+        {
+            var jsonHost = provider.GetService<IJsonHost>();
+            if (jsonHost != null) encoder.JsonHost = jsonHost;
+        }
+
         var exchange = Exchange;
-        exchange ??= ServiceProvider.GetService<IMqttExchange>();
+        exchange ??= provider.GetService<IMqttExchange>();
         exchange ??= new MqttExchange();
 
         if (exchange is ITracerFeature feature)
@@ -49,6 +62,8 @@ public class MqttServer : NetServer<MqttSession>
         // 创建集群
         CreateCluster();
 
+        // 解码ProxyProtocol
+        Add(new ProxyCodec());
         Add(new MqttCodec());
 
         base.OnStart();
@@ -64,10 +79,11 @@ public class MqttServer : NetServer<MqttSession>
 
         if (cluster != null)
         {
+            var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
             var exchange = Exchange ?? throw new NotSupportedException("未配置消息交换机Exchange");
 
             // 启动集群服务
-            cluster.ServiceProvider = ServiceProvider;
+            cluster.ServiceProvider = provider;
             cluster.Log = Log;
             cluster.Start();
 
@@ -84,7 +100,7 @@ public class MqttServer : NetServer<MqttSession>
             }
 
             // 创建集群交换机
-            var exchange2 = ServiceProvider?.GetService<ClusterExchange>();
+            var exchange2 = provider?.GetService<ClusterExchange>();
             exchange2 ??= new ClusterExchange();
 
             exchange2.Cluster = cluster;
@@ -108,14 +124,17 @@ public class MqttServer : NetServer<MqttSession>
 /// <summary>会话</summary>
 public class MqttSession : NetSession<MqttServer>
 {
+    /// <summary>远程地址信息。经过代理之前的地址</summary>
+    public new NetUri Remote { get; set; } = null!;
+
     /// <summary>指令处理器</summary>
-    public IMqttHandler Handler { get; set; } = null!;
+    public IMqttHandler MqttHandler { get; set; } = null!;
 
     /// <summary>设备连接时，准备处理器</summary>
     /// <exception cref="NotSupportedException"></exception>
     protected override void OnConnected()
     {
-        var handler = Handler;
+        var handler = MqttHandler;
         handler ??= ServiceProvider?.GetService<IMqttHandler>();
         handler ??= new MqttHandler();
         if (handler == null) throw new NotSupportedException("未注册指令处理器");
@@ -123,11 +142,13 @@ public class MqttSession : NetSession<MqttServer>
         if (handler is MqttHandler mqttHandler)
         {
             mqttHandler.Session = this;
-            mqttHandler.Exchange = Host?.Exchange;
-            mqttHandler.ClusterExchange = Host?.Cluster?.ClusterExchange;
+            mqttHandler.Exchange = Host.Exchange;
+            mqttHandler.ClusterExchange = Host.Cluster?.ClusterExchange;
+            mqttHandler.Encoder = Host.Encoder;
         }
 
-        Handler = handler;
+        Remote = base.Remote;
+        MqttHandler = handler;
 
         base.OnConnected();
     }
@@ -136,7 +157,7 @@ public class MqttSession : NetSession<MqttServer>
     /// <param name="reason"></param>
     protected override void OnDisconnected(String reason)
     {
-        Handler?.Close(reason);
+        MqttHandler?.Close(reason);
 
         base.OnDisconnected(reason);
     }
@@ -155,8 +176,12 @@ public class MqttSession : NetSession<MqttServer>
             using var span = Host.Tracer?.NewSpan($"mqtt:{msg.Type}", msg);
             try
             {
+                // 在连接指令中，修正远程地址，替换为经过代理之前的地址
+                //todo: 暂时通过覆盖Remote属性实现，后续考虑在NetSession中直接支持设置Remote属性，或者在核心库支持ProxyProtocol协议
+                if (msg.Type is MqttType.Connect && e.Remote != null) Remote.EndPoint = e.Remote;
+
                 // 执行处理器
-                result = Handler?.Process(msg);
+                result = MqttHandler?.Process(msg);
             }
             catch (Exception ex)
             {

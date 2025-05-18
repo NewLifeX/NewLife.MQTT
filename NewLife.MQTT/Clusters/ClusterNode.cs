@@ -17,20 +17,27 @@ public class ClusterNode : DisposeBase
     [IgnoreDataMember]
     public IApiSession? Session { get; set; }
 
+    /// <summary>客户端</summary>
     [IgnoreDataMember]
-    public IApiClient Client { get; set; }
+    public IApiClient Client { get; set; } = null!;
 
+    /// <summary>次数</summary>
     public Int32 Times { get; set; }
 
+    /// <summary>最后活跃</summary>
     public DateTime LastActive { get; set; } = DateTime.Now;
 
-    private NodeInfo _myNode;
-    private NodeInfo _remoteNode;
+    private NodeInfo? _myNode;
+    private NodeInfo? _remoteNode;
     #endregion
 
     #region 构造
+    /// <summary>已重载</summary>
+    /// <returns></returns>
     public override String ToString() => EndPoint ?? base.ToString();
 
+    /// <summary>销毁</summary>
+    /// <param name="disposing"></param>
     protected override void Dispose(Boolean disposing)
     {
         base.Dispose(disposing);
@@ -67,67 +74,82 @@ public class ClusterNode : DisposeBase
         Client = client;
     }
 
-    public async Task<String> Echo(String msg)
+    /// <summary>回响</summary>
+    /// <param name="msg"></param>
+    /// <returns></returns>
+    public Task<String?> Echo(String msg)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Echo", msg);
+        return Client.InvokeAsync<String>("Cluster/Echo", msg);
     }
 
-    public async Task<NodeInfo> Join(NodeInfo info)
+    /// <summary>加入集群</summary>
+    public async Task<NodeInfo?> Join(NodeInfo info)
     {
         Init();
 
         _myNode = info;
 
-        return _remoteNode = await Client.InvokeAsync<NodeInfo>("Cluster/Join", info);
+        return _remoteNode = await Client.InvokeAsync<NodeInfo>("Cluster/Join", info).ConfigureAwait(false);
     }
 
-    public async Task<NodeInfo> Ping(NodeInfo info)
+    /// <summary>心跳</summary>
+    public Task<NodeInfo?> Ping(NodeInfo info)
     {
         Init();
 
         _myNode = info;
 
         if (_remoteNode == null)
-            return await Join(info);
+            return Join(info);
         else
-            return await Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
+            return Client.InvokeAsync<NodeInfo>("Cluster/Ping", info);
     }
 
-    public async Task<String> Leave(NodeInfo info)
+    /// <summary>离开集群</summary>
+    public Task<String?> Leave(NodeInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Leave", info);
+        return Client.InvokeAsync<String>("Cluster/Leave", info);
     }
 
-    public async Task<String> Subscribe(SubscriptionInfo[] infos)
+    /// <summary>订阅</summary>
+    /// <param name="infos"></param>
+    /// <returns></returns>
+    public Task<String?> Subscribe(SubscriptionInfo[] infos)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Subscribe", infos);
+        return Client.InvokeAsync<String>("Cluster/Subscribe", infos);
     }
 
-    public async Task<String> Unsubscribe(SubscriptionInfo[] infos)
+    /// <summary>退订</summary>
+    /// <param name="infos"></param>
+    /// <returns></returns>
+    public Task<String?> Unsubscribe(SubscriptionInfo[] infos)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Unsubscribe", infos);
+        return Client.InvokeAsync<String>("Cluster/Unsubscribe", infos);
     }
 
-    public async Task<String> Ping()
+    /// <summary>心跳</summary>
+    /// <returns></returns>
+    public Task<String?> Ping()
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Ping");
+        return Client.InvokeAsync<String>("Cluster/Ping");
     }
 
-    public async Task<String> Publish(PublishInfo info)
+    /// <summary>发布</summary>
+    public Task<String?> Publish(PublishInfo info)
     {
         Init();
 
-        return await Client.InvokeAsync<String>("Cluster/Publish", info);
+        return Client.InvokeAsync<String>("Cluster/Publish", info);
     }
     #endregion
 }

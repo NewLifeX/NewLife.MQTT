@@ -2,13 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
     <AssemblyName>MqttServer</AssemblyName>
     <Namespace>NewLife.MQTTServer</Namespace>
     <AssemblyTitle>新生命MQTT服务器</AssemblyTitle>
     <Description>新生命MQTT服务器</Description>
     <Company>新生命开发团队</Company>
-    <Copyright>版权所有(C) 新生命开发团队 2002~2023</Copyright>
+    <Copyright>版权所有(C) 新生命开发团队 2002~2025</Copyright>
     <VersionPrefix>1.4</VersionPrefix>
     <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
@@ -16,13 +16,13 @@
     <AssemblyVersion>$(VersionPrefix).*</AssemblyVersion>
     <Deterministic>false</Deterministic>
     <OutputPath>..\Bin\Server</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.5.2025.516-beta0234" />
-    <PackageReference Include="NewLife.Stardust" Version="3.3.2025.516-beta1457" />
+    <PackageReference Include="NewLife.Core" Version="11.5.2025.501" />
+    <PackageReference Include="NewLife.Stardust" Version="3.3.2025.506" />
   </ItemGroup>
 
   <ItemGroup>

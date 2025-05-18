@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
+using NewLife.MQTT.ProxyProtocol;
 using NewLife.Net;
 using NewLife.Serialization;
 using NewLife.Threading;
@@ -57,10 +58,16 @@ public class MqttClient : DisposeBase
     /// </summary>
     public Boolean CleanSession { get; set; } = true;
 
+    /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
+    public IPacketEncoder Encoder { get; set; } = new DefaultPacketEncoder();
+
     /// <summary>
     /// 断开后是否自动重连
     /// </summary>
     public Boolean Reconnect { get; set; } = true;
+
+    /// <summary>启用ProxyProtocol。仿造MQTT报文通过nginx/haproxy时的封包，仅用于测试，实际应用没有意义，默认false</summary>
+    public Boolean EnableProxyProtocol { get; set; }
 
     /// <summary>
     /// 连接成功后赋值为true
@@ -128,58 +135,59 @@ public class MqttClient : DisposeBase
     #endregion
 
     #region 核心方法
-    private void Init()
+    private async Task InitAsync(CancellationToken cancellationToken)
     {
         var client = _Client;
         if (client != null && client.Active && !client.Disposed) return;
-        lock (this)
+        if (!Monitor.TryEnter(this, Timeout)) return;
+
+        client = _Client;
+        if (client != null && client.Active && !client.Disposed) return;
+        _Client = null;
+
+        if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
+
+        var uri = new NetUri(Server);
+        if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+        if (uri.Port == 0) uri.Port = 1883;
+        WriteLog("正在连接[{0}]", uri);
+
+        client = uri.CreateRemote();
+
+        client.Log = Log;
+        client.Timeout = Timeout;
+
+        if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
+        client.Add(new MqttCodec());
+
+        // 关闭Tcp延迟以合并小包的算法，降低延迟
+        if (client is TcpSession tcp)
         {
-            client = _Client;
-            if (client != null && client.Active && !client.Disposed) return;
-            _Client = null;
+            tcp.NoDelay = true;
+            //tcp.DisconnectWhenEmptyData = false;
+        }
 
-            if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
+        if (Certificate != null)
+        {
+            if (client is not TcpSession tcp2)
+                throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
 
-            var uri = new NetUri(Server);
-            if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
-            if (uri.Port == 0) uri.Port = 1883;
-            WriteLog("正在连接[{0}]", uri);
+            tcp2.SslProtocol = SslProtocol;
+            tcp2.Certificate = Certificate;
+        }
 
-            client = uri.CreateRemote();
+        client.Received += Client_Received;
+        client.Closed += Client_Closed;
+        client.Error += Client_Error;
+        await client.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            client.Log = Log;
-            client.Timeout = Timeout;
-            client.Add(new MqttCodec());
+        _Client = client;
 
-            // 关闭Tcp延迟以合并小包的算法，降低延迟
-            if (client is TcpSession tcp)
-            {
-                tcp.NoDelay = true;
-                tcp.DisconnectWhenEmptyData = false;
-            }
-
-            if (Certificate != null)
-            {
-                if (client is not TcpSession tcp2)
-                    throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
-
-                tcp2.SslProtocol = SslProtocol;
-                tcp2.Certificate = Certificate;
-            }
-
-            client.Received += Client_Received;
-            client.Closed += Client_Closed;
-            client.Error += Client_Error;
-            client.Open();
-
-            _Client = client;
-
-            // 打开心跳定时器
-            var p = KeepAlive * 1000 / 2;
-            if (p > 0)
-            {
-                _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
-            }
+        // 打开心跳定时器
+        var p = KeepAlive * 1000 / 2;
+        if (p > 0)
+        {
+            _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
         }
     }
 
@@ -187,8 +195,9 @@ public class MqttClient : DisposeBase
     /// <summary>发送命令</summary>
     /// <param name="msg">消息</param>
     /// <param name="waitForResponse">是否等待响应</param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    protected virtual async Task<MqttMessage?> SendAsync(MqttMessage msg, Boolean waitForResponse = true)
+    protected virtual async Task<MqttMessage?> SendAsync(MqttMessage msg, Boolean waitForResponse, CancellationToken cancellationToken)
     {
         if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0))
             idm.Id = (UInt16)Interlocked.Increment(ref g_id);
@@ -199,15 +208,14 @@ public class MqttClient : DisposeBase
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
-                WriteLog("=> {0} {1}", msg, pm.Payload.ToStr());
+                WriteLog("=> {0} {1}", msg, pm.Payload?.ToStr());
             else
                 WriteLog("=> {0}", msg);
         }
 
-        Init();
+        await InitAsync(cancellationToken).ConfigureAwait(false);
 
-        var client = _Client;
-        if (client == null) throw new ArgumentNullException(nameof(_Client));
+        var client = _Client ?? throw new ArgumentNullException(nameof(_Client));
         try
         {
             // 断开消息没有响应
@@ -218,7 +226,7 @@ public class MqttClient : DisposeBase
                 return null;
             }
 
-            var rs = await client.SendMessageAsync(msg);
+            var rs = await client.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false);
 
             // 重置
             _taskCanceledCount = 0;
@@ -268,7 +276,7 @@ public class MqttClient : DisposeBase
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
-                WriteLog("<= {0} {1}", msg, pm.Payload.ToStr());
+                WriteLog("<= {0} {1}", msg, pm.Payload?.ToStr());
             else
                 WriteLog("<= {0}", msg);
         }
@@ -349,8 +357,9 @@ public class MqttClient : DisposeBase
     public event EventHandler<EventArgs>? Connected;
 
     /// <summary>连接服务端</summary>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<ConnAck> ConnectAsync()
+    public Task<ConnAck> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (ClientId.IsNullOrEmpty()) throw new ArgumentNullException(nameof(ClientId));
 
@@ -362,13 +371,14 @@ public class MqttClient : DisposeBase
             CleanSession = CleanSession,
         };
 
-        return await ConnectAsync(message);
+        return ConnectAsync(message, cancellationToken);
     }
 
     /// <summary>连接服务端</summary>
     /// <param name="message"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<ConnAck> ConnectAsync(ConnectMessage message)
+    public async Task<ConnAck> ConnectAsync(ConnectMessage message, CancellationToken cancellationToken = default)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
@@ -383,7 +393,7 @@ public class MqttClient : DisposeBase
         // 心跳
         if (KeepAlive > 0 && message.KeepAliveInSeconds == 0) message.KeepAliveInSeconds = (UInt16)KeepAlive;
 
-        var rs = (await SendAsync(message)) as ConnAck;
+        var rs = (await SendAsync(message, true, cancellationToken).ConfigureAwait(false)) as ConnAck;
 
         // 判断响应，是否成功连接
         if (rs!.ReturnCode != ConnectReturnCode.Accepted)
@@ -406,7 +416,7 @@ public class MqttClient : DisposeBase
                 Requests = _subs.Values.ToArray(),
             };
 
-            var rs2 = (await SendAsync(message2)) as SubAck;
+            var rs2 = (await SendAsync(message2, true, cancellationToken).ConfigureAwait(false)) as SubAck;
             if (rs2 == null) _subs.Clear();
         }
 
@@ -415,11 +425,11 @@ public class MqttClient : DisposeBase
 
     /// <summary>断开连接</summary>
     /// <returns></returns>
-    public async Task DisconnectAsync()
+    public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         var message = new DisconnectMessage();
 
-        await SendAsync(message, false);
+        await SendAsync(message, false, cancellationToken).ConfigureAwait(false);
 
         var e = new EventArgs();
         Disconnected?.Invoke(this, e);
@@ -437,33 +447,23 @@ public class MqttClient : DisposeBase
         WriteLog("断开连接");
         Disconnected?.Invoke(this, e);
 
-        if (!Reconnect) return;
+        if (Disposed || !Reconnect) return;
+
         WriteLog("尝试重新连接");
-        ConnectAsync().GetAwaiter();
+        ConnectAsync().Wait(Timeout);
     }
     #endregion
 
     #region 发布
-    ///// <summary>
-    ///// PublicAsync=>PublishAsync
-    ///// </summary>
-    ///// <param name="topic"></param>
-    ///// <param name="data"></param>
-    ///// <param name="qos"></param>
-    ///// <returns></returns>
-    //[Obsolete("PublicAsync=>PublishAsync", true)]
-    //public async Task<MqttIdMessage> PublicAsync(String topic, Object data,
-    //    QualityOfService qos = QualityOfService.AtMostOnce) => await PublishAsync(topic, data, qos);
-
     /// <summary>发布消息</summary>
     /// <param name="topic">主题</param>
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
-        var pk = data as Packet;
-        if (pk == null && data != null) pk = Serialize(data);
+        var pk = data as IPacket;
+        if (pk == null && data != null) pk = Encoder.Encode(data);
         if (pk == null) throw new ArgumentNullException(nameof(data));
 
         var message = new PublishMessage
@@ -473,46 +473,27 @@ public class MqttClient : DisposeBase
             QoS = qos,
         };
 
-        return await PublishAsync(message);
+        return PublishAsync(message);
     }
-
-    ///// <summary>
-    ///// PublicAsync=>PublishAsync
-    ///// </summary>
-    ///// <param name="message"></param>
-    ///// <returns></returns>
-    //[Obsolete("PublicAsync=>PublishAsync")]
-    //public async Task<MqttIdMessage> PublicAsync(PublishMessage message) => await PublishAsync(message);
 
     /// <summary>发布消息</summary>
     /// <param name="message"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(PublishMessage message)
+    public async Task<MqttIdMessage?> PublishAsync(PublishMessage message, CancellationToken cancellationToken = default)
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
-        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce, cancellationToken).ConfigureAwait(false)) as MqttIdMessage;
 
         if (rs is PubRec)
         {
             var rel = new PubRel();
-            var cmp = (await SendAsync(rel, true)) as PubComp;
+            var cmp = (await SendAsync(rel, true, cancellationToken).ConfigureAwait(false)) as PubComp;
             return cmp;
         }
 
         return rs;
-    }
-
-    /// <summary>把对象序列化为数据，字节数组和字符串以外的复杂类型，走Json序列化</summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    protected virtual Packet Serialize(Object data)
-    {
-        if (data is Packet pk) return pk;
-        if (data is Byte[] buf) return buf;
-        if (data is String str) return str.GetBytes();
-
-        return data.ToJson().GetBytes();
     }
     #endregion
 
@@ -520,30 +501,33 @@ public class MqttClient : DisposeBase
     /// <summary>订阅主题</summary>
     /// <param name="topicFilter">主题过滤器</param>
     /// <param name="callback">收到该主题消息时的回调</param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<SubAck?> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null)
+    public Task<SubAck?> SubscribeAsync(String topicFilter, Action<PublishMessage>? callback = null, CancellationToken cancellationToken = default)
     {
         var subscription = new Subscription(topicFilter, QualityOfService.AtMostOnce);
 
-        return await SubscribeAsync(new[] { subscription }, callback);
+        return SubscribeAsync([subscription], callback, cancellationToken);
     }
 
     /// <summary>订阅主题</summary>
     /// <param name="topicFilters">主题过滤器</param>
     /// <param name="qos">服务质量</param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<SubAck?> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<SubAck?> SubscribeAsync(String[] topicFilters, QualityOfService qos = QualityOfService.AtMostOnce, CancellationToken cancellationToken = default)
     {
         var subscriptions = topicFilters.Select(e => new Subscription(e, qos)).ToList();
 
-        return await SubscribeAsync(subscriptions);
+        return SubscribeAsync(subscriptions, null, cancellationToken);
     }
 
     /// <summary>订阅主题</summary>
     /// <param name="subscriptions">订阅集合</param>
     /// <param name="callback">收到该主题消息时的回调</param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<SubAck?> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage>? callback = null)
+    public async Task<SubAck?> SubscribeAsync(IList<Subscription> subscriptions, Action<PublishMessage>? callback = null, CancellationToken cancellationToken = default)
     {
         // 已订阅，不重复
         subscriptions = subscriptions.Where(e => !_subs.ContainsKey(e.TopicFilter)).ToList();
@@ -554,7 +538,7 @@ public class MqttClient : DisposeBase
             Requests = subscriptions,
         };
 
-        var rs = (await SendAsync(message)) as SubAck;
+        var rs = (await SendAsync(message, true, cancellationToken).ConfigureAwait(false)) as SubAck;
         if (rs != null)
         {
             foreach (var item in subscriptions)
@@ -569,15 +553,16 @@ public class MqttClient : DisposeBase
 
     /// <summary>取消订阅主题</summary>
     /// <param name="topicFilters">主题过滤器</param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<UnsubAck?> UnsubscribeAsync(params String[] topicFilters)
+    public async Task<UnsubAck?> UnsubscribeAsync(String[] topicFilters, CancellationToken cancellationToken = default)
     {
         var message = new UnsubscribeMessage
         {
             TopicFilters = topicFilters,
         };
 
-        var rs = (await SendAsync(message)) as UnsubAck;
+        var rs = (await SendAsync(message, true, cancellationToken).ConfigureAwait(false)) as UnsubAck;
         if (rs != null)
         {
 
@@ -593,8 +578,9 @@ public class MqttClient : DisposeBase
 
     #region 心跳
     /// <summary>心跳</summary>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task<PingResponse?> PingAsync()
+    public async Task<PingResponse?> PingAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConnected)
         {
@@ -603,12 +589,12 @@ public class MqttClient : DisposeBase
 
         var message = new PingRequest();
 
-        var rs = (await SendAsync(message)) as PingResponse;
+        var rs = (await SendAsync(message, true, cancellationToken).ConfigureAwait(false)) as PingResponse;
         return rs;
     }
 
     private TimerX? _timerPing;
-    private void DoPing(Object state) => PingAsync().Wait();
+    private async Task DoPing(Object state) => await PingAsync().ConfigureAwait(false);
     #endregion
 
     #region 日志

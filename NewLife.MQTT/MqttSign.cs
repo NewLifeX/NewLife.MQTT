@@ -11,19 +11,19 @@ namespace NewLife.MQTT;
 public class MqttSign
 {
     /// <summary>用户名</summary>
-    public String UserName { get; private set; }
+    public String? UserName { get; private set; }
 
     /// <summary>密码</summary>
-    public String Password { get; private set; }
+    public String? Password { get; private set; }
 
     /// <summary>客户端标识</summary>
-    public String ClientId { get; private set; }
+    public String? ClientId { get; private set; }
 
     /// <summary>模块</summary>
-    public String Module { get; set; }
+    public String? Module { get; set; }
 
     /// <summary>版本</summary>
-    public String Version { get; set; }
+    public String? Version { get; set; }
 
     /// <summary>使用SSL</summary>
     public Boolean SSL { get; set; }

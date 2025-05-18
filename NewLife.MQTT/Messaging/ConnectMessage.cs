@@ -88,7 +88,7 @@ public sealed class ConnectMessage : MqttMessage
     public String? WillTopicName { get; set; }
 
     /// <summary>遗嘱消息</summary>
-    public Packet? WillMessage { get; set; }
+    public Byte[] WillMessage { get; set; }
 
     /// <summary>属性集合。MQTT5.0</summary>
     public IDictionary<Byte, UInt32>? Properties { get; set; }
@@ -107,7 +107,7 @@ public sealed class ConnectMessage : MqttMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         // 协议名
         ProtocolName = ReadString(stream);
@@ -163,7 +163,7 @@ public sealed class ConnectMessage : MqttMessage
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         // 协议名
         WriteString(stream, ProtocolName);

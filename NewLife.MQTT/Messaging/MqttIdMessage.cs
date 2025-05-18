@@ -26,7 +26,7 @@ public abstract class MqttIdMessage : MqttMessage
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object context)
+    protected override Boolean OnRead(Stream stream, Object? context)
     {
         // 读Id
         Id = stream.ReadBytes(2).ToUInt16(0, false);
@@ -37,7 +37,7 @@ public abstract class MqttIdMessage : MqttMessage
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object context)
+    protected override Boolean OnWrite(Stream stream, Object? context)
     {
         // 写Id
         stream.Write(Id.GetBytes(false));

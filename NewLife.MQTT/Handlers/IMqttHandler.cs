@@ -2,8 +2,6 @@
 using NewLife.Log;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
-using NewLife.Net;
-using NewLife.Serialization;
 
 namespace NewLife.MQTT.Handlers;
 
@@ -48,7 +46,7 @@ public interface IMqttHandler
 public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 {
     /// <summary>网络会话</summary>
-    public INetSession Session { get; set; } = null!;
+    public MqttSession Session { get; set; } = null!;
 
     /// <summary>消息交换机</summary>
     public IMqttExchange? Exchange { get; set; }
@@ -56,14 +54,16 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>集群消息交换机</summary>
     public ClusterExchange? ClusterExchange { get; set; }
 
+    /// <summary>编码器。决定对象存储序列化格式</summary>
+    public IPacketEncoder Encoder { get; set; } = null!;
+
     #region 接收消息
     /// <summary>处理消息</summary>
     /// <param name="message">消息</param>
     /// <returns></returns>
     public virtual MqttMessage? Process(MqttMessage message)
     {
-        MqttMessage? rs = null;
-        rs = message.Type switch
+        var rs = message.Type switch
         {
             MqttType.Connect => OnConnect((message as ConnectMessage)!),
             MqttType.Publish => OnPublish((message as PublishMessage)!),
@@ -95,7 +95,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         Exchange?.Remove(Session.ID);
 
-        return null;
+        return new DisconnectMessage();
     }
 
     /// <summary>收到心跳时</summary>
@@ -189,10 +189,10 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <param name="data">消息数据</param>
     /// <param name="qos">服务质量</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<MqttIdMessage?> PublishAsync(String topic, Object data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
-        var pk = data as Packet;
-        if (pk == null && data != null) pk = Serialize(data);
+        var pk = data as IPacket;
+        if (pk == null && data != null) pk = Encoder.Encode(data);
         if (pk == null) throw new ArgumentNullException(nameof(data));
 
         var message = new PublishMessage
@@ -202,7 +202,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             QoS = qos,
         };
 
-        return await PublishAsync(message);
+        return PublishAsync(message);
     }
 
     /// <summary>发布消息</summary>
@@ -211,10 +211,10 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <param name="qos">服务质量</param>
     /// <param name="allowExchange">允许消息交换</param>
     /// <returns></returns>
-    public async Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean allowExchange, QualityOfService qos = QualityOfService.AtMostOnce)
+    public Task<MqttIdMessage?> PublishAsync(String topic, Object data, Boolean allowExchange, QualityOfService qos = QualityOfService.AtMostOnce)
     {
-        var pk = data as Packet;
-        if (pk == null && data != null) pk = Serialize(data);
+        var pk = data as IPacket;
+        if (pk == null && data != null) pk = Encoder.Encode(data);
         if (pk == null) throw new ArgumentNullException(nameof(data));
 
         var message = new PublishMessage
@@ -231,7 +231,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             ClusterExchange?.Publish(Session, message);
         }
 
-        return await PublishAsync(message);
+        return PublishAsync(message);
     }
 
     /// <summary>发布消息</summary>
@@ -241,12 +241,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
-        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce)) as MqttIdMessage;
+        var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce).ConfigureAwait(false)) as MqttIdMessage;
 
         if (rs is PubRec)
         {
             var rel = new PubRel();
-            var cmp = (await SendAsync(rel, true)) as PubComp;
+            var cmp = (await SendAsync(rel, true).ConfigureAwait(false)) as PubComp;
             return cmp;
         }
 
@@ -272,7 +272,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
-                WriteLog("=> {0} {1}", msg, pm.Payload.ToStr());
+                WriteLog("=> {0} {1}", msg, pm.Payload?.ToStr());
             else
                 WriteLog("=> {0}", msg);
         }
@@ -287,7 +287,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 return null;
             }
 
-            var rs = await client.SendMessageAsync(msg);
+            var rs = await client.SendMessageAsync(msg).ConfigureAwait(false);
 
             if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs as MqttMessage);
 
@@ -299,16 +299,6 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
             throw;
         }
-    }
-
-    /// <summary>把对象序列化为数据，字节数组和字符串以外的复杂类型，走Json序列化</summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    protected virtual Packet Serialize(Object data)
-    {
-        if (data is Packet pk) return pk;
-        if (data is Byte[] buf) return buf;
-        return data is String str ? (Packet)str.GetBytes() : (Packet)data.ToJson().GetBytes();
     }
     #endregion
 

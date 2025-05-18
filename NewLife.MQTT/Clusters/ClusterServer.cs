@@ -21,8 +21,10 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>集群节点集合</summary>
     public ConcurrentDictionary<String, ClusterNode> Nodes { get; } = new ConcurrentDictionary<String, ClusterNode>();
 
+    /// <summary>消息交换机</summary>
     public IMqttExchange? Exchange { get; set; }
 
+    /// <summary>集群交换机</summary>
     public ClusterExchange? ClusterExchange { get; set; }
 
     /// <summary>服务提供者。主要用于创建控制器实例，支持构造函数注入</summary>
@@ -170,10 +172,15 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     #endregion
 
     #region 日志
+    /// <summary>链路追踪</summary>
     public ITracer? Tracer { get; set; }
 
+    /// <summary>日志</summary>
     public ILog Log { get; set; } = Logger.Null;
 
-    public void WriteLog(String format, params Object[] args) => Log?.Info($"[{Name}]{format}", args);
+    /// <summary>写日志</summary>
+    /// <param name="format"></param>
+    /// <param name="args"></param>
+    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[{Name}]{format}", args);
     #endregion
 }

@@ -57,16 +57,17 @@ public abstract class MqttMessage : IAccessor
     /// <summary>已重载</summary>
     public override String ToString()
     {
+        var name = GetType().Name;
         return Type switch
         {
-            MqttType.Connect => $"{GetType().Name}[Type={Type}]",
-            MqttType.ConnAck or MqttType.Disconnect => $"{GetType().Name}[Type={Type}]",
-            MqttType.Publish => $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
-            MqttType.PubAck or MqttType.PubRec or MqttType.PubRel or MqttType.PubComp => $"{GetType().Name}[Type={Type}]",
-            MqttType.Subscribe => $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
-            MqttType.SubAck or MqttType.UnSubscribe or MqttType.UnSubAck => $"{GetType().Name}[Type={Type}]",
-            MqttType.PingReq or MqttType.PingResp => $"{GetType().Name}[Type={Type}]",
-            _ => $"{GetType().Name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
+            MqttType.Connect => $"{name}[Type={Type}]",
+            MqttType.ConnAck or MqttType.Disconnect => $"{name}[Type={Type}]",
+            MqttType.Publish => $"{name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
+            MqttType.PubAck or MqttType.PubRec or MqttType.PubRel or MqttType.PubComp => $"{name}[Type={Type}]",
+            MqttType.Subscribe => $"{name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
+            MqttType.SubAck or MqttType.UnSubscribe or MqttType.UnSubAck => $"{name}[Type={Type}]",
+            MqttType.PingReq or MqttType.PingResp => $"{name}[Type={Type}]",
+            _ => $"{name}[Type={Type}, QoS={(Int32)QoS}, Duplicate={Duplicate}, Retain={Retain}]",
         };
     }
     #endregion
@@ -76,7 +77,7 @@ public abstract class MqttMessage : IAccessor
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    public virtual Boolean Read(Stream stream, Object context)
+    public virtual Boolean Read(Stream stream, Object? context)
     {
         var flag = stream.ReadByte();
         if (flag < 0) return false;
@@ -97,12 +98,12 @@ public abstract class MqttMessage : IAccessor
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected virtual Boolean OnRead(Stream stream, Object context) => true;
+    protected virtual Boolean OnRead(Stream stream, Object? context) => true;
 
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
-    public virtual Boolean Write(Stream stream, Object context)
+    public virtual Boolean Write(Stream stream, Object? context)
     {
         // 子消息先写入，再写头部，因为头部需要负载长度
         var ms = new MemoryStream();
@@ -138,7 +139,7 @@ public abstract class MqttMessage : IAccessor
     /// <param name="stream">数据流</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected virtual Boolean OnWrite(Stream stream, Object context) => true;
+    protected virtual Boolean OnWrite(Stream stream, Object? context) => true;
 
     /// <summary>消息转为字节数组</summary>
     /// <returns></returns>
@@ -151,7 +152,14 @@ public abstract class MqttMessage : IAccessor
 
     /// <summary>转数据包</summary>
     /// <returns></returns>
-    public virtual Packet ToPacket() => ToArray();
+    public virtual IPacket ToPacket()
+    {
+        var ms = new MemoryStream();
+        Write(ms, null);
+
+        ms.Position = 0;
+        return new ArrayPacket(ms);
+    }
     #endregion
 
     #region 辅助
@@ -201,7 +209,7 @@ public abstract class MqttMessage : IAccessor
     /// <summary>写字节数组</summary>
     /// <param name="stream"></param>
     /// <param name="pk"></param>
-    protected void WriteData(Stream stream, Packet? pk)
+    protected void WriteData(Stream stream, IPacket? pk)
     {
         var len = pk == null ? 0 : pk.Total;
         stream.Write(((UInt16)len).GetBytes(false));

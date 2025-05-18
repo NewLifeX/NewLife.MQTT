@@ -6,8 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NewLife.Collections;
 using NewLife.Log;
+using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
-using NewLife.Net;
 
 namespace NewLife.MqttServer;
 
@@ -16,18 +16,18 @@ namespace NewLife.MqttServer;
 /// </summary>
 public sealed class DefaultManagedMqttClient
 {
-    private ConcurrentQueue<PublishMessage> _messageQueue = new ConcurrentQueue<PublishMessage>();
+    private ConcurrentQueue<PublishMessage> _messageQueue = new();
 
-    private ConcurrentDictionary<Int32, INetSession> _clients = new ConcurrentDictionary<Int32, INetSession>();
-    private ConcurrentDictionary<Int32, ConcurrentHashSet<String>> _subscriptions = new ConcurrentDictionary<Int32, ConcurrentHashSet<String>>();
-    private ManualResetEventSlim _msgArrived = new ManualResetEventSlim(false);
+    private ConcurrentDictionary<Int32, MqttSession> _clients = new();
+    private ConcurrentDictionary<Int32, ConcurrentHashSet<String>> _subscriptions = new();
+    private ManualResetEventSlim _msgArrived = new(false);
 
     public DefaultManagedMqttClient()
     {
         XTrace.WriteLine("Create!");
     }
 
-    public void AddClient(INetSession session)
+    public void AddClient(MqttSession session)
     {
         if (!_clients.TryGetValue(session.ID, out var client))
         {
@@ -35,13 +35,13 @@ public sealed class DefaultManagedMqttClient
         }
     }
 
-    public void RemoveClient(INetSession session)
+    public void RemoveClient(MqttSession session)
     {
         _clients.Remove(session.ID);
         _subscriptions.Remove(session.ID);
     }
 
-    public void SubTopic(INetSession session, String topic)
+    public void SubTopic(MqttSession session, String topic)
     {
         if (_subscriptions.TryGetValue(session.ID, out var bag))
         {
@@ -55,7 +55,7 @@ public sealed class DefaultManagedMqttClient
         }
     }
 
-    public void SubTopic(INetSession session, IList<Subscription> subscriptions)
+    public void SubTopic(MqttSession session, IList<Subscription> subscriptions)
     {
         foreach (var item in subscriptions)
         {
@@ -63,7 +63,7 @@ public sealed class DefaultManagedMqttClient
         }
     }
 
-    public void UnSubTopic(INetSession session, String topic)
+    public void UnSubTopic(MqttSession session, String topic)
     {
         if (_subscriptions.TryGetValue(session.ID, out var bag))
         {
@@ -71,7 +71,7 @@ public sealed class DefaultManagedMqttClient
         }
     }
 
-    public void UnSubTopic(INetSession session, IList<String> topics)
+    public void UnSubTopic(MqttSession session, IList<String> topics)
     {
         foreach (var topic in topics)
         {

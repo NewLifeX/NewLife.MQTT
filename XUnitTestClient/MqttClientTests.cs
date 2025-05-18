@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NewLife;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT;
@@ -15,7 +17,7 @@ namespace XUnitTestClient;
 [TestCaseOrderer("NewLife.UnitTest.DefaultOrderer", "NewLife.UnitTest")]
 public class MqttClientTests
 {
-    private MqttServer _server;
+    private static MqttServer _server;
     private static MqttClient _client;
     private static readonly Queue<String> _mq = new Queue<String>();
 
@@ -67,7 +69,7 @@ public class MqttClientTests
 
     [TestOrder(1)]
     [Fact]
-    public async void TestConnect()
+    public async Task TestConnect()
     {
         // 连接
         var rs = await _client.ConnectAsync();
@@ -78,7 +80,7 @@ public class MqttClientTests
 
     [TestOrder(2)]
     [Fact]
-    public async void TestPublish()
+    public async Task TestPublish()
     {
         var msg = "学无先后达者为师" + Rand.NextString(8);
         var rs = await _client.PublishAsync("newlifeTopic", msg);
@@ -92,7 +94,7 @@ public class MqttClientTests
     [InlineData(QualityOfService.AtMostOnce)]
     [InlineData(QualityOfService.AtLeastOnce)]
     [InlineData(QualityOfService.ExactlyOnce)]
-    public async void TestPublishQos(QualityOfService qos)
+    public async Task TestPublishQos(QualityOfService qos)
     {
         var msg = "学无先后达者为师" + Rand.NextString(8);
         var rs = await _client.PublishAsync("QosTopic", msg, qos);
@@ -118,7 +120,7 @@ public class MqttClientTests
 
     [TestOrder(4)]
     [Fact]
-    public async void TestSubscribe()
+    public async Task TestSubscribe()
     {
         var rs = await _client.SubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
         Assert.NotNull(rs);
@@ -129,7 +131,7 @@ public class MqttClientTests
 
     [TestOrder(5)]
     [Fact]
-    public async void TestUnsubscribe()
+    public async Task TestUnsubscribe()
     {
         var rs = await _client.UnsubscribeAsync(new[] { "newlifeTopic", "QosTopic" });
         Assert.NotNull(rs);
@@ -137,7 +139,7 @@ public class MqttClientTests
 
     [TestOrder(7)]
     [Fact]
-    public async void TestPing()
+    public async Task TestPing()
     {
         var rs = await _client.PingAsync();
         Assert.NotNull(rs);
@@ -145,7 +147,7 @@ public class MqttClientTests
 
     [TestOrder(10)]
     [Fact]
-    public async void TestDisconnect()
+    public async Task TestDisconnect()
     {
         //await _client.ConnectAsync();
 
