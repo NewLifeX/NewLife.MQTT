@@ -22,4 +22,16 @@ public class MqttSetting : Config<MqttSetting>
     /// <summary>集群节点。其它节点地址，逗号分隔</summary>
     [Description("集群节点。其它节点地址，逗号分隔")]
     public String ClusterNodes { get; set; } = "";
+
+    /// <summary>是否启用WebSocket。默认 true</summary>
+    [Description("是否启用WebSocket。默认 true")]
+    public Boolean EnableWebSocket { get; set; } = true;
+
+    /// <summary>WebSocket端口。默认 8083</summary>
+    [Description("WebSocket端口。默认 8083")]
+    public Int32 WebSocketPort { get; set; } = 8083;
+
+    /// <summary>WebSocket路径。默认 /mqtt</summary>
+    [Description("WebSocket路径。默认 /mqtt")]
+    public String WebSocketPath { get; set; } = "/mqtt";
 }
