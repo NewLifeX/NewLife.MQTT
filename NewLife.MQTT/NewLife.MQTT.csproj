@@ -6,7 +6,7 @@
     <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
     <Company>新生命开发团队</Company>
     <Copyright>版权所有(C) 新生命开发团队 2002~2025</Copyright>
-    <VersionPrefix>2.0</VersionPrefix>
+    <VersionPrefix>2.1</VersionPrefix>
     <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
     <FileVersion>$(Version)</FileVersion>
@@ -41,8 +41,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Http\**" />
     <Compile Remove="WebSocket\**" />
+    <EmbeddedResource Remove="Http\**" />
     <EmbeddedResource Remove="WebSocket\**" />
+    <None Remove="Http\**" />
     <None Remove="WebSocket\**" />
   </ItemGroup>
 
@@ -73,8 +76,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.5.2025.501" />
-    <PackageReference Include="NewLife.Remoting" Version="3.3.2025.501" />
+    <PackageReference Include="NewLife.Core" Version="11.5.2025.519-beta1544" />
+    <PackageReference Include="NewLife.Remoting" Version="3.3.2025.519-beta1620" />
   </ItemGroup>
 
   <ItemGroup>

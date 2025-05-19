@@ -21,8 +21,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MqttServer", "NewLi
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebSocketServerDemo", "WebSocketServerDemo\WebSocketServerDemo.csproj", "{352EB066-D5A8-4FB0-8EB8-8E5C09A3FEEF}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,16 +43,9 @@ Global
 		{E5C4F10D-AC54-4AB4-8D78-C2FAD3D3B1DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E5C4F10D-AC54-4AB4-8D78-C2FAD3D3B1DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E5C4F10D-AC54-4AB4-8D78-C2FAD3D3B1DA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{352EB066-D5A8-4FB0-8EB8-8E5C09A3FEEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{352EB066-D5A8-4FB0-8EB8-8E5C09A3FEEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{352EB066-D5A8-4FB0-8EB8-8E5C09A3FEEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{352EB066-D5A8-4FB0-8EB8-8E5C09A3FEEF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{352EB066-D5A8-4FB0-8EB8-8E5C09A3FEEF} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1514C3B5-401F-418D-8C5F-9CE839E7DC7B}

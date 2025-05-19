@@ -9,7 +9,7 @@
     <Description>新生命MQTT服务器</Description>
     <Company>新生命开发团队</Company>
     <Copyright>版权所有(C) 新生命开发团队 2002~2025</Copyright>
-    <VersionPrefix>1.4</VersionPrefix>
+    <VersionPrefix>2.1</VersionPrefix>
     <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
     <FileVersion>$(Version)</FileVersion>
@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.5.2025.501" />
+    <PackageReference Include="NewLife.Core" Version="11.5.2025.519-beta1544" />
     <PackageReference Include="NewLife.Stardust" Version="3.3.2025.506" />
   </ItemGroup>
 
