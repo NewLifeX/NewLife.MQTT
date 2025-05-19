@@ -22,10 +22,10 @@ public sealed class DefaultManagedMqttClient
     private ConcurrentDictionary<Int32, ConcurrentHashSet<String>> _subscriptions = new();
     private ManualResetEventSlim _msgArrived = new(false);
 
-    public DefaultManagedMqttClient()
-    {
-        XTrace.WriteLine("Create!");
-    }
+    //public DefaultManagedMqttClient()
+    //{
+    //    XTrace.WriteLine("Create!");
+    //}
 
     public void AddClient(MqttSession session)
     {

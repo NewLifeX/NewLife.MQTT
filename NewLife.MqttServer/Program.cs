@@ -52,6 +52,11 @@ var svr = new MqttServer()
 
 if (set.Debug) svr.SessionLog = XTrace.Log;
 
+#if DEBUG
+svr.SessionLog = svr.Log;
+svr.SocketLog = svr.Log;
+#endif
+
 svr.Start();
 
 if (Runtime.Windows)

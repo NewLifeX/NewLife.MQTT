@@ -6,7 +6,9 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
 using NewLife.Net;
+using NewLife.Remoting.Http;
 using NewLife.Serialization;
+using WebSocketServerCodec = NewLife.MQTT.Http.WebSocketServerCodec;
 
 namespace NewLife.MQTT;
 
@@ -64,6 +66,8 @@ public class MqttServer : NetServer<MqttSession>
 
         // 解码ProxyProtocol
         Add(new ProxyCodec());
+        Add<WebSocketServerCodec>();
+        Add(new HttpCodec { AllowParseHeader = true });
         Add(new MqttCodec());
 
         base.OnStart();

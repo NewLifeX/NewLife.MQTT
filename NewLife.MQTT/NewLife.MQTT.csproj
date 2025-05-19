@@ -41,6 +41,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="WebSocket\**" />
+    <EmbeddedResource Remove="WebSocket\**" />
+    <None Remove="WebSocket\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Handlers\MqttHandler.cs" />
     <Compile Remove="Handlers\MqttTypeAttribute.cs" />
     <Compile Remove="Models\PruningRadixTrie.cs" />
