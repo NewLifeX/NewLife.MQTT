@@ -1,7 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.Model;
@@ -14,23 +13,23 @@ public class WebSocketCodec : Handler
 {
     #region 属性
     /// <summary>是否已完成握手</summary>
-    private bool _handshaked = false;
+    private Boolean _handshaked = false;
 
     /// <summary>日志</summary>
     private ILog _log;
 
     /// <summary>WebSocket路径</summary>
-    private string _path = "/mqtt";
+    private String _path = "/mqtt";
 
     /// <summary>WebSocket GUID，用于握手</summary>
-    private const string WebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    private const String WebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     #endregion
 
     #region 构造函数
     /// <summary>实例化WebSocket编解码器</summary>
     /// <param name="log">日志对象</param>
     /// <param name="path">WebSocket路径</param>
-    public WebSocketCodec(ILog log = null, string path = "/mqtt")
+    public WebSocketCodec(ILog log = null, String path = "/mqtt")
     {
         _log = log;
         _path = path;
@@ -119,7 +118,7 @@ public class WebSocketCodec : Handler
 
             // 提取Sec-WebSocket-Key
             var key = ExtractWebSocketKey(request);
-            if (string.IsNullOrEmpty(key))
+            if (String.IsNullOrEmpty(key))
             {
                 if (_log != null) _log.Debug("【步骤2.6】未找到WebSocket密钥");
                 return base.Read(context, pk);
@@ -158,7 +157,7 @@ public class WebSocketCodec : Handler
     /// <summary>从HTTP请求中提取WebSocket密钥</summary>
     /// <param name="request">HTTP请求</param>
     /// <returns>WebSocket密钥</returns>
-    private string ExtractWebSocketKey(string request)
+    private String ExtractWebSocketKey(String request)
     {
         try
         {
@@ -183,7 +182,7 @@ public class WebSocketCodec : Handler
     /// <summary>从HTTP请求中提取WebSocket子协议</summary>
     /// <param name="request">HTTP请求</param>
     /// <returns>WebSocket子协议</returns>
-    private string ExtractWebSocketProtocol(string request)
+    private String ExtractWebSocketProtocol(String request)
     {
         try
         {
@@ -208,7 +207,7 @@ public class WebSocketCodec : Handler
     /// <param name="key">WebSocket密钥</param>
     /// <param name="request">HTTP请求</param>
     /// <returns>HTTP响应</returns>
-    private string GenerateHandshakeResponse(string key, string request = null)
+    private String GenerateHandshakeResponse(String key, String request = null)
     {
         try
         {
@@ -228,10 +227,10 @@ public class WebSocketCodec : Handler
             response.AppendLine($"Sec-WebSocket-Accept: {accept}");
 
             // 如果请求中包含子协议，则在响应中也包含
-            if (!string.IsNullOrEmpty(request))
+            if (!String.IsNullOrEmpty(request))
             {
                 var protocol = ExtractWebSocketProtocol(request);
-                if (!string.IsNullOrEmpty(protocol))
+                if (!String.IsNullOrEmpty(protocol))
                 {
                     // 只接受mqttv3.1和mqttv3.1.1子协议
                     if (protocol.Contains("mqttv3.1"))
@@ -271,14 +270,14 @@ public class WebSocketCodec : Handler
         }
 
         // 解析WebSocket帧头
-        bool fin = (data[0] & 0x80) != 0;
-        bool mask = (data[1] & 0x80) != 0;
-        int opcode = data[0] & 0x0F;
-        int payloadLen = data[1] & 0x7F;
+        var fin = (data[0] & 0x80) != 0;
+        var mask = (data[1] & 0x80) != 0;
+        var opcode = data[0] & 0x0F;
+        var payloadLen = data[1] & 0x7F;
 
         if (_log != null) _log.Debug($"【步骤3.2】WebSocket帧头: FIN={fin}, Opcode={opcode}, Mask={mask}, PayloadLen={payloadLen}");
 
-        int headerLen = 2;
+        var headerLen = 2;
         if (payloadLen == 126)
         {
             if (data.Length < 4)
@@ -299,14 +298,14 @@ public class WebSocketCodec : Handler
             }
             headerLen += 8;
             payloadLen = 0; // 简化处理，实际应该读取8字节长度
-            for (int i = 0; i < 8; i++)
+            for (var i = 0; i < 8; i++)
             {
                 payloadLen = (payloadLen << 8) | data[2 + i];
             }
             if (_log != null) _log.Debug($"【步骤3.6】WebSocket扩展长度(64位): {payloadLen}");
         }
 
-        byte[] maskKey = null;
+        Byte[] maskKey = null;
         if (mask)
         {
             if (data.Length < headerLen + 4)
@@ -314,8 +313,8 @@ public class WebSocketCodec : Handler
                 if (_log != null) _log.Debug($"【步骤3.7】WebSocket数据帧长度不足(掩码)");
                 return null;
             }
-            maskKey = new byte[4];
-            for (int i = 0; i < 4; i++)
+            maskKey = new Byte[4];
+            for (var i = 0; i < 4; i++)
             {
                 maskKey[i] = data[headerLen + i];
             }
@@ -331,10 +330,10 @@ public class WebSocketCodec : Handler
         }
 
         // 提取有效载荷
-        var payload = new byte[payloadLen];
-        for (int i = 0; i < payloadLen; i++)
+        var payload = new Byte[payloadLen];
+        for (var i = 0; i < payloadLen; i++)
         {
-            payload[i] = mask ? (byte)(data[headerLen + i] ^ maskKey[i % 4]) : data[headerLen + i];
+            payload[i] = mask ? (Byte)(data[headerLen + i] ^ maskKey[i % 4]) : data[headerLen + i];
         }
 
         // 打印解析后的WebSocket帧信息
@@ -358,9 +357,9 @@ public class WebSocketCodec : Handler
                         if (payload.Length >= 2)
                         {
                             // 解析剩余长度
-                            int remainingLength = payload[1];
-                            int multiplier = 1;
-                            int index = 2;
+                            Int32 remainingLength = payload[1];
+                            var multiplier = 1;
+                            var index = 2;
                             while (index < payload.Length && (payload[index - 1] & 0x80) != 0)
                             {
                                 remainingLength += (payload[index] & 0x7F) * multiplier;
@@ -373,7 +372,7 @@ public class WebSocketCodec : Handler
                             // 解析协议名称长度
                             if (index + 1 < payload.Length)
                             {
-                                int protocolNameLength = (payload[index] << 8) | payload[index + 1];
+                                var protocolNameLength = (payload[index] << 8) | payload[index + 1];
                                 index += 2;
 
                                 _log.Debug($"【步骤4.1.2】MQTT协议名称长度: {protocolNameLength}");
@@ -389,7 +388,7 @@ public class WebSocketCodec : Handler
                                     // 解析协议版本
                                     if (index < payload.Length)
                                     {
-                                        byte protocolVersion = payload[index];
+                                        var protocolVersion = payload[index];
                                         index++;
 
                                         _log.Debug($"【步骤4.1.4】MQTT协议版本: {protocolVersion}");
@@ -397,22 +396,22 @@ public class WebSocketCodec : Handler
                                         // 解析连接标志
                                         if (index < payload.Length)
                                         {
-                                            byte connectFlags = payload[index];
+                                            var connectFlags = payload[index];
                                             index++;
 
-                                            bool cleanSession = (connectFlags & 0x02) != 0;
-                                            bool willFlag = (connectFlags & 0x04) != 0;
-                                            int willQos = (connectFlags >> 3) & 0x03;
-                                            bool willRetain = (connectFlags & 0x20) != 0;
-                                            bool passwordFlag = (connectFlags & 0x40) != 0;
-                                            bool usernameFlag = (connectFlags & 0x80) != 0;
+                                            var cleanSession = (connectFlags & 0x02) != 0;
+                                            var willFlag = (connectFlags & 0x04) != 0;
+                                            var willQos = (connectFlags >> 3) & 0x03;
+                                            var willRetain = (connectFlags & 0x20) != 0;
+                                            var passwordFlag = (connectFlags & 0x40) != 0;
+                                            var usernameFlag = (connectFlags & 0x80) != 0;
 
                                             _log.Debug($"【步骤4.1.5】MQTT连接标志: 清除会话={cleanSession}, 遗嘱标志={willFlag}, 遗嘱QoS={willQos}, 遗嘱保留={willRetain}, 密码标志={passwordFlag}, 用户名标志={usernameFlag}");
 
                                             // 解析保持连接时间
                                             if (index + 1 < payload.Length)
                                             {
-                                                int keepAlive = (payload[index] << 8) | payload[index + 1];
+                                                var keepAlive = (payload[index] << 8) | payload[index + 1];
                                                 index += 2;
 
                                                 _log.Debug($"【步骤4.1.6】MQTT保持连接时间: {keepAlive}秒");
@@ -420,7 +419,7 @@ public class WebSocketCodec : Handler
                                                 // 解析客户端ID长度
                                                 if (index + 1 < payload.Length)
                                                 {
-                                                    int clientIdLength = (payload[index] << 8) | payload[index + 1];
+                                                    var clientIdLength = (payload[index] << 8) | payload[index + 1];
                                                     index += 2;
 
                                                     _log.Debug($"【步骤4.1.7】MQTT客户端ID长度: {clientIdLength}");
@@ -492,7 +491,7 @@ public class WebSocketCodec : Handler
                 if (session != null)
                 {
                     // 构建关闭帧
-                    var frame = new byte[] { 0x88, 0x00 }; // FIN=1, Opcode=8, Payload=0
+                    var frame = new Byte[] { 0x88, 0x00 }; // FIN=1, Opcode=8, Payload=0
                     session.Send(frame);
                     if (_log != null) _log.Debug("【步骤3.15】已发送WebSocket关闭帧响应");
                 }
@@ -505,7 +504,7 @@ public class WebSocketCodec : Handler
                 if (session2 != null)
                 {
                     // 构建Pong帧
-                    var frame = new byte[] { 0x8A, 0x00 }; // FIN=1, Opcode=10, Payload=0
+                    var frame = new Byte[] { 0x8A, 0x00 }; // FIN=1, Opcode=10, Payload=0
                     session2.Send(frame);
                     if (_log != null) _log.Debug("【步骤3.17】已发送WebSocket Pong帧响应");
                 }
@@ -587,12 +586,12 @@ public class WebSocketCodec : Handler
     private Object EncodeWebSocketFrame(IPacket pk)
     {
         var data = pk.GetSpan();
-        int length = data.Length;
+        var length = data.Length;
 
         if (_log != null) _log.Debug($"【步骤6.1】开始封装WebSocket帧，数据长度={length}");
 
         // 计算帧头长度
-        int headerLength = 2;
+        var headerLength = 2;
         if (length > 125 && length <= 65535)
         {
             headerLength += 2;
@@ -609,35 +608,35 @@ public class WebSocketCodec : Handler
         }
 
         // 创建帧
-        var frame = new byte[headerLength + length];
+        var frame = new Byte[headerLength + length];
 
         // 设置帧头
         frame[0] = 0x82; // FIN=1, Opcode=2 (二进制)
 
         if (length <= 125)
         {
-            frame[1] = (byte)length;
+            frame[1] = (Byte)length;
             if (_log != null) _log.Debug($"【步骤6.5】设置7位长度字段: {length}");
         }
         else if (length <= 65535)
         {
             frame[1] = 126;
-            frame[2] = (byte)(length >> 8);
-            frame[3] = (byte)length;
+            frame[2] = (Byte)(length >> 8);
+            frame[3] = (Byte)length;
             if (_log != null) _log.Debug($"【步骤6.6】设置16位长度字段: {length} = {frame[2]:X2} {frame[3]:X2}");
         }
         else
         {
             frame[1] = 127;
-            for (int i = 0; i < 8; i++)
+            for (var i = 0; i < 8; i++)
             {
-                frame[2 + i] = (byte)(length >> ((7 - i) * 8));
+                frame[2 + i] = (Byte)(length >> ((7 - i) * 8));
             }
             if (_log != null) _log.Debug($"【步骤6.7】设置64位长度字段: {length}");
         }
 
         // 复制数据
-        for (int i = 0; i < length; i++)
+        for (var i = 0; i < length; i++)
         {
             frame[headerLength + i] = data[i];
         }

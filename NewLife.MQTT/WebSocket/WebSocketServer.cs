@@ -17,8 +17,8 @@ public class WebSocketServer : MqttServer
     /// <summary>WebSocket端口。默认8083</summary>
     public Int32 WebSocketPort { get; set; } = 8083;
 
-    /// <summary>WebSocket服务器</summary>
-    protected ISocketServer? WsServer { get; set; }
+    ///// <summary>WebSocket服务器</summary>
+    //protected ISocketServer? WsServer { get; set; }
 
     /// <summary>是否打印WebSocket数据。默认true</summary>
     public Boolean LogWebSocketData { get; set; } = true;
@@ -70,8 +70,8 @@ public class WebSocketServer : MqttServer
                 var wsServers = CreateServer(IPAddress.Any, WebSocketPort, NetType.Tcp, AddressFamily.Unspecified);
                 foreach (var item in wsServers)
                 {
-                    // 保存WebSocket服务器引用
-                    WsServer = item;
+                    //// 保存WebSocket服务器引用
+                    //WsServer = item;
 
                     // 设置服务器名称
                     item.Name = $"WebSocket端口{WebSocketPort}";
@@ -123,21 +123,21 @@ public class WebSocketServer : MqttServer
         WriteLog("WebSocket服务器已启动，监听端口：{0}和{1}", Port, WebSocketPort);
     }
 
-    /// <summary>停止</summary>
-    /// <param name="reason"></param>
-    protected override void OnStop(String? reason)
-    {
-        // 停止WebSocket服务器
-        if (WsServer != null)
-        {
-            WsServer.Stop(reason);
-            Servers.Remove(WsServer);
-            WsServer = null;
-        }
+    ///// <summary>停止</summary>
+    ///// <param name="reason"></param>
+    //protected override void OnStop(String? reason)
+    //{
+    //    // 停止WebSocket服务器
+    //    if (WsServer != null)
+    //    {
+    //        WsServer.Stop(reason);
+    //        Servers.Remove(WsServer);
+    //        WsServer = null;
+    //    }
 
-        // 调用基类的停止方法
-        base.OnStop(reason);
-    }
+    //    // 调用基类的停止方法
+    //    base.OnStop(reason);
+    //}
 
     /// <summary>已重载。</summary>
     /// <returns></returns>
