@@ -31,7 +31,7 @@
     <RepositoryUrl>https://github.com/NewLifeX/NewLife.MQTT</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>新生命团队;X组件;NewLife;$(AssemblyName)</PackageTags>
-    <PackageReleaseNotes>支持MQTT集群</PackageReleaseNotes>
+    <PackageReleaseNotes>支持MQTT over WebSocket</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -76,8 +76,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.5.2025.519-beta1544" />
-    <PackageReference Include="NewLife.Remoting" Version="3.3.2025.519-beta1620" />
+    <PackageReference Include="NewLife.Core" Version="11.5.2025.601" />
+    <PackageReference Include="NewLife.Remoting" Version="3.3.2025.601" />
   </ItemGroup>
 
   <ItemGroup>
