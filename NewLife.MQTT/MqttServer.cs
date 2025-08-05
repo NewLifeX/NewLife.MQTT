@@ -41,7 +41,7 @@ public class MqttServer : NetServer<MqttSession>
     {
         var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
 
-        Name = $"Mqtt{Port}";
+        if (Name.IsNullOrEmpty() || Name == "Mqtt") Name = $"Mqtt{Port}";
 
         //JsonHost ??= ServiceProvider.GetService<IJsonHost>() ?? JsonHelper.Default;
         Encoder ??= provider.GetService<IPacketEncoder>() ?? new DefaultPacketEncoder();
@@ -60,9 +60,6 @@ public class MqttServer : NetServer<MqttSession>
 
         Exchange = exchange;
 
-        // 创建集群
-        CreateCluster();
-
         // 解码ProxyProtocol
         Add(new ProxyCodec());
         Add(new WebSocketServerCodec { Protocol = "mqtt" });
@@ -70,6 +67,9 @@ public class MqttServer : NetServer<MqttSession>
         Add(new MqttCodec());
 
         base.OnStart();
+
+        // 创建集群
+        CreateCluster();
     }
 
     /// <summary>创建集群</summary>
@@ -85,13 +85,15 @@ public class MqttServer : NetServer<MqttSession>
             var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
             var exchange = Exchange ?? throw new NotSupportedException("未配置消息交换机Exchange");
 
+            WriteLog("创建MQTT集群 {0}，端口 {1}", cluster.Name, cluster.Port);
+
             // 启动集群服务
             cluster.ServiceProvider = provider;
             cluster.Log = Log;
             cluster.Start();
 
             ClusterPort = cluster.Port;
-            Name = $"Mqtt{Port}-Cluster{ClusterPort}";
+            //Name = $"Mqtt{Port}-Cluster{ClusterPort}";
 
             // 添加集群节点
             if (nodes != null && nodes.Length > 0)
