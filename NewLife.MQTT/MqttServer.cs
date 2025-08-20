@@ -49,6 +49,9 @@ public class MqttServer : NetServer<MqttSession>
         {
             var jsonHost = provider.GetService<IJsonHost>();
             if (jsonHost != null) encoder.JsonHost = jsonHost;
+
+            // 较大Int64转字符串，避免精度丢失。针对Web和嵌入式设备
+            encoder.JsonHost.Options.Int64AsString = true;
         }
 
         var exchange = Exchange;

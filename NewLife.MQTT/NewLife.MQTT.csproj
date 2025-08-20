@@ -76,8 +76,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.6.2025.801" />
-    <PackageReference Include="NewLife.Remoting" Version="3.4.2025.801" />
+    <PackageReference Include="NewLife.Core" Version="11.6.2025.820-beta1618" />
+    <PackageReference Include="NewLife.Remoting" Version="3.5.2025.818-beta1634" />
   </ItemGroup>
 
   <ItemGroup>
