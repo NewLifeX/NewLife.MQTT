@@ -66,7 +66,16 @@ public class MqttClient : DisposeBase
     /// </summary>
     public Boolean Reconnect { get; set; } = true;
 
-    /// <summary>启用ProxyProtocol。仿造MQTT报文通过nginx/haproxy时的封包，仅用于测试，实际应用没有意义，默认false</summary>
+    /// <summary>最大重连次数。默认0表示无限重试</summary>
+    public Int32 MaxReconnectAttempts { get; set; } = 0;
+
+    /// <summary>初始重连间隔(毫秒)。默认1000ms</summary>
+    public Int32 InitialReconnectDelay { get; set; } = 1_000;
+
+    /// <summary>最大重连间隔(毫秒)。默认60000ms(1分钟)</summary>
+    public Int32 MaxReconnectDelay { get; set; } = 60_000;
+
+    /// <summary>启用ProxyProtocol。仿造MQTT报文通过nginx/haproxy时的封包,仅用于测试,实际应用没有意义,默认false</summary>
     public Boolean EnableProxyProtocol { get; set; }
 
     /// <summary>
@@ -83,8 +92,11 @@ public class MqttClient : DisposeBase
     public ITracer? Tracer { get; set; }
 
     private ISocketClient? _Client;
+    private readonly SemaphoreSlim _connectLock = new(1, 1);
 
     private Int32 _taskCanceledCount;
+    private Int32 _reconnectAttempts;
+    private CancellationTokenSource? _reconnectCts;
     #endregion
 
     #region 构造
@@ -106,8 +118,16 @@ public class MqttClient : DisposeBase
     {
         base.Dispose(disposing);
 
+        // 取消重连任务
+        _reconnectCts?.Cancel();
+        _reconnectCts?.Dispose();
+        _reconnectCts = null;
+
         _timerPing.TryDispose();
         _Client.TryDispose();
+        
+        // 最后释放连接锁,确保没有线程在使用
+        _connectLock?.Dispose();
     }
     #endregion
 
@@ -137,57 +157,69 @@ public class MqttClient : DisposeBase
     #region 核心方法
     private async Task InitAsync(CancellationToken cancellationToken)
     {
+        // 第一次检查（无锁，快速路径）
         var client = _Client;
         if (client != null && client.Active && !client.Disposed) return;
-        if (!Monitor.TryEnter(this, Timeout)) return;
 
-        client = _Client;
-        if (client != null && client.Active && !client.Disposed) return;
-        _Client = null;
+        // 尝试获取异步锁
+        if (!await _connectLock.WaitAsync(Timeout, cancellationToken).ConfigureAwait(false)) return;
 
-        if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
-
-        var uri = new NetUri(Server);
-        if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
-        if (uri.Port == 0) uri.Port = 1883;
-        WriteLog("正在连接[{0}]", uri);
-
-        client = uri.CreateRemote();
-
-        client.Log = Log;
-        client.Timeout = Timeout;
-
-        if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
-        client.Add(new MqttCodec());
-
-        // 关闭Tcp延迟以合并小包的算法，降低延迟
-        if (client is TcpSession tcp)
+        try
         {
-            tcp.NoDelay = true;
-            //tcp.DisconnectWhenEmptyData = false;
+            // 第二次检查（持锁）
+            client = _Client;
+            if (client != null && client.Active && !client.Disposed) return;
+
+            _Client = null;
+
+            if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
+
+            var uri = new NetUri(Server);
+            if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+            if (uri.Port == 0) uri.Port = 1883;
+            WriteLog("正在连接[{0}]", uri);
+
+            client = uri.CreateRemote();
+
+            client.Log = Log;
+            client.Timeout = Timeout;
+
+            if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
+            client.Add(new MqttCodec());
+
+            // 关闭Tcp延迟以合并小包的算法，降低延迟
+            if (client is TcpSession tcp)
+            {
+                tcp.NoDelay = true;
+                //tcp.DisconnectWhenEmptyData = false;
+            }
+
+            if (Certificate != null)
+            {
+                if (client is not TcpSession tcp2)
+                    throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
+
+                tcp2.SslProtocol = SslProtocol;
+                tcp2.Certificate = Certificate;
+            }
+
+            client.Received += Client_Received;
+            client.Closed += Client_Closed;
+            client.Error += Client_Error;
+            await client.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            _Client = client;
+
+            // 打开心跳定时器
+            var p = KeepAlive * 1000 / 2;
+            if (p > 0)
+            {
+                _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
+            }
         }
-
-        if (Certificate != null)
+        finally
         {
-            if (client is not TcpSession tcp2)
-                throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
-
-            tcp2.SslProtocol = SslProtocol;
-            tcp2.Certificate = Certificate;
-        }
-
-        client.Received += Client_Received;
-        client.Closed += Client_Closed;
-        client.Error += Client_Error;
-        await client.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        _Client = client;
-
-        // 打开心跳定时器
-        var p = KeepAlive * 1000 / 2;
-        if (p > 0)
-        {
-            _timerPing ??= new TimerX(DoPing, null, 5_000, p) { Async = true };
+            _connectLock.Release();
         }
     }
 
@@ -449,8 +481,83 @@ public class MqttClient : DisposeBase
 
         if (Disposed || !Reconnect) return;
 
-        WriteLog("尝试重新连接");
-        ConnectAsync().Wait(Timeout);
+        // 启动异步重连循环
+        StartReconnectLoop();
+    }
+
+    /// <summary>启动重连循环</summary>
+    private void StartReconnectLoop()
+    {
+        lock (this)
+        {
+            // 取消之前的重连任务
+            _reconnectCts?.Cancel();
+            _reconnectCts?.Dispose();
+            _reconnectCts = new CancellationTokenSource();
+
+            // 重置重连计数
+            Interlocked.Exchange(ref _reconnectAttempts, 0);
+
+            // 启动异步重连任务
+            _ = Task.Run(async () => await ReconnectLoopAsync(_reconnectCts.Token).ConfigureAwait(false));
+        }
+    }
+
+    /// <summary>重连循环,带指数退避策略</summary>
+    private async Task ReconnectLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested && !Disposed)
+        {
+            Interlocked.Increment(ref _reconnectAttempts);
+            var currentAttempt = _reconnectAttempts;
+
+            // 检查是否超过最大重连次数
+            if (MaxReconnectAttempts > 0 && currentAttempt > MaxReconnectAttempts)
+            {
+                WriteLog("已达到最大重连次数 {0},停止重连", MaxReconnectAttempts);
+                break;
+            }
+
+            // 计算延迟时间(指数退避)
+            var delay = CalculateReconnectDelay(currentAttempt);
+            WriteLog("第 {0} 次重连,延迟 {1}ms 后尝试", currentAttempt, delay);
+
+            try
+            {
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            if (cancellationToken.IsCancellationRequested || Disposed) break;
+
+            WriteLog("尝试重新连接 (第 {0} 次)", currentAttempt);
+
+            try
+            {
+                await ConnectAsync(cancellationToken).ConfigureAwait(false);
+                WriteLog("重连成功");
+                Interlocked.Exchange(ref _reconnectAttempts, 0); // 重置计数
+                break; // 连接成功,退出循环
+            }
+            catch (Exception ex)
+            {
+                WriteLog("重连失败: {0}", ex.Message);
+                // 继续循环尝试
+            }
+        }
+    }
+
+    /// <summary>计算重连延迟时间(指数退避)</summary>
+    /// <param name="attemptCount">当前重连次数</param>
+    /// <returns>延迟时间(毫秒)</returns>
+    private Int32 CalculateReconnectDelay(Int32 attemptCount)
+    {
+        // 指数退避: delay = min(InitialDelay * 2^(attempt-1), MaxDelay)
+        var delay = InitialReconnectDelay * Math.Pow(2, attemptCount - 1);
+        return (Int32)Math.Min(delay, MaxReconnectDelay);
     }
     #endregion
 
