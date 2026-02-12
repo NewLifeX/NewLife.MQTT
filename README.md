@@ -101,7 +101,27 @@ while (true)
 ```
 客户端连接服务端有几个要素：`服务端地址`、`用户名`、`密码`、`客户端标识`，然后通过`ConnectAsync`连接服务端。  
 客户端可以是消费者角色，通过`SubscribeAsync`订阅指定Topic。  
-客户端也可以是生产者角色，通过`PublishAsync`发布消息到指定Topic。  
+客户端也可以是生产者角色，通过`PublishAsync`发布消息到指定Topic。
+
+## 共享订阅（EMQX）
+支持EMQX共享订阅功能，多个客户端可以订阅同一个共享主题，MQTT代理会将消息负载均衡地分发给订阅者。  
+共享订阅的格式为：`$share/{group}/{topic}`，其中`{group}`是共享组名，`{topic}`是实际的主题过滤器。
+
+```csharp
+// 订阅共享主题，多个客户端订阅同一个共享组，消息会被负载均衡
+await client.SubscribeAsync("$share/group1/Yh/Drive/+/OrderLock", (e) =>
+{
+    XTrace.WriteLine($"收到共享订阅消息: {e.Topic} => {e.Payload.ToStr()}");
+}).ConfigureAwait(false);
+
+// 发布消息到实际主题（不包含$share前缀）
+await client.PublishAsync("Yh/Drive/1111/OrderLock", "订单锁定").ConfigureAwait(false);
+```
+
+共享订阅的优势：
+- **负载均衡**：同一共享组内的多个订阅者会均衡接收消息
+- **水平扩展**：可以通过增加订阅者来提高消息处理能力
+- **高可用性**：某个订阅者故障时， 其他订阅者仍可继续处理消息  
 
 ## 自定义服务端
 需要在服务端处理客户端连接和消息交互逻辑时，就需要自定义服务端。例如IoT平台，在收到设备上报MQTT数据以后，直接接收落库，而不需要再次消费。  

@@ -6,6 +6,30 @@
 public class MqttTopicFilter
 {
     /// <summary>
+    /// 提取实际的主题过滤器，处理共享订阅格式
+    /// </summary>
+    /// <param name="topicFilter">订阅主题名称，可能包含 $share/{group}/ 前缀</param>
+    /// <returns>实际的主题过滤器</returns>
+    public static String ExtractActualTopicFilter(String topicFilter)
+    {
+        if (String.IsNullOrEmpty(topicFilter))
+            return topicFilter;
+        
+        // 检查是否是共享订阅格式: $share/{group}/{topic}
+        if (topicFilter.StartsWith("$share/"))
+        {
+            // 跳过 $share/ 和组名，找到第二个 / 之后的内容
+            var firstSlash = topicFilter.IndexOf('/', 7); // 7 是 "$share/" 的长度
+            if (firstSlash > 0 && firstSlash < topicFilter.Length - 1)
+            {
+                return topicFilter.Substring(firstSlash + 1);
+            }
+        }
+        
+        return topicFilter;
+    }
+
+    /// <summary>
     /// 订阅主题过滤
     /// </summary>
     /// <param name="topicFilter">订阅主题名称</param>
@@ -18,7 +42,10 @@ public class MqttTopicFilter
         if (topicFilter.Length > 65536)
             return false;
 
-        var topicFilterParts = topicFilter.Split('/');
+        // 提取实际的主题过滤器（处理共享订阅）
+        var actualTopicFilter = ExtractActualTopicFilter(topicFilter);
+
+        var topicFilterParts = actualTopicFilter.Split('/');
 
         if (topicFilterParts.Count(s => s == "#") > 1)
             return false;
@@ -29,7 +56,7 @@ public class MqttTopicFilter
         if (topicFilterParts.Any(s => s.Length > 1 && s.Contains("+")))
             return false;
 
-        return !topicFilterParts.Any(s => s == "#") || topicFilter.IndexOf("#") >= topicFilter.Length - 1;
+        return !topicFilterParts.Any(s => s == "#") || actualTopicFilter.IndexOf("#") >= actualTopicFilter.Length - 1;
     }
 
     /// <summary>
@@ -53,10 +80,14 @@ public class MqttTopicFilter
     /// <returns></returns>
     public static Boolean IsMatch(String topicName, String topicFilter)
     {
+        // 处理共享订阅格式: $share/{group}/{topic}
+        // 提取实际的主题过滤器
+        var actualTopicFilter = ExtractActualTopicFilter(topicFilter);
+        
         if (!IsValidTopicName(topicName)) throw new Exception($"{topicName}:发布主题不符合规范");
-        if (!IsValidTopicFilter(topicFilter)) throw new Exception($"{topicName}:订阅主题不符合规范");
+        if (!IsValidTopicFilter(actualTopicFilter)) throw new Exception($"{topicFilter}:订阅主题不符合规范");
 
-        var topicFilterParts = topicFilter.Split('/');
+        var topicFilterParts = actualTopicFilter.Split('/');
         var topicNameParts = topicName.Split('/');
 
         if (topicNameParts.Length > topicFilterParts.Length && topicFilterParts[^1] != "#")
