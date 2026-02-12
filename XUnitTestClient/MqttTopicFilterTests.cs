@@ -134,4 +134,77 @@ public class MqttTopicFilterTests
         Assert.Contains("/+/+/+/+/e", ts);
         Assert.Contains("/#", ts);
     }
+
+    [Fact]
+    public void ExtractActualTopicFilter_NonSharedSubscription()
+    {
+        // 测试非共享订阅
+        var result = MqttTopicFilter.ExtractActualTopicFilter("test/topic");
+        Assert.Equal("test/topic", result);
+    }
+
+    [Fact]
+    public void ExtractActualTopicFilter_SharedSubscription()
+    {
+        // 测试共享订阅格式: $share/group/topic
+        var result = MqttTopicFilter.ExtractActualTopicFilter("$share/locat/Yh/Drive/+/OrderLock");
+        Assert.Equal("Yh/Drive/+/OrderLock", result);
+    }
+
+    [Fact]
+    public void ExtractActualTopicFilter_SharedSubscriptionWithMultiLevelWildcard()
+    {
+        // 测试共享订阅格式带多级通配符
+        var result = MqttTopicFilter.ExtractActualTopicFilter("$share/group/test/#");
+        Assert.Equal("test/#", result);
+    }
+
+    [Fact]
+    public void IsValidTopicFilter_SharedSubscription()
+    {
+        // 测试共享订阅是否被认为是有效的
+        Assert.True(MqttTopicFilter.IsValidTopicFilter("$share/locat/Yh/Drive/+/OrderLock"));
+        Assert.True(MqttTopicFilter.IsValidTopicFilter("$share/group/test/#"));
+        Assert.True(MqttTopicFilter.IsValidTopicFilter("$share/group/test/+/topic"));
+    }
+
+    [Fact]
+    public void IsMatch_SharedSubscription_SingleLevelWildcard()
+    {
+        // 测试问题场景：订阅 $share/locat/Yh/Drive/+/OrderLock，发布到 Yh/Drive/1111/OrderLock
+        var topicName = "Yh/Drive/1111/OrderLock";
+        var topicFilter = "$share/locat/Yh/Drive/+/OrderLock";
+        
+        Assert.True(MqttTopicFilter.IsMatch(topicName, topicFilter));
+    }
+
+    [Fact]
+    public void IsMatch_SharedSubscription_MultiLevelWildcard()
+    {
+        // 测试共享订阅与多级通配符
+        var topicName = "test/topic/subtopic/data";
+        var topicFilter = "$share/group/test/#";
+        
+        Assert.True(MqttTopicFilter.IsMatch(topicName, topicFilter));
+    }
+
+    [Fact]
+    public void IsMatch_SharedSubscription_ExactMatch()
+    {
+        // 测试共享订阅精确匹配
+        var topicName = "test/topic";
+        var topicFilter = "$share/group/test/topic";
+        
+        Assert.True(MqttTopicFilter.IsMatch(topicName, topicFilter));
+    }
+
+    [Fact]
+    public void IsMatch_SharedSubscription_NoMatch()
+    {
+        // 测试共享订阅不匹配的情况
+        var topicName = "test/other";
+        var topicFilter = "$share/group/test/topic";
+        
+        Assert.False(MqttTopicFilter.IsMatch(topicName, topicFilter));
+    }
 }
