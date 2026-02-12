@@ -85,7 +85,7 @@ public class MqttTopicFilter
         var actualTopicFilter = ExtractActualTopicFilter(topicFilter);
         
         if (!IsValidTopicName(topicName)) throw new Exception($"{topicName}:发布主题不符合规范");
-        if (!IsValidTopicFilter(actualTopicFilter)) throw new Exception($"{topicName}:订阅主题不符合规范");
+        if (!IsValidTopicFilter(actualTopicFilter)) throw new Exception($"{topicFilter}:订阅主题不符合规范");
 
         var topicFilterParts = actualTopicFilter.Split('/');
         var topicNameParts = topicName.Split('/');
