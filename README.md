@@ -123,6 +123,24 @@ await client.PublishAsync("Yh/Drive/1111/OrderLock", "订单锁定").ConfigureAw
 - **水平扩展**：可以通过增加订阅者来提高消息处理能力
 - **高可用性**：某个订阅者故障时， 其他订阅者仍可继续处理消息  
 
+### 指定MQTT协议版本
+从2.3.2025.0212版本开始，客户端支持指定MQTT协议版本。可以通过`Version`属性设置协议版本，支持MQTT 3.1、3.1.1和5.0：
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid() + "",
+    Version = MqttVersion.V500, // 指定MQTT 5.0版本
+};
+```
+支持的版本有：
+- `MqttVersion.V310` - MQTT 3.1
+- `MqttVersion.V311` - MQTT 3.1.1（默认）
+- `MqttVersion.V500` - MQTT 5.0
+
+**注意**：如果不显式设置`Version`属性，客户端默认使用MQTT 3.1.1版本，保持向后兼容。
+
 ## 自定义服务端
 需要在服务端处理客户端连接和消息交互逻辑时，就需要自定义服务端。例如IoT平台，在收到设备上报MQTT数据以后，直接接收落库，而不需要再次消费。  
 自定义处理器示例如下：

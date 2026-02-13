@@ -58,6 +58,9 @@ public class MqttClient : DisposeBase
     /// </summary>
     public Boolean CleanSession { get; set; } = true;
 
+    /// <summary>MQTT协议版本。默认V311（MQTT 3.1.1）</summary>
+    public MqttVersion Version { get; set; } = MqttVersion.V311;
+
     /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
     public IPacketEncoder Encoder { get; set; } = new DefaultPacketEncoder();
 
@@ -401,6 +404,7 @@ public class MqttClient : DisposeBase
             Username = UserName,
             Password = Password,
             CleanSession = CleanSession,
+            ProtocolLevel = (Byte)Version,
         };
 
         return ConnectAsync(message, cancellationToken);

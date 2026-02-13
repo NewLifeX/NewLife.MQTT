@@ -156,4 +156,53 @@ public class MqttClientTests
         //_client.TryDispose();
         //_client = null;
     }
+
+    [Fact]
+    public void TestMqttVersion()
+    {
+        // 测试默认版本是3.1.1
+        var client1 = new MqttClient
+        {
+            ClientId = "test_v311",
+            Server = "tcp://127.0.0.1:1883"
+        };
+        Assert.Equal(MqttVersion.V311, client1.Version);
+
+        // 测试设置MQTT 3.1
+        var client2 = new MqttClient
+        {
+            ClientId = "test_v310",
+            Server = "tcp://127.0.0.1:1883",
+            Version = MqttVersion.V310
+        };
+        Assert.Equal(MqttVersion.V310, client2.Version);
+
+        // 测试设置MQTT 5.0
+        var client3 = new MqttClient
+        {
+            ClientId = "test_v500",
+            Server = "tcp://127.0.0.1:1883",
+            Version = MqttVersion.V500
+        };
+        Assert.Equal(MqttVersion.V500, client3.Version);
+    }
+
+    [Fact]
+    public void TestConnectMessageProtocolLevel()
+    {
+        // 测试默认协议级别（3.1.1）
+        var msg1 = new ConnectMessage
+        {
+            ClientId = "test_client_1"
+        };
+        Assert.Equal((Byte)0x04, msg1.ProtocolLevel);
+
+        // 测试设置协议级别
+        var msg2 = new ConnectMessage
+        {
+            ClientId = "test_client_2",
+            ProtocolLevel = (Byte)MqttVersion.V500
+        };
+        Assert.Equal((Byte)0x05, msg2.ProtocolLevel);
+    }
 }
