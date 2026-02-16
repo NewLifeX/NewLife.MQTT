@@ -11,6 +11,9 @@ public sealed class PublishMessage : MqttIdMessage
 
     /// <summary>负载数据</summary>
     public IPacket? Payload { get; set; }
+
+    /// <summary>属性集合。MQTT 5.0</summary>
+    public MqttProperties? Properties { get; set; }
     #endregion
 
     #region 构造
@@ -68,10 +71,8 @@ public sealed class PublishMessage : MqttIdMessage
     /// <returns></returns>
     protected override Byte GetFlag()
     {
-        Duplicate = false;
-        //QoS = QualityOfService.AtLeastOnce;
-        Retain = false;
-
+        // 不再强制清零 Duplicate 和 Retain，由调用方控制
+        // Duplicate 用于消息重发标记，Retain 用于保留消息
         var flag = 0;
         flag |= ((Byte)Type << 4) & 0b1111_0000;
         if (Duplicate) flag |= 0b0000_1000;

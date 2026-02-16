@@ -4,6 +4,11 @@
 public sealed class UnsubAck : MqttIdMessage
 {
     #region 属性
+    /// <summary>原因码列表。MQTT 5.0，每个主题过滤器对应一个原因码</summary>
+    public IList<Byte>? ReasonCodes { get; set; }
+
+    /// <summary>属性集合。MQTT 5.0</summary>
+    public MqttProperties? Properties { get; set; }
     #endregion
 
     #region 构造

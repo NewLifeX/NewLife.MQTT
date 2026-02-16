@@ -12,6 +12,18 @@ public class Subscription : IEquatable<Subscription>
     /// <summary>服务质量</summary>
     public QualityOfService QualityOfService { get; }
 
+    /// <summary>不转发自身发布的消息。MQTT 5.0 订阅选项</summary>
+    public Boolean NoLocal { get; set; }
+
+    /// <summary>保留消息按发布时的状态转发。MQTT 5.0 订阅选项</summary>
+    public Boolean RetainAsPublished { get; set; }
+
+    /// <summary>保留消息处理方式。MQTT 5.0 订阅选项</summary>
+    /// <remarks>
+    /// 0=订阅时发送保留消息，1=仅新订阅时发送保留消息，2=不发送保留消息
+    /// </remarks>
+    public Byte RetainHandling { get; set; }
+
     /// <summary>消息处理方法</summary>
     public Action<PublishMessage>? Callback { get; set; }
     #endregion

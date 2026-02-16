@@ -6,6 +6,9 @@ public sealed class UnsubscribeMessage : MqttIdMessage
     #region 属性
     /// <summary>主题过滤器</summary>
     public IList<String> TopicFilters { get; set; } = [];
+
+    /// <summary>属性集合。MQTT 5.0</summary>
+    public MqttProperties? Properties { get; set; }
     #endregion
 
     #region 构造

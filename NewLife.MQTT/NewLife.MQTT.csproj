@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net45;net461;netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net45;net461;netstandard2.0;netstandard2.1;net7.0;net8.0;net9.0</TargetFrameworks>
     <AssemblyTitle>新生命MQTT协议</AssemblyTitle>
     <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
     <Company>新生命开发团队</Company>
@@ -56,6 +56,10 @@
     <Compile Remove="Models\SubscriptionManager.cs" />
     <Compile Remove="Models\Trie.cs" />
     <Compile Remove="Models\TrieNode.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="WebSocket\WebSocketClientCodec.cs" />
   </ItemGroup>
   
   <ItemGroup>

@@ -6,6 +6,9 @@ public sealed class SubAck : MqttIdMessage
     #region 属性
     /// <summary>同意颁发的Qos</summary>
     public IList<QualityOfService> GrantedQos { get; set; } = [];
+
+    /// <summary>属性集合。MQTT 5.0</summary>
+    public MqttProperties? Properties { get; set; }
     #endregion
 
     #region 构造

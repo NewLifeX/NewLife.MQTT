@@ -48,6 +48,6 @@ public enum MqttType : Byte
     /// <summary>客户端断开连接</summary>
     Disconnect = 14,
 
-    ///// <summary>保留</summary>
-    //Reserved2 = 15
+    /// <summary>认证交换。MQTT 5.0 新增，用于增强认证流程</summary>
+    Auth = 15,
 }
