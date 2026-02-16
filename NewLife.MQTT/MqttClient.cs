@@ -3,8 +3,10 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;
 using NewLife.Log;
+using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
+using NewLife.MQTT.WebSocket;
 using NewLife.Net;
 using NewLife.Serialization;
 using NewLife.Threading;
@@ -81,6 +83,18 @@ public class MqttClient : DisposeBase
     /// <summary>启用ProxyProtocol。仿造MQTT报文通过nginx/haproxy时的封包,仅用于测试,实际应用没有意义,默认false</summary>
     public Boolean EnableProxyProtocol { get; set; }
 
+    /// <summary>遗嘱主题。设置后异常断开时服务端将发布遗嘱消息</summary>
+    public String? WillTopic { get; set; }
+
+    /// <summary>遗嘱消息内容</summary>
+    public Byte[]? WillMessage { get; set; }
+
+    /// <summary>遗嘱消息QoS</summary>
+    public QualityOfService WillQoS { get; set; }
+
+    /// <summary>遗嘱消息是否保留</summary>
+    public Boolean WillRetain { get; set; }
+
     /// <summary>
     /// 连接成功后赋值为true
     /// </summary>
@@ -100,6 +114,9 @@ public class MqttClient : DisposeBase
     private Int32 _taskCanceledCount;
     private Int32 _reconnectAttempts;
     private CancellationTokenSource? _reconnectCts;
+
+    /// <summary>Inflight 消息管理器（客户端消息重发）</summary>
+    private InflightManager? _inflightManager;
     #endregion
 
     #region 构造
@@ -126,6 +143,7 @@ public class MqttClient : DisposeBase
         _reconnectCts?.Dispose();
         _reconnectCts = null;
 
+        _inflightManager.TryDispose();
         _timerPing.TryDispose();
         _Client.TryDispose();
         
@@ -177,10 +195,14 @@ public class MqttClient : DisposeBase
 
             if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
 
-            var uri = new NetUri(Server);
+            // 检查是否为 WebSocket 连接
+            var isWebSocket = Server.StartsWithIgnoreCase("ws://", "wss://");
+            var isWss = Server.StartsWithIgnoreCase("wss://");
+
+            var uri = isWebSocket ? ParseWebSocketUri(Server) : new NetUri(Server);
             if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
-            if (uri.Port == 0) uri.Port = 1883;
-            WriteLog("正在连接[{0}]", uri);
+            if (uri.Port == 0) uri.Port = isWss ? 8884 : isWebSocket ? 8083 : 1883;
+            WriteLog("正在连接[{0}]{1}", uri, isWebSocket ? "(WebSocket)" : "");
 
             client = uri.CreateRemote();
 
@@ -188,6 +210,25 @@ public class MqttClient : DisposeBase
             client.Timeout = Timeout;
 
             if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
+
+            // WebSocket 连接需要添加 WebSocket 编解码器
+            if (isWebSocket)
+            {
+                var wsPath = "/mqtt";
+                if (Server.Contains("/"))
+                {
+                    var idx = Server.IndexOf('/', isWss ? 6 : 5);
+                    if (idx > 0) wsPath = Server.Substring(idx);
+                }
+
+                client.Add(new WebSocketClientCodec
+                {
+                    Host = uri.Host ?? "localhost",
+                    Port = uri.Port,
+                    Path = wsPath,
+                });
+            }
+
             client.Add(new MqttCodec());
 
             // 关闭Tcp延迟以合并小包的算法，降低延迟
@@ -204,6 +245,14 @@ public class MqttClient : DisposeBase
 
                 tcp2.SslProtocol = SslProtocol;
                 tcp2.Certificate = Certificate;
+            }
+            else if (isWss)
+            {
+                // wss:// 自动启用 TLS
+                if (client is TcpSession tcp3)
+                {
+                    tcp3.SslProtocol = SslProtocol != SslProtocols.None ? SslProtocol : SslProtocols.Tls12;
+                }
             }
 
             client.Received += Client_Received;
@@ -407,6 +456,16 @@ public class MqttClient : DisposeBase
             ProtocolLevel = (Byte)Version,
         };
 
+        // 设置遗嘱消息
+        if (!WillTopic.IsNullOrEmpty())
+        {
+            message.HasWill = true;
+            message.WillTopicName = WillTopic;
+            message.WillMessage = WillMessage;
+            message.WillQualityOfService = WillQoS;
+            message.WillRetain = WillRetain;
+        }
+
         return ConnectAsync(message, cancellationToken);
     }
 
@@ -440,6 +499,16 @@ public class MqttClient : DisposeBase
         }
 
         _isConnected = true;
+
+        // 初始化 Inflight 消息管理器（客户端消息重发）
+        _inflightManager.TryDispose();
+        _inflightManager = new InflightManager(msg =>
+        {
+            var client = _Client;
+            if (client != null && client.Active && !client.Disposed)
+                client.SendMessage(msg);
+            return Task.FromResult(0);
+        });
 
         var e = new EventArgs();
         Connected?.Invoke(this, e);
@@ -597,12 +666,22 @@ public class MqttClient : DisposeBase
 
         var rs = (await SendAsync(message, message.QoS != QualityOfService.AtMostOnce, cancellationToken).ConfigureAwait(false)) as MqttIdMessage;
 
-        if (rs is PubRec)
+        // QoS>0 的消息加入 Inflight 队列用于超时重发
+        if (message.QoS > QualityOfService.AtMostOnce && _inflightManager != null && message.Id > 0)
+            _inflightManager.Add(message.Id, message);
+
+        if (rs is PubRec rec)
         {
-            var rel = new PubRel();
+            var rel = new PubRel { Id = rec.Id };
             var cmp = (await SendAsync(rel, true, cancellationToken).ConfigureAwait(false)) as PubComp;
+            // QoS 2 完成，从 Inflight 移除
+            _inflightManager?.Acknowledge(rec.Id);
             return cmp;
         }
+
+        // QoS 1 收到 PubAck，从 Inflight 移除
+        if (rs is PubAck ack)
+            _inflightManager?.Acknowledge(ack.Id);
 
         return rs;
     }
@@ -684,6 +763,28 @@ public class MqttClient : DisposeBase
         }
 
         return rs;
+    }
+    #endregion
+
+    #region 辅助方法
+    /// <summary>解析 WebSocket URI 为 NetUri（ws:// → tcp://，wss:// → tcp://）</summary>
+    /// <param name="server">WebSocket地址</param>
+    /// <returns></returns>
+    private static NetUri ParseWebSocketUri(String server)
+    {
+        // ws://host:port/path → tcp://host:port
+        // wss://host:port/path → tcp://host:port
+        var s = server;
+        if (s.StartsWithIgnoreCase("wss://"))
+            s = "tcp://" + s.Substring(6);
+        else if (s.StartsWithIgnoreCase("ws://"))
+            s = "tcp://" + s.Substring(5);
+
+        // 去掉路径部分
+        var idx = s.IndexOf('/', 6);
+        if (idx > 0) s = s.Substring(0, idx);
+
+        return new NetUri(s);
     }
     #endregion
 

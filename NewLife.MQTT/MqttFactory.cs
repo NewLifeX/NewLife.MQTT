@@ -28,6 +28,7 @@ public class MqttFactory
             case MqttType.PingReq: return new PingRequest();
             case MqttType.PingResp: return new PingResponse();
             case MqttType.Disconnect: return new DisconnectMessage();
+            case MqttType.Auth: return new AuthMessage();
             default:
                 break;
         }

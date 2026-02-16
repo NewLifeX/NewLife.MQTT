@@ -17,6 +17,9 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>消息交换机</summary>
     public IMqttExchange? Exchange { get; set; }
 
+    /// <summary>认证器。可插拔的 ACL 权限控制</summary>
+    public IMqttAuthenticator? Authenticator { get; set; }
+
     /// <summary>集群端口。指定后将自动创建集群</summary>
     public Int32 ClusterPort { get; set; }
 
@@ -53,6 +56,9 @@ public class MqttServer : NetServer<MqttSession>
             // 较大Int64转字符串，避免精度丢失。针对Web和嵌入式设备
             encoder.JsonHost.Options.Int64AsString = true;
         }
+
+        // 初始化认证器
+        Authenticator ??= provider.GetService<IMqttAuthenticator>();
 
         var exchange = Exchange;
         exchange ??= provider.GetService<IMqttExchange>();
@@ -153,6 +159,7 @@ public class MqttSession : NetSession<MqttServer>
             mqttHandler.Exchange = Host.Exchange;
             mqttHandler.ClusterExchange = Host.Cluster?.ClusterExchange;
             mqttHandler.Encoder = Host.Encoder;
+            mqttHandler.Authenticator = Host.Authenticator;
         }
 
         Remote = base.Remote;

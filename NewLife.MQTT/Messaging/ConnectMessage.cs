@@ -88,10 +88,13 @@ public sealed class ConnectMessage : MqttMessage
     public String? WillTopicName { get; set; }
 
     /// <summary>遗嘱消息</summary>
-    public Byte[] WillMessage { get; set; }
+    public Byte[]? WillMessage { get; set; }
 
-    /// <summary>属性集合。MQTT5.0</summary>
-    public IDictionary<Byte, UInt32>? Properties { get; set; }
+    /// <summary>属性集合。MQTT 5.0</summary>
+    public MqttProperties? Properties { get; set; }
+
+    /// <summary>遗嘱属性集合。MQTT 5.0</summary>
+    public MqttProperties? WillProperties { get; set; }
     #endregion
 
     #region 构造
@@ -128,29 +131,25 @@ public sealed class ConnectMessage : MqttMessage
         // 连接超时
         KeepAliveInSeconds = stream.ReadBytes(2).ToUInt16(0, false);
 
-        // MQTT5.0 属性集合
+        // MQTT 5.0 属性集合
         if (ProtocolLevel >= 5)
         {
-            var dic = new Dictionary<Byte, UInt32>();
-
-            var len = stream.ReadByte();
-            var buf = stream.ReadBytes(len);
-            for (var i = 0; i < buf.Length / 5; i += 5)
-            {
-                //todo 这里有问题，不同ID的长度不同
-                var id = buf[i];
-                var val = buf.ToUInt32(i + 1, false);
-                dic[id] = val;
-            }
-
-            Properties = dic;
+            Properties = new MqttProperties();
+            Properties.Read(stream);
         }
 
         // CONNECT报文的有效载荷（payload）包含一个或多个以长度为前缀的字段，可变报头中的标志决定是否包含这些字段。
-        // 如果包含的话，必须按这个顺序出现：客户端标识符，遗嘱主题，遗嘱消息，用户名，密码 
+        // 如果包含的话，必须按这个顺序出现：客户端标识符，遗嘱属性(5.0)，遗嘱主题，遗嘱消息，用户名，密码 
         ClientId = ReadString(stream);
         if (HasWill)
         {
+            // MQTT 5.0 遗嘱属性
+            if (ProtocolLevel >= 5)
+            {
+                WillProperties = new MqttProperties();
+                WillProperties.Read(stream);
+            }
+
             WillTopicName = ReadString(stream);
             WillMessage = ReadData(stream);
         }
@@ -188,10 +187,28 @@ public sealed class ConnectMessage : MqttMessage
         // 连接超时
         stream.Write(KeepAliveInSeconds.GetBytes(false));
 
-        // 扩展
+        // MQTT 5.0 属性集合
+        if (ProtocolLevel >= 5)
+        {
+            if (Properties != null && Properties.Count > 0)
+                Properties.Write(stream);
+            else
+                MqttProperties.WriteVariableInt(stream, 0);
+        }
+
+        // 载荷
         WriteString(stream, ClientId);
         if (HasWill)
         {
+            // MQTT 5.0 遗嘱属性
+            if (ProtocolLevel >= 5)
+            {
+                if (WillProperties != null && WillProperties.Count > 0)
+                    WillProperties.Write(stream);
+                else
+                    MqttProperties.WriteVariableInt(stream, 0);
+            }
+
             WriteString(stream, WillTopicName);
             WriteData(stream, WillMessage);
         }

@@ -6,6 +6,9 @@ public sealed class SubscribeMessage : MqttIdMessage
     #region 属性
     /// <summary>请求集合</summary>
     public IList<Subscription> Requests { get; set; } = [];
+
+    /// <summary>属性集合。MQTT 5.0</summary>
+    public MqttProperties? Properties { get; set; }
     #endregion
 
     #region 构造
@@ -32,7 +35,21 @@ public sealed class SubscribeMessage : MqttIdMessage
         var list = new List<Subscription>();
         while (stream.Position < stream.Length)
         {
-            var ss = new Subscription(ReadString(stream), (QualityOfService)stream.ReadByte());
+            var topicFilter = ReadString(stream);
+            var options = (Byte)stream.ReadByte();
+
+            // MQTT 5.0 订阅选项字节格式：
+            // Bit 0-1: QoS (0/1/2)
+            // Bit 2: No Local
+            // Bit 3: Retain As Published
+            // Bit 4-5: Retain Handling (0/1/2)
+            var qos = (QualityOfService)(options & 0x03);
+            var ss = new Subscription(topicFilter, qos)
+            {
+                NoLocal = (options & 0x04) != 0,
+                RetainAsPublished = (options & 0x08) != 0,
+                RetainHandling = (Byte)((options >> 4) & 0x03),
+            };
             list.Add(ss);
         }
         Requests = list;
@@ -50,7 +67,13 @@ public sealed class SubscribeMessage : MqttIdMessage
         foreach (var item in Requests)
         {
             WriteString(stream, item.TopicFilter);
-            stream.Write((Byte)item.QualityOfService);
+
+            // MQTT 5.0 订阅选项字节
+            var options = (Byte)item.QualityOfService;
+            if (item.NoLocal) options |= 0x04;
+            if (item.RetainAsPublished) options |= 0x08;
+            options |= (Byte)((item.RetainHandling & 0x03) << 4);
+            stream.Write(options);
         }
 
         return true;
