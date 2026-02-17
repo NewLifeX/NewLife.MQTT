@@ -1,492 +1,495 @@
-# NewLife.MQTT Э��ʵ�ַ�������
+# NewLife.MQTT 协议实现分析报告
 
-## ����
+## 概述
 
-������� NewLife.MQTT ��Ŀ����ȫ������������Ա� **MQTT 3.1.1**��OASIS ��׼ mqtt-v3.1.1-os���� **MQTT 5.0**��OASIS ��׼ mqtt-v5.0-os���ٷ�Э��淶��ͬʱ���������� MQTT �ͻ��ˣ�MQTTnet��Eclipse Paho���ͷ���˲�Ʒ��EMQX��Mosquitto��HiveMQ��VerneMQ�����й��ܶԱȣ�ȫ���г���ʵ�ֺ�δʵ�ֵĹ��ܡ�
+本报告基于 NewLife.MQTT 项目源码进行全面深入分析，对标 **MQTT 3.1.1**（OASIS 标准 mqtt-v3.1.1-os）和 **MQTT 5.0**（OASIS 标准 mqtt-v5.0-os）官方协议规范，同时与社区主流 MQTT 客户端（MQTTnet、Eclipse Paho）和服务端产品（EMQX、Mosquitto、HiveMQ、VerneMQ）进行功能对比，全面列出已实现和未实现的功能。
 
-**��Ŀ��λ��** �����������з��� MQTT ����Э��ʵ�֣�ͬʱ�����ͻ��� `MqttClient` �ͷ���� `MqttServer`���Ե�һ NuGet ����ʽ������
+**项目定位：** 纯国产自主研发的 MQTT 完整协议实现，同时包含客户端 `MqttClient` 和服务端 `MqttServer`，以单一 NuGet 包形式交付。
 
-**�����ص㣺**
-- **�����������** �� ������ NewLife.Core �����⣬�޹�Ӧ����ȫ����
-- **MIT ��ԴЭ��** �� �������޸ĺ����ã��� copyleft/ר�����ƣ��޷��ɷ���
-- **�ͻ���+�����һ��** �� ��һ `NewLife.MQTT` NuGet ������ͬʱʹ�ÿͻ���������
-- **ȫ�汾����** �� ֧�� .NET Framework 4.5 / 4.6.1��.NET Standard 2.0/2.1��.NET 7/8/9
-- **���ִ���Э��** �� TCP / TLS / WebSocket / WSS / QUIC / �ɿ�UDP
+**核心特点：**
+- **零第三方依赖** — 仅依赖 NewLife.Core 基础库，无供应链安全风险
+- **MIT 开源协议** — 可自由修改和商用，无 copyleft/专利限制，无法律风险
+- **客户端+服务端一体** — 单一 `NewLife.MQTT` NuGet 包即可同时使用客户端与服务端
+- **全版本覆盖** — 支持 .NET Framework 4.5 / 4.6.1、.NET Standard 2.0/2.1、.NET 7/8/9/10
+- **六种传输协议** — TCP / TLS / WebSocket / WSS / QUIC / 可靠UDP
 
 ---
 
-## һ����Ŀ�ܹ�����
+## 一、项目架构总览
 
-### 1.1 ��Ŀ���
+### 1.1 项目组成
 
-| ��Ŀ | ˵�� |
+| 项目 | 说明 |
 |------|------|
-| `NewLife.MQTT` | ���Ŀ⣬���� MQTT Э�����롢�ͻ��ˡ�����ˡ���Ⱥ���Žӡ��������� |
-| `NewLife.MqttServer` | ���伴�õ� MQTT Broker Ӧ�ã����ں��Ŀ⹹�� |
-| `XUnitTestClient` | ��Ԫ������Ŀ�����Ǳ���롢�ͻ��ˡ���Ⱥ����������� |
-| `Test` | ���ɲ���/��ʾ��Ŀ |
+| `NewLife.MQTT` | 核心库，包含 MQTT 协议编解码、客户端、服务端、集群、桥接、规则引擎 |
+| `NewLife.MqttServer` | 开箱即用的 MQTT Broker 应用，基于核心库构建 |
+| `XUnitTestClient` | 单元测试项目，覆盖编解码、客户端、集群、规则引擎等 |
+| `Test` | 集成测试/演示项目 |
 
-### 1.2 ����ģ�黮��
+### 1.2 核心模块划分
 
-| ģ�� | �����ռ� | �������� | ˵�� |
+| 模块 | 命名空间 | 核心类型 | 说明 |
 |------|---------|---------|------|
-| ��Ϣ����� | `Messaging` | `MqttMessage` / `MqttFactory` / `MqttCodec` | 15�ֱ�����������ʵ�� |
-| �ͻ��� | �������ռ� | `MqttClient` / `AliyunMqttClient` | ȫ���ܿͻ��� |
-| ����� | �������ռ� | `MqttServer` / `MqttSession` | ������������� |
-| ��Ϣ���� | `Handlers` | `MqttExchange` / `IMqttExchange` | ����·�� / Retain / �־ûỰ |
-| ������ | `Handlers` | `MqttHandler` / `IMqttHandler` | ����չָ��� |
-| ��ȫ��֤ | `Handlers` | `IMqttAuthenticator` | �ɲ�� ACL Ȩ�޿��� |
-| ��Ϣ�Ž� | `Handlers` | `MqttBridge` | ˫��� Broker ��Ϣת�� |
-| �������� | `Handlers` | `MqttRuleEngine` / `MqttRule` | 5�ֶ������� |
-| WebHook | `Handlers` | `MqttWebHook` | 7���¼����� |
-| Inflight | `Handlers` | `InflightManager` | QoS>0 ��Ϣ��ʱ�ط� |
-| MQTT 5.0 | `Handlers` | `MqttSessionCapabilities` | ����/����/�������� |
-| ��Ⱥ | `Clusters` | `ClusterServer` / `ClusterExchange` | ��ڵ㶩��ͬ������Ϣת�� |
-| QUIC ���� | `Quic` | `MqttQuicClient` | .NET 9+ QUIC ���� |
-| UDP ���� | `Quic` | `MqttUdpClient` | ȫƽ̨�ɿ� UDP ���� |
-| WebSocket | `WebSocket` | `WebSocketClientCodec` | ws/wss ����� |
-| ProxyProtocol | `ProxyProtocol` | `ProxyCodec` / `ProxyMessage` | v1/v2 ����Э�� |
+| 消息编解码 | `Messaging` | `MqttMessage` / `MqttFactory` / `MqttCodec` | 15种报文类型完整实现 |
+| 客户端 | 根命名空间 | `MqttClient` / `AliyunMqttClient` | 全功能客户端 |
+| 服务端 | 根命名空间 | `MqttServer` / `MqttSession` | 高性能网络服务 |
+| 消息交换 | `Handlers` | `MqttExchange` / `IMqttExchange` | 订阅路由 / Retain / 持久会话 |
+| 处理器 | `Handlers` | `MqttHandler` / `IMqttHandler` | 可扩展指令处理 |
+| 安全认证 | `Handlers` | `IMqttAuthenticator` | 可插拔 ACL 权限控制 |
+| 消息桥接 | `Handlers` | `MqttBridge` | 双向跨 Broker 消息转发 |
+| 规则引擎 | `Handlers` | `MqttRuleEngine` / `MqttRule` | 5种动作类型 |
+| WebHook | `Handlers` | `MqttWebHook` | 6种事件推送 |
+| Inflight | `Handlers` | `InflightManager` | QoS>0 消息超时重发 |
+| MQTT 5.0 | `Handlers` | `MqttSessionCapabilities` | 别名/流控/能力声明 |
+| 集群 | `Clusters` | `ClusterServer` / `ClusterExchange` | 跨节点订阅同步与消息转发 |
+| QUIC 传输 | `Quic` | `MqttQuicClient` | .NET 9+ QUIC 传输 |
+| UDP 传输 | `Quic` | `MqttUdpClient` | 全平台可靠 UDP 传输 |
+| WebSocket | `WebSocket` | `WebSocketClientCodec` / `WebSocketServerCodec` | ws/wss 编解码 |
+| ProxyProtocol | `ProxyProtocol` | `ProxyCodec` / `ProxyMessage` / `ProxyMessageV2` | v1/v2 代理协议 |
 
-### 1.3 ֧�ֵĴ��䷽ʽ
+### 1.3 支持的传输方式
 
-| ���䷽ʽ | �ͻ��� | ����� | ˵�� |
+| 传输方式 | 客户端 | 服务端 | 说明 |
 |---------|--------|--------|------|
-| TCP | ? | ? | ��׼ MQTT ���䣬Ĭ�϶˿� 1883 |
-| TCP + TLS/SSL | ? | ? | X509 ֤�飬֧�� TLS 1.2+��֧�� pfx/pem |
-| WebSocket | ? | ? | ws:// Э�飬Ĭ�϶˿� 8083 |
-| WebSocket + TLS (WSS) | ? | ? | wss:// �Զ����� TLS��Ĭ�϶˿� 8884 |
-| MQTT over QUIC | ? | �� | .NET 9+ ƽ̨������ System.Net.Quic�����ӳ��޶�ͷ���� |
-| MQTT over �ɿ� UDP | ? | ? | ���� NewLife.Core UDP��ȫƽ̨֧�֣����пɿ������ |
-| ProxyProtocol v1/v2 | ?�����ԣ� | ? | nginx/HAProxy ͸����ʵ�ͻ��� IP |
+| TCP | ✅ | ✅ | 标准 MQTT 传输，默认端口 1883 |
+| TCP + TLS/SSL | ✅ | ✅ | X509 证书，支持 TLS 1.2+，支持 pfx/pem |
+| WebSocket | ✅ | ✅ | ws:// 协议，默认端口 8083 |
+| WebSocket + TLS (WSS) | ✅ | ✅ | wss:// 自动启用 TLS，默认端口 8884 |
+| MQTT over QUIC | ✅ | — | .NET 7+ 平台，基于 System.Net.Quic，低延迟无队头阻塞（.NET 7/8 需启用预览特性） |
+| MQTT over 可靠 UDP | ✅ | ✅ | 基于 NewLife.Core UDP，全平台支持，自研可靠传输层 |
+| ProxyProtocol v1/v2 | ✅（测试） | ✅ | nginx/HAProxy 透传真实客户端 IP |
 
 ---
 
-## ����MQTT 3.1.1 Э��Ա꣨OASIS mqtt-v3.1.1-os��
+## 二、MQTT 3.1.1 协议对标（OASIS mqtt-v3.1.1-os）
 
-### 2.1 ���Ʊ������ͣ�14/14 ȫ��ʵ�� ?��
+### 2.1 控制报文类型（14/14 全部实现 ✅）
 
-| �������� | ֵ | ���� | ״̬ | ʵ���� | Э��淶�½� |
+| 报文类型 | 值 | 方向 | 状态 | 实现类 | 协议规范章节 |
 |---------|---|------|------|--------|------------|
-| CONNECT | 1 | C��S | ? | `ConnectMessage` | ��3.1 |
-| CONNACK | 2 | S��C | ? | `ConnAck` | ��3.2 |
-| PUBLISH | 3 | ˫�� | ? | `PublishMessage` | ��3.3 |
-| PUBACK | 4 | ˫�� | ? | `PubAck` | ��3.4 |
-| PUBREC | 5 | ˫�� | ? | `PubRec` | ��3.5 |
-| PUBREL | 6 | ˫�� | ? | `PubRel` | ��3.6 |
-| PUBCOMP | 7 | ˫�� | ? | `PubComp` | ��3.7 |
-| SUBSCRIBE | 8 | C��S | ? | `SubscribeMessage` | ��3.8 |
-| SUBACK | 9 | S��C | ? | `SubAck` | ��3.9 |
-| UNSUBSCRIBE | 10 | C��S | ? | `UnsubscribeMessage` | ��3.10 |
-| UNSUBACK | 11 | S��C | ? | `UnsubAck` | ��3.11 |
-| PINGREQ | 12 | C��S | ? | `PingRequest` | ��3.12 |
-| PINGRESP | 13 | S��C | ? | `PingResponse` | ��3.13 |
-| DISCONNECT | 14 | C��S | ? | `DisconnectMessage` | ��3.14 |
+| CONNECT | 1 | C→S | ✅ | `ConnectMessage` | §3.1 |
+| CONNACK | 2 | S→C | ✅ | `ConnAck` | §3.2 |
+| PUBLISH | 3 | 双向 | ✅ | `PublishMessage` | §3.3 |
+| PUBACK | 4 | 双向 | ✅ | `PubAck` | §3.4 |
+| PUBREC | 5 | 双向 | ✅ | `PubRec` | §3.5 |
+| PUBREL | 6 | 双向 | ✅ | `PubRel` | §3.6 |
+| PUBCOMP | 7 | 双向 | ✅ | `PubComp` | §3.7 |
+| SUBSCRIBE | 8 | C→S | ✅ | `SubscribeMessage` | §3.8 |
+| SUBACK | 9 | S→C | ✅ | `SubAck` | §3.9 |
+| UNSUBSCRIBE | 10 | C→S | ✅ | `UnsubscribeMessage` | §3.10 |
+| UNSUBACK | 11 | S→C | ✅ | `UnsubAck` | §3.11 |
+| PINGREQ | 12 | C→S | ✅ | `PingRequest` | §3.12 |
+| PINGRESP | 13 | S→C | ✅ | `PingResponse` | §3.13 |
+| DISCONNECT | 14 | C→S | ✅ | `DisconnectMessage` | §3.14 |
 
-### 2.2 �̶�ͷ������루��2 Э�飩
+### 2.2 固定头部与编码（§2 协议）
 
-| �淶��Ŀ | ״̬ | ʵ��˵�� |
+| 规范条目 | 状态 | 实现说明 |
 |---------|------|---------|
-| 4λ�������� + 4λ��־λ | ? | `MqttMessage.Read()` ������4λ���͡���4λ��־ |
-| ʣ�೤�ȣ�1~4�ֽڱ䳤���룩 | ? | `ReadEncodedInt` / `WriteEncodedInt`��֧����� 256MB ���� |
-| DUP ��־λ | ? | `Duplicate` ���ԣ�QoS>0 �ط�ʱ���� |
-| QoS ��־λ��2λ�� | ? | `QoS` ���ԣ�0/1/2 ���� |
-| Retain ��־λ | ? | `Retain` ���ԣ�������Ϣ��� |
-| UTF-8 �ַ�����2�ֽڳ���ǰ׺�� | ? | `ReadString` / `WriteString` |
-| ���������ݣ�2�ֽڳ���ǰ׺�� | ? | `ReadData` / `WriteData` |
-| ���ı�ʶ����2�ֽ� UInt16�� | ? | `MqttIdMessage.Id`��ȫ�ֵ������� |
-| �����Ĺ̶���־λУ�� | ? | ����Ϣ���� `GetFlag()` ����ʵ�֣��� SUBSCRIBE �̶� QoS=1 |
-| ճ��������� | ? | `MqttCodec` + `PacketCodec` ��ʽ���� |
+| 4位报文类型 + 4位标志位 | ✅ | `MqttMessage.Read()` 解析高4位类型、低4位标志 |
+| 剩余长度（1~4字节变长编码） | ✅ | `ReadEncodedInt` / `WriteEncodedInt`，支持最大 256MB 报文 |
+| DUP 标志位 | ✅ | `Duplicate` 属性，QoS>0 重发时设置 |
+| QoS 标志位（2位） | ✅ | `QoS` 属性，0/1/2 三级 |
+| Retain 标志位 | ✅ | `Retain` 属性，保留消息标记 |
+| UTF-8 字符串（2字节长度前缀） | ✅ | `ReadString` / `WriteString` |
+| 二进制数据（2字节长度前缀） | ✅ | `ReadData` / `WriteData` |
+| 报文标识符（2字节 UInt16） | ✅ | `MqttIdMessage.Id`，全局递增分配 |
+| 各报文固定标志位校验 | ✅ | 各消息类型 `GetFlag()` 独立实现，如 SUBSCRIBE 固定 QoS=1 |
+| 粘包拆包处理 | ✅ | `MqttCodec` + `PacketCodec` 流式解析 |
 
-### 2.3 QoS ������������4.3 Э�飩
+### 2.3 QoS 服务质量（§4.3 协议）
 
-| QoS ���� | �ͻ��˷��� | �ͻ��˽��� | ����˷ַ� | ˵�� |
+| QoS 级别 | 客户端发布 | 客户端接收 | 服务端分发 | 说明 |
 |---------|-----------|-----------|-----------|------|
-| QoS 0������һ�Σ� | ? | ? | ? | ��ȷ�ϣ�fire-and-forget |
-| QoS 1������һ�Σ� | ? | ? | ? | PUBLISH �� PUBACK |
-| QoS 2��ǡ��һ�Σ� | ? | ? | ? | PUBLISH �� PUBREC �� PUBREL �� PUBCOMP |
+| QoS 0（至多一次） | ✅ | ✅ | ✅ | 无确认，fire-and-forget |
+| QoS 1（至少一次） | ✅ | ✅ | ✅ | PUBLISH → PUBACK |
+| QoS 2（恰好一次） | ✅ | ✅ | ✅ | PUBLISH → PUBREC → PUBREL → PUBCOMP |
 
-**QoS ��ǿ���ܣ�**
+**QoS 增强功能：**
 
-| ���� | ״̬ | ˵�� |
+| 功能 | 状态 | 说明 |
 |------|------|------|
-| Inflight ��Ϣ���� | ? | �ͻ���+����˾��ж��� `InflightManager` ʵ�� |
-| ��ʱ�ط���DUP=1�� | ? | Ĭ��10�볬ʱ/���3���ط��������� `RetryTimeout`/`MaxRetries` |
-| QoS �����ַ� | ? | �������������� QoS ȡ��Сֵ���� |
-| ���ı�ʶ������ | ? | `Interlocked.Increment` �̰߳�ȫ������QoS 0 ������ ID |
+| Inflight 消息队列 | ✅ | 客户端+服务端均有独立 `InflightManager` 实例 |
+| 超时重发（DUP=1） | ✅ | 默认10秒超时/最大3次重发，可配置 `RetryTimeout`/`MaxRetries` |
+| QoS 降级分发 | ✅ | 按订阅者声明的 QoS 取较小值降级 |
+| 报文标识符管理 | ✅ | `Interlocked.Increment` 线程安全递增，QoS 0 不分配 ID |
 
-### 2.4 CONNECT ���ӹ�������3.1 Э�飩
+### 2.4 CONNECT 连接管理（§3.1 协议）
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| Э����У�飨"MQTT"�� | ? | `ConnectMessage.ProtocolName` |
-| Э��汾Э�̣�3.1/3.1.1/5.0�� | ? | `ProtocolLevel` �ֶΣ�֧�� 0x03/0x04/0x05 |
-| ClientId����� | ? | �Զ����ɸ�ʽ `IP@PID`��Ҳ���ֶ����� |
-| �û���/������֤ | ? | `Username`/`Password`����־λ�������� |
-| Keep Alive ���� | ? | �ͻ��˰����ڶ�ʱ Ping��Ĭ��600�� |
-| Clean Session | ? | `=1`����ɻỰ��`=0`�ָ��־ûỰ+������Ϣ���� |
-| ���ӷ����루6�֣� | ? | `ConnectReturnCode` ö������ʵ�� |
-| �Զ�������ָ���˱ܣ� | ? | �����ʼ�ӳ�/����ӳ�/��������`2^n` ָ���˱� |
-| �������Զ��ض��� | ? | `ConnectAsync` ���Զ��ط������б� |
-| �����ַ�����ʼ�� | ? | `Init()` �������� `Server=;UserName=;Password=` ��ʽ |
-| ����/�Ͽ��¼�֪ͨ | ? | `Connected`/`Disconnected` �¼� |
+| 协议名校验（"MQTT"） | ✅ | `ConnectMessage.ProtocolName` |
+| 协议版本协商（3.1/3.1.1/5.0） | ✅ | `ProtocolLevel` 字段，支持 0x03/0x04/0x05 |
+| ClientId（必填） | ✅ | 自动生成格式 `IP@PID`，也可手动设置 |
+| 用户名/密码认证 | ✅ | `Username`/`Password`，标志位独立控制 |
+| Keep Alive 心跳 | ✅ | 客户端半周期定时 Ping，默认600秒 |
+| Clean Session | ✅ | `=1`清除旧会话，`=0`恢复持久会话+离线消息推送 |
+| 连接返回码（6种） | ✅ | `ConnectReturnCode` 枚举完整实现 |
+| 自动重连（指数退避） | ✅ | 可配初始延迟/最大延迟/最大次数，`2^n` 指数退避 |
+| 重连后自动重订阅 | ✅ | `ConnectAsync` 中自动重发订阅列表 |
+| 连接字符串初始化 | ✅ | `Init()` 方法解析 `Server=;UserName=;Password=` 格式 |
+| 连接/断开事件通知 | ✅ | `Connected`/`Disconnected` 事件 |
 
-### 2.5 ������Ϣ����3.1.2.5 Э�飩
+### 2.5 遗嘱消息（§3.1.2.5 协议）
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| ������־/QoS/Retain ����� | ? | `ConnectMessage` �� `HasWill`/`WillQualityOfService`/`WillRetain` |
-| �����������Ϣ�� | ? | `WillTopicName`/`WillMessage` |
-| �ͻ����������� | ? | `MqttClient.WillTopic`/`WillMessage`/`WillQoS`/`WillRetain` |
-| �쳣�Ͽ�ʱ�Զ��������� | ? | `MqttHandler.Close()` �м��������Ͽ��󷢲� |
-| ���� DISCONNECT ʱ������� | ? | `OnDisconnect()` ���� `_normalDisconnect=true` |
-| ������Ϣͨ���������ַ� | ? | ������Ϣͬʱ���͵����� Exchange �ͼ�Ⱥ ClusterExchange |
+| 遗嘱标志/QoS/Retain 编解码 | ✅ | `ConnectMessage` 中 `HasWill`/`WillQualityOfService`/`WillRetain` |
+| 遗嘱主题和消息体 | ✅ | `WillTopicName`/`WillMessage` |
+| 客户端遗嘱设置 | ✅ | `MqttClient.WillTopic`/`WillMessage`/`WillQoS`/`WillRetain` |
+| 异常断开时自动发布遗嘱 | ✅ | `MqttHandler.Close()` 中检测非正常断开后发布 |
+| 正常 DISCONNECT 时清除遗嘱 | ✅ | `OnDisconnect()` 设置 `_normalDisconnect=true` |
+| 遗嘱消息通过交换机分发 | ✅ | 遗嘱消息同时发送到本地 Exchange 和集群 ClusterExchange |
 
-### 2.6 Retain ������Ϣ����3.3.1.3 Э�飩
+### 2.6 Retain 保留消息（§3.3.1.3 协议）
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| Retain ��־����� | ? | `PublishMessage.Retain` + `GetFlag()` |
-| ����ʱ�洢 Retain ��Ϣ | ? | `MqttExchange._retainMessages` ConcurrentDictionary �洢 |
-| �¶�����ƥ������ Retain | ? | `Subscribe()` �а� RetainHandling �������� |
-| �� Payload ��� Retain | ? | `Publish()` �� Payload Ϊ��ʱ TryRemove |
-| $SYS ������Ϣ | ? | ϵͳ������Ϣͬʱ���� Retain �洢 |
+| Retain 标志编解码 | ✅ | `PublishMessage.Retain` + `GetFlag()` |
+| 发布时存储 Retain 消息 | ✅ | `MqttExchange._retainMessages` ConcurrentDictionary 存储 |
+| 新订阅者匹配推送 Retain | ✅ | `Subscribe()` 中按 RetainHandling 策略推送 |
+| 空 Payload 清除 Retain | ✅ | `Publish()` 中 Payload 为空时 TryRemove |
+| $SYS 保留消息 | ✅ | 系统主题消息同时存入 Retain 存储 |
 
-### 2.7 ������ͨ�������4.7 Э�飩
+### 2.7 主题与通配符（§4.7 协议）
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| �㼶�ָ��� `/` | ? | `MqttTopicFilter.IsMatch()` �� `/` �ָ�ƥ�� |
-| ���ͨ��� `#` | ? | ƥ�䵱ǰ�㼰�����Ӳ� |
-| ����ͨ��� `+` | ? | ��ƥ�䵱ǰ�� |
-| `$` ϵͳ��������ͨ��� | ? | `$SYS/` ǰ׺��ƥ��ͨ������� |
-| �����������֤ | ? | `IsValidTopicFilter()` У�� `#`/`+` λ�úϷ��� |
-| ������������֤ | ? | `IsValidTopicName()` ��ֹͨ��� |
-| �������Ľ��� `$share/` | ? | `ExtractActualTopicFilter()` ��ȡʵ�ʹ����� |
-| ������󳤶� 65536 | ? | ��֤ʱ��鳤������ |
+| 层级分隔符 `/` | ✅ | `MqttTopicFilter.IsMatch()` 按 `/` 分割匹配 |
+| 多层通配符 `#` | ✅ | 匹配当前层及所有子层 |
+| 单层通配符 `+` | ✅ | 仅匹配当前层 |
+| `$` 系统主题屏蔽通配符 | ✅ | `$SYS/` 前缀不匹配通配符订阅 |
+| 主题过滤器验证 | ✅ | `IsValidTopicFilter()` 校验 `#`/`+` 位置合法性 |
+| 发布主题名验证 | ✅ | `IsValidTopicName()` 禁止通配符 |
+| 共享订阅解析 `$share/` | ✅ | `ExtractActualTopicFilter()` 提取实际过滤器 |
+| 主题最大长度 65536 | ✅ | 验证时检查长度限制 |
+| 主题扩展（通配符组合生成） | ✅ | `Expand()` 生成所有通配符组合，支持分布式集群主题路由 |
 
 ---
 
-## ����MQTT 5.0 Э��Ա꣨OASIS mqtt-v5.0-os��
+## 三、MQTT 5.0 协议对标（OASIS mqtt-v5.0-os）
 
-### 3.1 ������������
+### 3.1 新增报文类型
 
-| ���� | ֵ | ���� | ״̬ | ʵ���� | ˵�� |
+| 报文 | 值 | 方向 | 状态 | 实现类 | 说明 |
 |-----|---|------|------|--------|------|
-| AUTH | 15 | ˫�� | ? | `AuthMessage` | ReasonCode��0x00�ɹ�/0x18����/0x19����֤�� + Properties |
+| AUTH | 15 | 双向 | ✅ | `AuthMessage` | ReasonCode（0x00成功/0x18继续/0x19重认证） + Properties |
 
-### 3.2 ����ϵͳ��30/30 ���Ա�ʶ�� �� 7/7 �������ͣ�
+### 3.2 属性系统（30/30 属性标识符 · 7/7 数据类型）
 
-**������������ʵ�֣�**
+**数据类型完整实现（7/7）：**
 
-| �������� | ״̬ | ��д���� | ����ʾ�� |
+| 数据类型 | 状态 | 读写方法 | 属性示例 |
 |---------|------|---------|---------|
-| Byte | ? | `GetByte`/`SetByte` | PayloadFormatIndicator / MaximumQoS / RetainAvailable / WildcardSubscriptionAvailable / SubscriptionIdentifierAvailable / SharedSubscriptionAvailable / RequestProblemInformation / RequestResponseInformation |
-| UInt16 | ? | `GetUInt16`/`SetUInt16` | ServerKeepAlive / ReceiveMaximum / TopicAliasMaximum / TopicAlias |
-| UInt32 | ? | `GetUInt32`/`SetUInt32` | MessageExpiryInterval / SessionExpiryInterval / WillDelayInterval / MaximumPacketSize |
-| �䳤���� | ? | `GetVariableInt`/`SetVariableInt` | SubscriptionIdentifier |
-| UTF-8 �ַ��� | ? | `GetString`/`SetString` | ContentType / ResponseTopic / ReasonString / AssignedClientIdentifier / AuthenticationMethod / ResponseInformation / ServerReference |
-| ���������� | ? | `GetBinary`/`SetBinary` | CorrelationData / AuthenticationData |
-| UTF-8 �ַ����� | ? | `UserProperties` �б� | UserProperty���ɶ�γ��֣� |
+| Byte | ✅ | `GetByte`/`SetByte` | PayloadFormatIndicator / MaximumQoS / RetainAvailable / WildcardSubscriptionAvailable / SubscriptionIdentifierAvailable / SharedSubscriptionAvailable / RequestProblemInformation / RequestResponseInformation |
+| UInt16 | ✅ | `GetUInt16`/`SetUInt16` | ServerKeepAlive / ReceiveMaximum / TopicAliasMaximum / TopicAlias |
+| UInt32 | ✅ | `GetUInt32`/`SetUInt32` | MessageExpiryInterval / SessionExpiryInterval / WillDelayInterval / MaximumPacketSize |
+| 变长整数 | ✅ | `GetVariableInt`/`SetVariableInt` | SubscriptionIdentifier |
+| UTF-8 字符串 | ✅ | `GetString`/`SetString` | ContentType / ResponseTopic / ReasonString / AssignedClientIdentifier / AuthenticationMethod / ResponseInformation / ServerReference |
+| 二进制数据 | ✅ | `GetBinary`/`SetBinary` | CorrelationData / AuthenticationData |
+| UTF-8 字符串对 | ✅ | `UserProperties` 列表 | UserProperty（可多次出现） |
 
-**30�����Ա�ʶ�������б���**
+**30种属性标识符完整列表（30/30）：**
 
-| ����ID | ���� | ���� | ״̬ |
-|--------|------|------|------|
-| 0x01 | PayloadFormatIndicator | Byte | ? |
-| 0x02 | MessageExpiryInterval | UInt32 | ? |
-| 0x03 | ContentType | String | ? |
-| 0x08 | ResponseTopic | String | ? |
-| 0x09 | CorrelationData | Binary | ? |
-| 0x0B | SubscriptionIdentifier | �䳤���� | ? |
-| 0x11 | SessionExpiryInterval | UInt32 | ? |
-| 0x12 | AssignedClientIdentifier | String | ? |
-| 0x13 | ServerKeepAlive | UInt16 | ? |
-| 0x15 | AuthenticationMethod | String | ? |
-| 0x16 | AuthenticationData | Binary | ? |
-| 0x17 | RequestProblemInformation | Byte | ? |
-| 0x18 | WillDelayInterval | UInt32 | ? |
-| 0x19 | RequestResponseInformation | Byte | ? |
-| 0x1A | ResponseInformation | String | ? |
-| 0x1C | ServerReference | String | ? |
-| 0x1F | ReasonString | String | ? |
-| 0x21 | ReceiveMaximum | UInt16 | ? |
-| 0x22 | TopicAliasMaximum | UInt16 | ? |
-| 0x23 | TopicAlias | UInt16 | ? |
-| 0x24 | MaximumQoS | Byte | ? |
-| 0x25 | RetainAvailable | Byte | ? |
-| 0x26 | UserProperty | �ַ����� | ? |
-| 0x27 | MaximumPacketSize | UInt32 | ? |
-| 0x28 | WildcardSubscriptionAvailable | Byte | ? |
-| 0x29 | SubscriptionIdentifierAvailable | Byte | ? |
-| 0x2A | SharedSubscriptionAvailable | Byte | ? |
+| 属性ID | 名称 | 类型 | 编解码 | 服务端行为 |
+|--------|------|------|--------|-----------|
+| 0x01 | PayloadFormatIndicator | Byte | ✅ | ✅ 透传 |
+| 0x02 | MessageExpiryInterval | UInt32 | ✅ | ⚠️ 分发时未检查过期 |
+| 0x03 | ContentType | String | ✅ | ✅ 透传 |
+| 0x08 | ResponseTopic | String | ✅ | ✅ 透传（请求/响应模式） |
+| 0x09 | CorrelationData | Binary | ✅ | ✅ 透传（请求/响应模式） |
+| 0x0B | SubscriptionIdentifier | 变长整数 | ✅ | ✅ 透传 |
+| 0x11 | SessionExpiryInterval | UInt32 | ✅ | ✅ `MqttSessionCapabilities` 记录 |
+| 0x12 | AssignedClientIdentifier | String | ✅ | ✅ 可读写 |
+| 0x13 | ServerKeepAlive | UInt16 | ✅ | ⚠️ 可读写，服务端未在 CONNACK 中主动设置 |
+| 0x15 | AuthenticationMethod | String | ✅ | ✅ AUTH 报文支持 |
+| 0x16 | AuthenticationData | Binary | ✅ | ✅ AUTH 报文支持 |
+| 0x17 | RequestProblemInformation | Byte | ✅ | ✅ 可读写 |
+| 0x18 | WillDelayInterval | UInt32 | ✅ | ⚠️ 可读写，服务端当前立即发布遗嘱 |
+| 0x19 | RequestResponseInformation | Byte | ✅ | ✅ 可读写 |
+| 0x1A | ResponseInformation | String | ✅ | ✅ 可读写 |
+| 0x1C | ServerReference | String | ✅ | ✅ 可读写 |
+| 0x1F | ReasonString | String | ✅ | ✅ 可读写 |
+| 0x21 | ReceiveMaximum | UInt16 | ✅ | ✅ 流控检查 |
+| 0x22 | TopicAliasMaximum | UInt16 | ✅ | ✅ 双向别名管理 |
+| 0x23 | TopicAlias | UInt16 | ✅ | ✅ 双向别名解析/分配 |
+| 0x24 | MaximumQoS | Byte | ✅ | ✅ 能力声明 |
+| 0x25 | RetainAvailable | Byte | ✅ | ✅ 能力声明 |
+| 0x26 | UserProperty | 字符串对 | ✅ | ✅ 多值支持 |
+| 0x27 | MaximumPacketSize | UInt32 | ✅ | ✅ `MqttSessionCapabilities` 记录 |
+| 0x28 | WildcardSubscriptionAvailable | Byte | ✅ | ✅ 能力声明 |
+| 0x29 | SubscriptionIdentifierAvailable | Byte | ✅ | ✅ 能力声明 |
+| 0x2A | SharedSubscriptionAvailable | Byte | ✅ | ✅ 能力声明 |
 
-### 3.3 MQTT 5.0 �����¹���
+### 3.3 MQTT 5.0 核心新功能
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| ԭ������չ | ? | ���� ACK ���ľ�֧�� ReasonCode��`ConnAckReasonCode` ��20�֣�`PubAck`/`DisconnectMessage` ���� `ReasonCode` |
-| �Ự���ڼ�� | ? | `SessionExpiryInterval` ���Զ�д + `MqttSessionCapabilities` ���� |
-| ��Ϣ���ڼ�� | ?? | `MessageExpiryInterval` ���Զ�д�������ַ�ʱδ�����ڣ������ޣ� |
-| ����˶Ͽ����� | ? | `DisconnectMessage` ֧�� ReasonCode + Properties������˿������Ͽ���Я��ԭ�� |
-| ����/��Ӧģʽ | ? | `ResponseTopic` + `CorrelationData` ��������֧�� |
-| �������� | ? | `$share/{group}/{topic}` ���� + �������ѯ���ؾ��� |
-| ���ı�ʶ�� | ? | `SubscriptionIdentifier` �䳤�������� |
-| ���������˫�� | ? | �ͻ��ˡ�����ˣ�`ResolveTopicAlias()` ����������ˡ��ͻ��ˣ�`AssignTopicAlias()` �Զ����� |
-| ���أ�Receive Maximum�� | ? | `CanSendQosMessage()` ��� inflight ��Ϣ���Ƿ��� |
-| ����Ĵ�С | ? | `MaximumPacketSize` ���ԣ�`MqttSessionCapabilities` ��¼ |
-| �û����� | ? | `MqttProperties.UserProperties` ��ֵ���б����ɶ�γ��� |
-| ��ǿ��֤ | ? | `AuthMessage` ����ʵ�� + `AuthenticationMethod`/`AuthenticationData` ���� |
-| ����ѡ�� | ? | `NoLocal` / `RetainAsPublished` / `RetainHandling`��3��ģʽ���������+���������ִ�� |
-| ������������� | ? | `BuildConnAckProperties()` �� CONNACK �з��ط����֧�ֵ����� |
-| CONNACK ԭ���루20�֣� | ? | `ConnAckReasonCode` ö�ٴ� `Success` �� `ConnectionRateExceeded` |
-| ���������/Ǩ�� | ? | `ServerReference` ����֧�� |
+| 原因码扩展 | ✅ | 所有 ACK 报文均支持 ReasonCode；`ConnAckReasonCode` 含20种，`PubAck`/`DisconnectMessage` 均有 `ReasonCode` |
+| 会话过期间隔 | ✅ | `SessionExpiryInterval` 属性读写 + `MqttSessionCapabilities` 处理 |
+| 服务端断开报文 | ✅ | `DisconnectMessage` 支持 ReasonCode + Properties，服务端可主动断开并携带原因 |
+| 请求/响应模式 | ✅ | `ResponseTopic` + `CorrelationData` 属性完整支持 |
+| 共享订阅 | ✅ | `$share/{group}/{topic}` 解析 + 服务端轮询负载均衡 |
+| 订阅标识符 | ✅ | `SubscriptionIdentifier` 变长整数属性 |
+| 主题别名（双向） | ✅ | 客户端→服务端：`ResolveTopicAlias()` 解析；服务端→客户端：`AssignTopicAlias()` 自动分配 |
+| 流控（Receive Maximum） | ✅ | `CanSendQosMessage()` 检查 inflight 消息数是否超限 |
+| 最大报文大小 | ✅ | `MaximumPacketSize` 属性，`MqttSessionCapabilities` 记录 |
+| 用户属性 | ✅ | `MqttProperties.UserProperties` 键值对列表，可多次出现 |
+| 增强认证框架 | ✅ | `AuthMessage` 完整实现 + `AuthenticationMethod`/`AuthenticationData` 属性 |
+| 订阅选项 | ✅ | `NoLocal` / `RetainAsPublished` / `RetainHandling`（3种模式），编解码+服务端完整执行 |
+| 服务端能力声明 | ✅ | `BuildConnAckProperties()` 在 CONNACK 中返回服务端支持的能力 |
+| CONNACK 原因码（20种） | ✅ | `ConnAckReasonCode` 枚举从 `Success` 到 `ConnectionRateExceeded` |
+| 服务端引用/迁移 | ✅ | `ServerReference` 属性支持 |
 
-### 3.4 MQTT 5.0 ����ʵ�ֹ���
+### 3.4 MQTT 5.0 部分实现功能
 
-| ���� | ״̬ | ˵�� |
+| 功能 | 状态 | 说明 |
 |------|------|------|
-| �����ӳٷ��� | ?? | `WillDelayInterval` ���Զ�д����������˵�ǰ��������������δʵ���ӳٶ�ʱ�� |
-| ��Ϣ�������� | ?? | `MessageExpiryInterval` ���Զ�д�������ַ�ʱδ����Ƿ���� |
-| ��ǿ��֤���巽�� | ?? | `AuthMessage` ���������֧����ս/��Ӧ����ȱ�� SCRAM-SHA-256 �� SASL ����ʵ�� |
-| ����� KeepAlive ���� | ?? | `ServerKeepAlive` ���Կɶ�д�������δ�� CONNACK ���������� |
+| 遗嘱延迟发布 | ⚠️ | `WillDelayInterval` 属性读写完整，服务端当前立即发布遗嘱，未实现延迟定时器 |
+| 消息过期清理 | ⚠️ | `MessageExpiryInterval` 属性读写完整，分发时未检查是否过期 |
+| 增强认证具体方法 | ⚠️ | `AuthMessage` 框架完整（支持挑战/响应），缺少 SCRAM-SHA-256 等 SASL 具体实现 |
+| 服务端 KeepAlive 覆盖 | ⚠️ | `ServerKeepAlive` 属性可读写，服务端未在 CONNACK 中主动设置 |
 
 ---
 
-## �ġ�����˹�����ϸ����
+## 四、服务端功能详细评估
 
-### 4.1 �Ự����
+### 4.1 会话管理
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| �Ự������ע�� | ? | `MqttExchange.Add()` ConcurrentDictionary ���� |
-| �Ự��ʱ���� | ? | 30�붨ʱɨ�� `RemoveNotAlive()`���������Ծ�Ự |
-| �־ûỰ���ڴ漶�� | ? | `PersistentSession` ���涩�Ĺ�ϵ��������Ϣ |
-| CleanSession=0 �Ự�ָ� | ? | `RestorePersistentSession()` �ָ�����+����������Ϣ |
-| CleanSession=1 ����ɻỰ | ? | `ClearPersistentSession()` |
-| ������Ϣ���� | ? | ConcurrentQueue ���棬1000�����޷���� |
-| ClientId ӳ���ѯ | ? | `RegisterClientId()` + `GetClientIds()` |
-| �Ự���ڼ����5.0�� | ? | `SessionExpiryInterval` ���Ա��� |
-| ���̼��־û� | ? | �ڴ漶����ͨ��ʵ�� `IMqttExchange` ��չ |
+| 会话创建与注册 | ✅ | `MqttExchange.Add()` ConcurrentDictionary 管理 |
+| 会话超时清理 | ✅ | 30秒定时扫描 `RemoveNotAlive()`，清除不活跃会话并断开连接 |
+| 持久会话（内存级） | ✅ | `PersistentSession` 保存订阅关系（ConcurrentDictionary）和离线消息（ConcurrentQueue） |
+| CleanSession=0 会话恢复 | ✅ | `RestorePersistentSession()` 恢复订阅+推送离线消息 |
+| CleanSession=1 清除旧会话 | ✅ | `ClearPersistentSession()` |
+| 离线消息队列 | ✅ | ConcurrentQueue 缓存，1000条上限防溢出 |
+| ClientId 映射查询 | ✅ | `RegisterClientId()` + `GetClientIds()` |
+| 会话过期间隔（5.0） | ✅ | `SessionExpiryInterval` 属性保存在 `MqttSessionCapabilities` |
+| 磁盘级持久化 | ❌ | 内存级，可通过实现 `IMqttExchange` 接口扩展 |
 
-### 4.2 ��Ϣ·����ַ�
+### 4.2 消息路由与分发
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| ���⾫ȷƥ�� | ? | ConcurrentDictionary ֱ�Ӳ��� |
-| ͨ���ƥ�䣨`+`/`#`�� | ? | `MqttTopicFilter.IsMatch()` ���ƥ�� |
-| QoS �����ַ� | ? | �������������� QoS ȡ��Сֵ |
-| Retain ������Ϣ | ? | �洢/���/�¶������� |
-| ������Ϣ�ַ� | ? | �쳣�Ͽ�ʱͨ�� Exchange ���� |
-| ��Ϣ�ط� (DUP=1) | ? | `InflightManager` ��ʱ�ط� |
-| �������ĸ��ؾ��� | ? | `$share/{group}/{topic}` ��ѯ�ַ� |
-| $SYS ϵͳ���� | ? | 17��ϵͳ���ⶨʱ������֧�ֶ��Ĳ�ѯ |
-| NoLocal��5.0�� | ? | ��ת�������������� |
-| RetainAsPublished��5.0�� | ? | ����ԭʼ Retain ��־ת�� |
-| RetainHandling��5.0�� | ? | 3��ģʽ��0=����ʱ����/1=���¶���/2=������ |
-| �������������5.0�� | ? | �ͻ��ˡ�����˱���ӳ�� + ����ˡ��ͻ��˱������� |
-| ���ؼ�飨5.0�� | ? | `CanSendQosMessage()` ���� QoS>0 ������ |
+| 主题精确匹配 | ✅ | ConcurrentDictionary 直接查找 |
+| 通配符匹配（`+`/`#`） | ✅ | `MqttTopicFilter.IsMatch()` 逐层匹配 |
+| QoS 降级分发 | ✅ | 按订阅者声明的 QoS 取较小值 |
+| Retain 保留消息 | ✅ | 存储/清除/新订阅推送 |
+| 遗嘱消息分发 | ✅ | 异常断开时通过 Exchange 和 ClusterExchange 发布 |
+| 消息重发 (DUP=1) | ✅ | `InflightManager` 超时重发，1秒定时检查 |
+| 共享订阅负载均衡 | ✅ | `$share/{group}/{topic}` 轮询分发，`_sharedGroupIndex` 计数 |
+| $SYS 系统主题 | ✅ | 14种系统主题定时发布，支持订阅查询 |
+| NoLocal（5.0） | ✅ | 不转发给发布者自身，通过 `publisherSessionId` 参数过滤 |
+| RetainAsPublished（5.0） | ✅ | 保留原始 Retain 标志转发 |
+| RetainHandling（5.0） | ✅ | 3种模式：0=订阅时发送/1=仅新订阅/2=不发送 |
+| 主题别名解析（5.0） | ✅ | 客户端→服务端：`ResolveTopicAlias()`；服务端→客户端：`AssignTopicAlias()` |
+| 流控检查（5.0） | ✅ | `CanSendQosMessage()` 限制 QoS>0 并发数 |
+| $SYS 主题独立分发 | ✅ | $SYS 消息仅发送给显式订阅了 `$SYS/` 前缀的订阅者 |
 
-### 4.3 ��ȫ����֤
+### 4.3 安全与认证
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| �û���/������֤ | ? | `IMqttAuthenticator.Authenticate()` |
-| TLS/SSL ���� | ? | X509 ֤�飬֧�� pfx/pem |
-| ����Ȩ�� ACL | ? | `AuthorizePublish()` ���⼶��� |
-| ����Ȩ�� ACL | ? | `AuthorizeSubscribe()` ���⼶��� |
-| ��ǿ��֤��ܣ�5.0�� | ? | `AuthMessage` ��ս/��Ӧ���� |
-| Ĭ����֤�� | ? | `DefaultMqttAuthenticator` ȫ�����У����㿪������ |
+| 用户名/密码认证 | ✅ | `IMqttAuthenticator.Authenticate()` 可插拔接口 |
+| TLS/SSL 加密 | ✅ | X509 证书，支持 pfx/pem |
+| 发布权限 ACL | ✅ | `AuthorizePublish()` 主题级检查，失败返回 ReasonCode=0x87 |
+| 订阅权限 ACL | ✅ | `AuthorizeSubscribe()` 主题级检查，失败返回 QoS=0x80 |
+| 增强认证框架（5.0） | ✅ | `AuthMessage` 挑战/响应流程，Process 中路由到 `OnAuth()` |
+| 默认认证器 | ✅ | `DefaultMqttAuthenticator` 全部放行，方便开发测试 |
 
-### 4.4 ��Ⱥ����
+### 4.4 集群功能
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| �ֶ����ýڵ� | ? | `ClusterNodes` ָ����ַ�б� |
-| ��Ⱥ�˿ڶ��� | ? | Ĭ��2883���� MQTT �˿ڷ��� |
-| Join ���뼯Ⱥ | ? | ����ʱ�� N-1 �ڵ㷢�� Join |
-| Ping �������� | ? | 15���� Ping ���нڵ� |
-| Leave �˳���Ⱥ | ? | ֹͣʱ֪ͨ���нڵ� |
-| ��ʱ�ڵ��޳� | ? | ��������Ծʱ���Զ����� |
-| ��ڵ㶩��ͬ�� | ? | `ClusterExchange.Subscribe()` �㲥���Ĺ�ϵ |
-| ��ڵ���Ϣת�� | ? | `ClusterExchange.Publish()` ��ƥ��ڵ�ת�� |
-| �Զ��ڵ㷢�� | ? | ��ǰ��֧���ֶ����� |
+| 手动配置节点 | ✅ | `ClusterNodes` 指定地址列表 |
+| 集群端口独立 | ✅ | 默认2883，与 MQTT 端口分离，基于 `ApiServer` |
+| Ping 心跳保活 | ✅ | 15秒间隔 Ping 所有节点 |
+| 超时节点剔除 | ✅ | 5分钟不活跃自动清理 |
+| 跨节点订阅同步 | ✅ | `ClusterExchange.Subscribe()` 并行广播订阅关系到所有节点 |
+| 跨节点取消订阅 | ✅ | `ClusterExchange.Unsubscribe()` 并行广播退订到所有节点 |
+| 跨节点消息转发 | ✅ | `ClusterExchange.Publish()` 向匹配节点转发，主题过滤器匹配 |
+| 节点本地环回过滤 | ✅ | `AddNode()` 跳过本机地址，本地环回替换为外网 IP |
+| 自动节点发现 | ❌ | 当前仅支持手动配置 |
 
-### 4.5 ��ҵ����չ����
+### 4.5 企业级扩展功能
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| **��Ϣ�Žӣ�˫��** | ? | `MqttBridge` ֧�� In/Out/Both ���ַ�������ǰ׺ӳ�䣬QoS ���޿��� |
-| **�������棨5�ֶ�����** | ? | Republish ת�� / WebHook ���� / Bridge �Ž� / Drop ���� / Custom �Զ���ί�� |
-| **WebHook �¼�����** | ? | 7���¼�������/�Ͽ�/����/Ͷ��/����/�˶����첽��������֧������ |
-| **����ͳ��** | ? | `MqttStats` ������/��Ϣ��/�ֽ���/������/���ʣ�1�뻬������ |
-| **$SYS ϵͳ����** | ? | 17�ֱ�׼���⣬���䷢�������Ĭ��60�룩 |
-| **ProxyProtocol** | ? | ֧�� nginx/HAProxy ����Э�� v1/v2��͸����ʵ�ͻ��� IP |
+| **消息桥接（双向）** | ✅ | `MqttBridge` 支持 In/Out/Both 三种方向，主题前缀映射，QoS 上限控制，断线重连 |
+| **规则引擎（5种动作）** | ✅ | Republish 转发 / WebHook 触发 / Bridge 桥接 / Drop 丢弃 / Custom 自定义委托 |
+| **WebHook 事件推送** | ✅ | 6种事件：连接/断开/发布/投递/订阅/退订，异步非阻塞，支持重试（默认3次） |
+| **运行统计** | ✅ | `MqttStats` 连接数/消息数/字节数/订阅数/速率，1秒滑动窗口计算 |
+| **$SYS 系统主题** | ✅ | 14种标准主题，可配发布间隔（默认60秒），`EnableSysTopic` 可关闭 |
+| **ProxyProtocol** | ✅ | 支持 nginx/HAProxy 代理协议 v1/v2，透传真实客户端 IP，`ProxyMessageV2` 支持 v2 |
 
-### 4.6 $SYS ϵͳ�����б�
+### 4.6 $SYS 系统主题列表
 
-| ���� | ˵�� |
+| 主题 | 说明 |
 |------|------|
-| `$SYS/broker/clients/connected` | ��ǰ���������� |
-| `$SYS/broker/clients/total` | �ۼ��������� |
-| `$SYS/broker/clients/maximum` | ���ͬʱ���������� |
-| `$SYS/broker/messages/received` | �ۼƽ�����Ϣ�� |
-| `$SYS/broker/messages/sent` | �ۼƷ�����Ϣ�� |
-| `$SYS/broker/messages/received/persecond` | ÿ�������Ϣ�� |
-| `$SYS/broker/messages/sent/persecond` | ÿ�뷢����Ϣ�� |
-| `$SYS/broker/bytes/received` | �ۼƽ����ֽ��� |
-| `$SYS/broker/bytes/sent` | �ۼƷ����ֽ��� |
-| `$SYS/broker/subscriptions/count` | ��ǰ������ |
-| `$SYS/broker/topics/count` | ��ǰ������ |
-| `$SYS/broker/retained messages/count` | ������Ϣ�� |
-| `$SYS/broker/uptime` | ����ʱ�����룩 |
-| `$SYS/broker/version` | Broker �汾�� |
+| `$SYS/broker/clients/connected` | 当前在线连接数 |
+| `$SYS/broker/clients/total` | 累计连接总数 |
+| `$SYS/broker/clients/maximum` | 最大同时在线连接数 |
+| `$SYS/broker/messages/received` | 累计接收消息数 |
+| `$SYS/broker/messages/sent` | 累计发送消息数 |
+| `$SYS/broker/messages/received/persecond` | 每秒接收消息数 |
+| `$SYS/broker/messages/sent/persecond` | 每秒发送消息数 |
+| `$SYS/broker/bytes/received` | 累计接收字节数 |
+| `$SYS/broker/bytes/sent` | 累计发送字节数 |
+| `$SYS/broker/subscriptions/count` | 当前订阅数 |
+| `$SYS/broker/topics/count` | 当前主题数 |
+| `$SYS/broker/retained messages/count` | 保留消息数 |
+| `$SYS/broker/uptime` | 运行时长（秒） |
+| `$SYS/broker/version` | Broker 版本号 |
 
 ---
 
-## �塢�ͻ��˹�����ϸ����
+## 五、客户端功能详细评估
 
-| ���� | ״̬ | ʵ��˵�� |
+| 功能 | 状态 | 实现说明 |
 |------|------|---------|
-| TCP ���� | ? | `tcp://host:port` |
-| TLS/SSL ���� | ? | ���� `SslProtocol` + `Certificate` |
-| WebSocket ���� | ? | `ws://host:port/path` |
-| WSS ���� | ? | `wss://host:port/path`���Զ����� TLS |
-| QUIC ���� | ? | `MqttQuicClient`��.NET 9+ ƽ̨ |
-| �ɿ� UDP ���� | ? | `MqttUdpClient`��ȫƽ̨ |
-| �����ַ�����ʼ�� | ? | `Init("Server=;UserName=;Password=")` |
-| MQTT 3.1/3.1.1/5.0 �汾ѡ�� | ? | `Version` ���ԣ�Ĭ�� V311 |
-| ���� QoS 0/1/2 | ? | `PublishAsync()` �����Ĳ�ȷ�� |
-| ����/�˶����ص��󶨣� | ? | `SubscribeAsync()` ֧�ֶ�����+�ص� |
-| ������Ϣ | ? | `WillTopic`/`WillMessage`/`WillQoS`/`WillRetain` |
-| ����������ָ���˱ܣ� | ? | `2^n` �˱ܲ��ԣ������ʼ/����ӳ�/������ |
-| �������Զ��ض��� | ? | ά�� `_subs` �ֵ䣬�������Զ��ط� |
-| �������� | ? | KeepAlive �����ڶ�ʱ Ping |
-| ��Ϣ�ط���Inflight�� | ? | `InflightManager` DUP=1 ��ʱ�ط� |
-| ���������滻 | ? | `IPacketEncoder Encoder`��Ĭ�� JSON |
-| ���ܸ��٣�ITracer�� | ? | ÿ������/���ղ������� Span ��� |
-| NoDelay ���ӳ� | ? | TCP ����Ĭ�Ϲر� Nagle �㷨 |
-| �ظ����ķ��� | ? | `_subs` �ֵ�ȥ�� |
-| ����/�Ͽ��¼� | ? | `Connected`/`Disconnected` �¼� |
-| �յ���Ϣ�¼� | ? | `Received` �¼���ȫ�֣� + ���Ļص��������⣩ |
-| ��ʱ�����ؽ����� | ? | ����3�γ�ʱ�Զ����٣��´������ؽ� |
-| ������ IoT ���� | ? | `AliyunMqttClient` ���� HMAC ǩ�� + �����ϱ� + ʱ��ͬ�� |
+| TCP 连接 | ✅ | `tcp://host:port`，`NetUri` 解析 |
+| TLS/SSL 连接 | ✅ | 设置 `SslProtocol` + `Certificate`，支持 TLS 1.2+ |
+| WebSocket 连接 | ✅ | `ws://host:port/path`，`WebSocketClientCodec` 编解码 |
+| WSS 连接 | ✅ | `wss://host:port/path`，自动启用 TLS |
+| QUIC 连接 | ✅ | `MqttQuicClient`，.NET 7+ 平台，ALPN 协议 "mqtt"（.NET 7/8 需启用预览特性） |
+| 可靠 UDP 连接 | ✅ | `MqttUdpClient`，全平台，帧格式：Data/Ack/Connect/ConnAck/Close |
+| 连接字符串初始化 | ✅ | `Init("Server=;UserName=;Password=;ClientId=;Timeout=")`，支持逗号和分号分隔 |
+| MQTT 3.1/3.1.1/5.0 版本选择 | ✅ | `Version` 属性，默认 V311 |
+| 发布 QoS 0/1/2 | ✅ | `PublishAsync()` 完整四步确认 |
+| 订阅/退订（回调绑定） | ✅ | `SubscribeAsync()` 支持多主题+回调 |
+| 遗嘱消息 | ✅ | `WillTopic`/`WillMessage`/`WillQoS`/`WillRetain` |
+| 断线重连（指数退避） | ✅ | `2^n` 退避策略，可配 `InitialReconnectDelay`/`MaxReconnectDelay`/`MaxReconnectAttempts` |
+| 重连后自动重订阅 | ✅ | 维护 `_subs` 字典，`ConnectAsync()` 中自动重发 |
+| 心跳保活 | ✅ | KeepAlive 半周期定时 Ping（`TimerX`） |
+| 消息重发（Inflight） | ✅ | 客户端独立 `InflightManager`，DUP=1 超时重发 |
+| 编码器可替换 | ✅ | `IPacketEncoder Encoder`，默认 JSON |
+| 性能跟踪（ITracer） | ✅ | 每个 Send/Receive 操作均有 Span 埋点 |
+| NoDelay 低延迟 | ✅ | TCP 连接默认关闭 Nagle 算法 |
+| 重复订阅防护 | ✅ | `_subs` 字典去重 |
+| 连接/断开事件 | ✅ | `Connected`/`Disconnected` 事件 |
+| 收到消息事件 | ✅ | `Received` 事件（全局） + 订阅回调（按主题通配符模糊匹配） |
+| 超时销毁重建连接 | ✅ | 连续3次 `TaskCanceledException` 自动销毁，下次请求重建 |
+| 异步锁连接保护 | ✅ | `SemaphoreSlim` 双重检查，防止并发连接 |
+| 阿里云 IoT 适配 | ✅ | `AliyunMqttClient` 内置 `MqttSign` HMAC 签名 + 属性上报 + 时钟同步 |
 
 ---
 
-## ��������������Ʒ�Ա�
+## 六、社区主流产品对比
 
-### 6.1 MQTT ����˶Ա�
+### 6.1 MQTT 服务端对比
 
-| ���� | EMQX | Mosquitto | HiveMQ | VerneMQ | **NewLife.MQTT** |
+| 功能 | EMQX | Mosquitto | HiveMQ | VerneMQ | **NewLife.MQTT** |
 |------|------|-----------|--------|---------|-----------------|
-| MQTT 3.1.1 ����֧�� | ? | ? | ? | ? | ? |
-| MQTT 5.0 ����֧�� | ? | ? | ? | ? | ? �������� |
-| WebSocket | ? | ? | ? | ? | ? |
-| MQTT over QUIC | ? | ? | ? | ? | ? (.NET 9+) |
-| MQTT over �ɿ�UDP | ? | ? | ? | ? | ? ȫƽ̨ |
-| QoS 0/1/2 | ? | ? | ? | ? | ? |
-| Retain / Will | ? | ? | ? | ? | ? |
-| �������� | ? | ? (v2.0+) | ? | ? | ? |
-| �־ûỰ | ? ���� | ? ���� | ? ���� | ? ���� | ? �ڴ棨����չ�� |
-| ��Ϣ�Ž� | ? | ? | ��ҵ�� | ��� | ? ���� |
-| �������� | ? | ? | ��ҵ�� | ? | ? ���� |
-| WebHook | ? | ? | ��ҵ�� | ��� | ? ���� |
-| ACL Ȩ�� | ? | ? | ? | ? | ? |
-| $SYS ϵͳ���� | ? | ? | ? | ? | ? |
-| ��Ⱥ | ? �Զ� | ? | ��ҵ�� | ? | ? �ֶ� |
-| HTTP ���� API | ? | ��� | ? | ? | ? |
-| Dashboard | ? | ? | ? | ? | ? |
-| ���/��չϵͳ | ? | ? | ? | ? | ? DI ע�� |
-| ���������5.0�� | ? | ? | ? | ? | ? |
-| ���أ�5.0�� | ? | ? | ? | ? | ? |
-| ProxyProtocol | ? | ? | ? | ? | ? |
-| ��ԴЭ�� | Apache 2.0 | EPL/EDL | ��ҵ | Apache 2.0 | **MIT** |
-| ʵ������ | Erlang | C | Java | Erlang | **C# (.NET)** |
-| ���������� | ���� | ���� | ���� | ���� | **������** |
-| �ͻ���+�����һ�� | ? | ? | ? | ? | **?** |
+| MQTT 3.1.1 完整支持 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MQTT 5.0 完整支持 | ✅ | ✅ | ✅ | ✅ | ✅ 核心完整 |
+| WebSocket | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MQTT over QUIC | ✅ | ❌ | ❌ | ❌ | ✅ (.NET 7+) |
+| MQTT over 可靠UDP | ❌ | ❌ | ❌ | ❌ | ✅ 全平台 |
+| QoS 0/1/2 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Retain / Will | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 共享订阅 | ✅ | ✅ (v2.0+) | ✅ | ✅ | ✅ |
+| 持久会话 | ✅ 磁盘 | ✅ 磁盘 | ✅ 磁盘 | ✅ 磁盘 | ✅ 内存（可扩展） |
+| 消息桥接 | ✅ | ❌ | 企业版 | 插件 | ✅ 内置 |
+| 规则引擎 | ✅ | ❌ | 企业版 | ❌ | ✅ 内置 |
+| WebHook | ✅ | ❌ | 企业版 | 插件 | ✅ 内置 |
+| ACL 权限 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| $SYS 系统主题 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 集群 | ✅ 自动 | ❌ | 企业版 | ✅ | ✅ 手动 |
+| HTTP 管理 API | ✅ | 插件 | ✅ | ✅ | ❌ |
+| Dashboard | ✅ | ❌ | ✅ | ❌ | ❌ |
+| 插件/扩展系统 | ✅ | ✅ | ✅ | ✅ | ✅ DI 注入 |
+| 主题别名（5.0） | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 流控（5.0） | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ProxyProtocol | ✅ | ❌ | ❌ | ❌ | ✅ |
+| 开源协议 | Apache 2.0 | EPL/EDL | 商业 | Apache 2.0 | **MIT** |
+| 实现语言 | Erlang | C | Java | Erlang | **C# (.NET)** |
+| 第三方依赖 | 大量 | 少量 | 大量 | 大量 | **零依赖** |
+| 客户端+服务端一体 | ❌ | ❌ | ❌ | ❌ | **✅** |
 
-### 6.2 MQTT �ͻ��˶Ա�
+### 6.2 MQTT 客户端对比
 
-| ���� | MQTTnet | Eclipse Paho C# | **NewLife.MQTT** |
+| 功能 | MQTTnet | Eclipse Paho C# | **NewLife.MQTT** |
 |------|---------|-----------------|-----------------|
-| MQTT 3.1.1 | ? | ? | ? |
-| MQTT 5.0 | ? | ? | ? |
-| TCP/TLS/WS/WSS | ? | ? | ? |
-| MQTT over QUIC | ? | ? | ? (.NET 9+) |
-| MQTT over �ɿ�UDP | ? | ? | ? |
-| QoS 0/1/2 | ? | ? | ? |
-| �Զ����� | ? | ? | ? ָ���˱� |
-| �������Զ��ض��� | ? ���ֶ� | ? | ? �Զ� |
-| ��Ϣ�ط���Inflight�� | ? | ? | ? |
-| �����ַ�����ʼ�� | ? | ? | ? |
-| ������ IoT ���� | ? | ? | ? ���� |
-| ������Ϣ | ? | ? | ? |
-| ���������滻 | ? | ? | ? |
-| ���ܸ��� | ? | ? | ? ITracer |
-| ProxyProtocol | ? | ? | ? |
-| ���÷���� | ? | ? | ? |
-| ��ԴЭ�� | MIT | EPL 2.0 | **MIT** |
-| ���������� | ���� | �� | **������** |
+| MQTT 3.1.1 | ✅ | ✅ | ✅ |
+| MQTT 5.0 | ✅ | ✅ | ✅ |
+| TCP/TLS/WS/WSS | ✅ | ✅ | ✅ |
+| MQTT over QUIC | ❌ | ❌ | ✅ (.NET 7+) |
+| MQTT over 可靠UDP | ❌ | ❌ | ✅ |
+| QoS 0/1/2 | ✅ | ✅ | ✅ |
+| 自动重连 | ✅ | ✅ | ✅ 指数退避 |
+| 重连后自动重订阅 | ❌ 需手动 | ❌ | ✅ 自动 |
+| 消息重发（Inflight） | ✅ | ✅ | ✅ |
+| 连接字符串初始化 | ❌ | ❌ | ✅ |
+| 阿里云 IoT 适配 | ❌ | ❌ | ✅ 内置 |
+| 遗嘱消息 | ✅ | ✅ | ✅ |
+| 编码器可替换 | ❌ | ❌ | ✅ |
+| 性能跟踪 | ❌ | ❌ | ✅ ITracer |
+| ProxyProtocol | ❌ | ❌ | ✅ |
+| 内置服务端 | ❌ | ❌ | ✅ |
+| 开源协议 | MIT | EPL 2.0 | **MIT** |
+| 第三方依赖 | 少量 | 多 | **零依赖** |
 
-### 6.3 NewLife.MQTT ���컯����
+### 6.3 NewLife.MQTT 差异化优势
 
-| ���� | ��ϸ˵�� |
+| 优势 | 详细说明 |
 |------|---------|
-| **�����������** | ������ NewLife.Core �����⣬�޹�Ӧ����ȫ���գ�������֤��ͻ |
-| **MIT ��ԴЭ��** | ����ɵĿ�ԴЭ�飬�������޸����ã��� copyleft ���ƣ���ר������ |
-| **�ͻ���+�����һ��** | ��һ `NewLife.MQTT` NuGet ��ͬʱ�ṩ�ͻ��˺ͷ���ˣ����򼯳� |
-| **ȫ�汾 .NET ����** | .NET Framework 4.5 ~ .NET 9�������������� .NET ����ʱ |
-| **���ִ���Э��** | TCP/TLS/WS/WSS/QUIC/�ɿ�UDP��ҵ�縲������� |
-| **MQTT over QUIC** | ҵ�纱������ EMQX �� NewLife.MQTT ֧�֣����ӳ��޶�ͷ���� |
-| **MQTT over �ɿ�UDP** | �������У��������ϵͳ QUIC ֧�֣�ȫƽ̨���� |
-| **��ҵ�����������** | �Ž�/��������/WebHook/ͳ��/$SYS����Ʒ����ҵ��򸶷Ѳ�� |
-| **�����������з�** | ��ȫ����֪ʶ��Ȩ�����ⲿ�������ɷ��գ��Ŵ��Ϲ� |
-| **ProxyProtocol ֧��** | ֧�� nginx/HAProxy ����Э�飬͸����ʵ�ͻ��� IP |
-| **������ IoT ��������** | `AliyunMqttClient` ���伴�ã������������ |
-| **DI ��չ�ܹ�** | ��������ע��Ŀ���չ�ܹ������滻��֤������������������ |
+| **零第三方依赖** | 仅依赖 NewLife.Core 基础库，无供应链安全风险，无许可证冲突 |
+| **MIT 开源协议** | 最宽松的开源协议，可自由修改商用，无 copyleft 限制，无专利条款，无法律风险 |
+| **客户端+服务端一体** | 单一 `NewLife.MQTT` NuGet 包同时提供客户端和服务端，极简集成 |
+| **全版本 .NET 覆盖** | .NET Framework 4.5 ~ .NET 10，覆盖所有主流 .NET 运行时 |
+| **六种传输协议** | TCP/TLS/WS/WSS/QUIC/可靠UDP，业界覆盖面最广 |
+| **MQTT over QUIC** | 业界罕见，仅 EMQX 和 NewLife.MQTT 支持，低延迟无队头阻塞，.NET 7+ 支持（7/8 需启用预览特性） |
+| **MQTT over 可靠UDP** | 独创自研，4字节帧头+序列号+Ack确认+超时重发，无需操作系统 QUIC/msquic 支持，全平台可用 |
+| **企业功能免费内置** | 桥接/规则引擎/WebHook/统计/$SYS，竞品需企业版或付费插件 |
+| **纯国产自主研发** | 完全自主知识产权，无外部依赖法律风险，信创合规 |
+| **ProxyProtocol 支持** | 支持 nginx/HAProxy 代理协议 v1/v2，透传真实客户端 IP |
+| **阿里云 IoT 内置适配** | `AliyunMqttClient` 开箱即用，HMAC 签名认证 |
+| **DI 扩展架构** | 基于依赖注入的可扩展架构，可替换认证器（`IMqttAuthenticator`）、交换机（`IMqttExchange`）、处理器（`IMqttHandler`） |
+| **重连后自动重订阅** | 竞品（MQTTnet/Paho）断线重连后需要用户手动重新订阅，NewLife.MQTT 自动完成 |
 
 ---
 
-## �ߡ���֪�������ݽ�����
+## 七、已知局限与演进方向
 
-### 7.1 ��ǰ����
+### 7.1 当前局限
 
-| # | ���� | Ӱ�� | ���з��� |
+| # | 描述 | 影响 | 可行方案 |
 |---|------|------|---------|
-| 1 | �Ự�־û����ڴ漶������������ʧ | ��Ӱ�� CleanSession=1 ���� | ʵ�� `IMqttExchange` �ӿڶԽ� Redis/���ݿ� |
-| 2 | �����ӳٷ���δʵ�ֶ�ʱ�� | ������Ϣ���������������� `WillDelayInterval` | ���� TimerX �ӳٶ��� |
-| 3 | ��Ϣ���ڷַ�ʱδ��� | ������Ϣ�Կ������͸������� | �� `Publish()` �ַ�ʱ��� `MessageExpiryInterval` |
-| 4 | ��Ⱥȱ���Զ����� | ���ֶ����ýڵ��ַ���ʺ�С��ģ��Ⱥ | ���� mDNS/Consul/Stardust ע������ |
-| 5 | ȱ�� HTTP ���� API | �޷�ͨ�� API ��ѯ/���� Broker ״̬ | ���� WebApi ���� RESTful �����ӿ� |
-| 6 | ȱ�� Dashboard | �޿��ӻ��������� | ���� Web UI ��Խ� Grafana |
-| 7 | ��ǿ��֤ȱ�� SASL ����ʵ�� | AUTH ���������ȱ�ٿ��伴�õ���֤���� | ʵ�� SCRAM-SHA-256 �ȱ�׼���� |
+| 1 | 会话持久化仅内存级，服务重启后丢失 | 不影响 CleanSession=1 场景 | 实现 `IMqttExchange` 接口对接 Redis/数据库 |
+| 2 | 遗嘱延迟发布未实现定时器 | 遗嘱消息立即发布，不遵守 `WillDelayInterval` | 添加 TimerX 延迟队列 |
+| 3 | 消息过期分发时未检查 | 过期消息仍可能推送给订阅者 | 在 `Publish()` 分发时检查 `MessageExpiryInterval` |
+| 4 | 集群缺少自动发现 | 需手动配置节点地址，适合小规模集群 | 集成 mDNS/Consul/Stardust 注册中心 |
+| 5 | 缺少 HTTP 管理 API | 无法通过 API 查询/管理 Broker 状态 | 基于 WebApi 添加 RESTful 管理接口 |
+| 6 | 缺少 Dashboard | 无可视化管理界面 | 集成 Web UI 或对接 Grafana |
+| 7 | 增强认证缺少 SASL 具体实现 | AUTH 框架完整但缺少开箱即用的认证方法 | 实现 SCRAM-SHA-256 等标准方法 |
 
-### 7.2 �ݽ�����
+### 7.2 演进方向
 
-| ���ȼ� | ���� | ˵�� |
+| 优先级 | 功能 | 说明 |
 |--------|------|------|
-| �� | ��Ϣ�������� | �ַ�ʱ��� `MessageExpiryInterval`��������Ϣ������ |
-| �� | �Ự���̳־û� | �ṩ Redis/SQLite �־û� `IMqttExchange` ʵ�� |
-| �� | �����ӳٷ��� | ʵ�� `WillDelayInterval` �ӳٶ��� |
-| �� | HTTP ���� API | RESTful API ��ѯ����/����/ͳ��/���� |
-| �� | ����� KeepAlive ���� | CONNACK ���������� `ServerKeepAlive` |
-| �� | Dashboard | Web ���ӻ��������� |
-| �� | ��Ⱥ�Զ����� | mDNS / ע�����ļ��� |
-| �� | SASL ��֤ʵ�� | SCRAM-SHA-256 �ȱ�׼��֤���� |
+| 高 | 消息过期清理 | 分发时检查 `MessageExpiryInterval`，过期消息不推送 |
+| 高 | 会话磁盘持久化 | 提供 Redis/SQLite 持久化 `IMqttExchange` 实现 |
+| 中 | 遗嘱延迟发布 | 实现 `WillDelayInterval` 延迟队列 |
+| 中 | HTTP 管理 API | RESTful API 查询连接/主题/统计/配置 |
+| 中 | 服务端 KeepAlive 覆盖 | CONNACK 中主动设置 `ServerKeepAlive` |
+| 低 | Dashboard | Web 可视化管理界面 |
+| 低 | 集群自动发现 | mDNS / 注册中心集成 |
+| 低 | SASL 认证实现 | SCRAM-SHA-256 等标准认证方法 |
 
 ---
 
-## �ˡ��ܽ�����
+## 八、总结评分
 
-| ά�� | ���� | ˵�� |
+| 维度 | 评分 | 说明 |
 |------|------|------|
-| MQTT 3.1.1 Э�� | ������ 100% | 14�ֱ���ȫ��ʵ�֣��̶�ͷ��/QoS/Retain/Will �������� |
-| MQTT 5.0 Э�� | ������ 90% | 30������/AUTH/ԭ����/����/����/����ѡ�������������ӳٺ���Ϣ���ڴ����� |
-| �ͻ��˹��� | ������ 95% | ���ִ���/����/�ض���/Inflight/ITracer/���������� |
-| ����˹��� | ������ 92% | Retain/Will/Session/ACL/$SYS/�Ž�/����/WebHook/��Ⱥ |
-| ��ҵ��չ | ������ 88% | �Ž�/��������/WebHook/ͳ��������ã�ȱ HTTP API/Dashboard |
-| ��Ⱥ���� | ������ 65% | ����ͬ��/��Ϣת��/�������ȱ�Զ����� |
-| ��ȫ���� | ������ 85% | TLS/ACL/��֤���������ȱ SASL ����ʵ�� |
-| ����Э�� | ������ 98% | TCP/TLS/WS/WSS/QUIC/UDP ���ִ��䣬ҵ����ȫ |
+| MQTT 3.1.1 协议 | ★★★★★ 100% | 14种报文全部实现，固定头部/QoS/Retain/Will 语义完整 |
+| MQTT 5.0 协议 | ★★★★☆ 90% | 30种属性/AUTH/原因码/别名/流控/订阅选项完整，遗嘱延迟和消息过期待完善 |
+| 客户端功能 | ★★★★★ 95% | 六种传输/重连/重订阅/Inflight/ITracer/阿里云适配 |
+| 服务端功能 | ★★★★☆ 92% | Retain/Will/Session/ACL/$SYS/桥接/规则/WebHook/集群 |
+| 企业扩展 | ★★★★☆ 88% | 桥接/规则引擎/WebHook/统计免费内置，缺 HTTP API/Dashboard |
+| 集群能力 | ★★★☆☆ 65% | 订阅同步/消息转发/心跳保活，缺自动发现 |
+| 安全能力 | ★★★★☆ 85% | TLS/ACL/认证框架完整，缺 SASL 具体实现 |
+| 传输协议 | ★★★★★ 98% | TCP/TLS/WS/WSS/QUIC/UDP 六种传输，业界最全 |
 
-**�ܽ᣺** NewLife.MQTT ��һ��**����������������MIT ��Դ**�� MQTT ����Э��ʵ�֡�MQTT 3.1.1 ȫ��֧�֣�14/14���ģ���MQTT 5.0 ���Ĺ���������30/30���ԡ�AUTH ���ġ�ԭ���롢������������ء�����ѡ������ִ���Э�鸲����ҵ����㣨TCP/TLS/WS/WSS/QUIC/UDP���������Ž�/��������/WebHook/ͳ�Ƶ���ҵ�����ܡ��ڿ�Դ MQTT ʵ���У�MQTT over QUIC��MQTT over �ɿ�UDP����ҵ�������������������ˮƽ��ProxyProtocol ֧�ֺͿͻ���+�����һ�廯����Ϊ�������ơ�
+**总结：** NewLife.MQTT 是一个**纯国产、零依赖、MIT 开源**的 MQTT 完整协议实现。MQTT 3.1.1 全面支持（14/14报文），MQTT 5.0 核心功能完整（30/30属性、AUTH 报文、原因码、主题别名、流控、订阅选项），六种传输协议覆盖面业界最广（TCP/TLS/WS/WSS/QUIC/UDP），内置桥接/规则引擎/WebHook/统计等企业级功能。在开源 MQTT 实现中，MQTT over QUIC、MQTT over 可靠UDP、企业功能免费内置属于领先水平，ProxyProtocol 支持和客户端+服务端一体化交付为独特优势。

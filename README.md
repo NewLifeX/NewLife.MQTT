@@ -1,4 +1,4 @@
-# NewLife.MQTT - MQTT协议
+# NewLife.MQTT - 纯国产 MQTT 协议完整实现
 
 ![GitHub top language](https://img.shields.io/github/languages/top/newlifex/newlife.mqtt?logo=github)
 ![GitHub License](https://img.shields.io/github/license/newlifex/newlife.mqtt?logo=github)
@@ -6,11 +6,48 @@
 ![Nuget](https://img.shields.io/nuget/v/newlife.mqtt?logo=nuget)
 ![Nuget (with prereleases)](https://img.shields.io/nuget/vpre/newlife.mqtt?label=dev%20nuget&logo=nuget)
 
-MQTT协议是物联网领域最流行的通信协议！  
-`NewLife.MQTT`包含了MQTT的完整实现，并实现了客户端`MqttClient`，以及服务端`MqttServer`。  
-其中MqttServer仅实现基本网络框架，支持消息收发，完整的消息交换功能位于商用版IoT平台[FIoT](https://newlifex.com/iot/fiot)中。  
+**NewLife.MQTT** 是一个**纯国产自主研发、零第三方依赖、MIT 开源**的 MQTT 完整协议实现，同时包含客户端 `MqttClient` 和服务端 `MqttServer`，以单一 NuGet 包形式交付。
 
-## MQTT协议
+## 核心特点
+
+| 特点 | 说明 |
+|------|------|
+| 🚀 **协议完整** | MQTT 3.1.1 全面支持（14种报文）+ MQTT 5.0 核心功能完整（30种属性） |
+| 🔒 **零依赖** | 仅依赖 NewLife.Core 基础库，无供应链安全风险，无许可证冲突 |
+| ⚖️ **MIT 开源** | 最宽松的开源协议，可自由修改商用，无 copyleft 限制，无专利条款，无法律风险 |
+| 🎯 **客户端+服务端一体** | 单一 `NewLife.MQTT` NuGet 包同时提供客户端和服务端，极简集成 |
+| 🌐 **六种传输协议** | TCP / TLS / WebSocket / WSS / QUIC(.NET 7+) / 可靠UDP，业界覆盖面最广 |
+| 🏢 **企业功能免费** | 集群/桥接/规则引擎/WebHook/统计/$SYS，竞品需企业版或付费插件 |
+| 🇨🇳 **纯国产自主** | 完全自主知识产权，无外部依赖法律风险，信创合规 |
+| 🔧 **全版本覆盖** | .NET Framework 4.5 / 4.6.1 / .NET Standard 2.0/2.1 / .NET 7/8/9/10 |
+
+## 差异化优势
+
+### 1. MQTT over QUIC（业界罕见）
+- **仅 EMQX 和 NewLife.MQTT 支持**
+- 低延迟、无队头阻塞
+- .NET 7+ 平台可用（.NET 7/8 需启用预览特性，.NET 9+ 为稳定版本）
+
+### 2. MQTT over 可靠 UDP（独创自研）
+- **业界独有**
+- 4字节帧头 + 序列号 + Ack确认 + 超时重发
+- 无需操作系统 QUIC/msquic 支持，全平台可用
+
+### 3. 企业功能内置免费
+- **消息桥接（双向）：** 支持 In/Out/Both 三种方向，主题前缀映射，QoS 上限控制
+- **规则引擎（5种动作）：** Republish / WebHook / Bridge / Drop / Custom
+- **WebHook 事件推送：** 6种事件，异步非阻塞，支持重试
+- **集群支持：** 手动配置节点，跨节点订阅同步与消息转发
+- **ProxyProtocol：** 支持 nginx/HAProxy 代理协议 v1/v2，透传真实客户端 IP
+- **$SYS 系统主题：** 14种标准主题，实时运行统计
+
+### 4. 重连后自动重订阅
+竞品（MQTTnet / Eclipse Paho）断线重连后需要用户**手动重新订阅**，NewLife.MQTT **自动完成**。
+
+### 5. 阿里云 IoT 内置适配
+`AliyunMqttClient` 开箱即用，HMAC 签名认证 + 属性上报 + 时钟同步。
+
+## MQTT 协议
 最流行的物联网通信协议MQTT，包括客户端、服务端和Web管理平台。  
 
 提供订阅/发布模式，更为简约、轻量，易于使用，针对受限环境（带宽低、网络延迟高、网络通信不稳定），可以简单概括为物联网打造，官方总结特点如下：  

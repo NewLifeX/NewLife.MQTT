@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net45;net461;netstandard2.0;netstandard2.1;net7.0;net8.0;net9.0</TargetFrameworks>
-    <AssemblyTitle>新生命MQTT协议</AssemblyTitle>
-    <Description>流行的物联网通信协议MQTT，包括客户端、服务端</Description>
+    <TargetFrameworks>net45;net461;netstandard2.0;netstandard2.1;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
+    <AssemblyTitle>新生命MQTT协议（客户端+服务端一体）</AssemblyTitle>
+    <Description>纯国产零依赖MQTT完整协议实现，客户端MqttClient与服务端MqttServer一体化交付。完整支持MQTT 3.1.1（14种报文）及MQTT 5.0核心功能（30种属性/AUTH/主题别名/流控/共享订阅）；六种传输方式TCP/TLS/WebSocket/WSS/QUIC/可靠UDP；内置集群、消息桥接、规则引擎、WebHook、ACL权限、$SYS系统主题、ProxyProtocol等企业级功能</Description>
     <Company>新生命开发团队</Company>
     <Copyright>版权所有(C) 新生命开发团队 2002~2026</Copyright>
     <VersionPrefix>2.3</VersionPrefix>
@@ -23,6 +23,11 @@
     <WarningsAsErrors>CA2007</WarningsAsErrors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net7.0' OR '$(TargetFramework)' == 'net8.0'">
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <NoWarn>$(NoWarn);CA2252</NoWarn>
+  </PropertyGroup>
+
   <PropertyGroup>
     <PackageId>$(AssemblyName)</PackageId>
     <Authors>$(Company)</Authors>
@@ -30,8 +35,8 @@
     <PackageIcon>leaf.png</PackageIcon>
     <RepositoryUrl>https://github.com/NewLifeX/NewLife.MQTT</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>新生命团队;X组件;NewLife;$(AssemblyName)</PackageTags>
-    <PackageReleaseNotes>更新依赖包到最新版本</PackageReleaseNotes>
+    <PackageTags>新生命团队;X组件;NewLife;$(AssemblyName);MQTT;MQTTClient;MQTTServer;MQTTBroker;IoT;物联网;MQTT5;QoS;PubSub;WebSocket;QUIC;TLS;集群;桥接;规则引擎;信创</PackageTags>
+    <PackageReleaseNotes>完整支持MQTT 3.1.1/5.0协议；六种传输TCP/TLS/WS/WSS/QUIC/UDP；内置集群、桥接、规则引擎、WebHook、ProxyProtocol；零第三方依赖，MIT开源</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
