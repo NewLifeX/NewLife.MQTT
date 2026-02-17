@@ -1,4 +1,4 @@
-﻿#if NET9_0_OR_GREATER
+﻿#if NET7_0_OR_GREATER
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
@@ -11,9 +11,10 @@ namespace NewLife.MQTT.Quic;
 
 /// <summary>MQTT over QUIC 客户端</summary>
 /// <remarks>
-/// 基于 .NET 9+ System.Net.Quic API 实现 MQTT over QUIC 传输。
+/// 基于 .NET 7+ System.Net.Quic API 实现 MQTT over QUIC 传输。
 /// QUIC 提供低延迟、无队头阻塞的传输层，适合物联网弱网环境。
 /// 需要操作系统支持（Windows 11 / Linux with msquic）。
+/// 注意：.NET 7/8 需要启用 EnablePreviewFeatures，.NET 9+ 为稳定版本。
 /// </remarks>
 public class MqttQuicClient : DisposeBase
 {
@@ -142,8 +143,9 @@ public class MqttQuicClient : DisposeBase
 
 /// <summary>MQTT over QUIC 监听器</summary>
 /// <remarks>
-/// 基于 .NET 9+ System.Net.Quic API 实现 MQTT over QUIC 服务端监听。
+/// 基于 .NET 7+ System.Net.Quic API 实现 MQTT over QUIC 服务端监听。
 /// 每个 QUIC 连接打开一个双向流用于 MQTT 报文传输。
+/// 注意：.NET 7/8 需要启用 EnablePreviewFeatures，.NET 9+ 为稳定版本。
 /// </remarks>
 public class MqttQuicListener : DisposeBase
 {
