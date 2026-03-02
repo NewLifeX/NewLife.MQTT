@@ -14,6 +14,9 @@ public sealed class PublishMessage : MqttIdMessage
 
     /// <summary>属性集合。MQTT 5.0</summary>
     public MqttProperties? Properties { get; set; }
+
+    /// <summary>服务端接收时间戳（服务端内部使用，不序列化）。用于 MessageExpiryInterval 过期检查</summary>
+    public DateTime ReceivedAt { get; set; }
     #endregion
 
     #region 构造
@@ -32,7 +35,7 @@ public sealed class PublishMessage : MqttIdMessage
     #region 方法
     /// <summary>从数据流中读取消息</summary>
     /// <param name="stream">数据流</param>
-    /// <param name="context">上下文</param>
+    /// <param name="context">上下文，传入 ProtocolLevel（Byte）时按 MQTT 5.0 读取属性</param>
     /// <returns>是否成功</returns>
     protected override Boolean OnRead(Stream stream, Object? context)
     {
@@ -43,6 +46,13 @@ public sealed class PublishMessage : MqttIdMessage
             if (!base.OnRead(stream, context)) return false;
         }
 
+        // MQTT 5.0 属性（ProtocolLevel >= 5 时读取）
+        if (context is Byte pl && pl >= 5)
+        {
+            Properties = new MqttProperties();
+            Properties.Read(stream);
+        }
+
         //Payload = ReadData(stream);
         Payload = (ArrayPacket)stream.ReadBytes(-1);
 
@@ -51,7 +61,7 @@ public sealed class PublishMessage : MqttIdMessage
 
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
-    /// <param name="context">上下文</param>
+    /// <param name="context">上下文，传入 ProtocolLevel（Byte）时按 MQTT 5.0 写入属性</param>
     protected override Boolean OnWrite(Stream stream, Object? context)
     {
         WriteString(stream, Topic);
@@ -59,6 +69,17 @@ public sealed class PublishMessage : MqttIdMessage
         if (QoS > 0)
         {
             if (!base.OnWrite(stream, context)) return false;
+        }
+
+        // MQTT 5.0 属性
+        if (Properties != null)
+        {
+            Properties.Write(stream);
+        }
+        else if (context is Byte pl && pl >= 5)
+        {
+            // MQTT 5.0 连接但无属性时写入空属性长度（1字节，值=0）
+            stream.WriteByte(0);
         }
 
         //WriteData(stream, Payload);

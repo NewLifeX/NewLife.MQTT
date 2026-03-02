@@ -35,6 +35,9 @@ public class MqttSessionCapabilities
     /// <summary>当前 inflight 消息数</summary>
     public Int32 InflightCount { get; set; }
 
+    /// <summary>服务端指定的 KeepAlive（秒）。设置后将在 CONNACK 中通知 MQTT 5.0 客户端覆盖客户端 KeepAlive。0 表示不覆盖</summary>
+    public UInt16 ServerKeepAlive { get; set; }
+
     private UInt16 _nextAlias;
     #endregion
 
@@ -120,6 +123,10 @@ public class MqttSessionCapabilities
 
         if (ServerTopicAliasMaximum > 0)
             props.SetUInt16(MqttPropertyId.TopicAliasMaximum, ServerTopicAliasMaximum);
+
+        // 服务端 KeepAlive 覆盖：通知客户端使用服务端指定的 KeepAlive 值
+        if (ServerKeepAlive > 0)
+            props.SetUInt16(MqttPropertyId.ServerKeepAlive, ServerKeepAlive);
 
         return props;
     }

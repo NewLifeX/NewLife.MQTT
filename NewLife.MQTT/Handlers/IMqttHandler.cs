@@ -61,11 +61,17 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>认证器。可插拔的 ACL 权限控制</summary>
     public IMqttAuthenticator? Authenticator { get; set; }
 
+    /// <summary>SASL 凭证存储。设置后将支持 MQTT 5.0 增强认证（如 SCRAM-SHA-256）</summary>
+    public IMqttSaslCredentialStore? SaslCredentialStore { get; set; }
+
     /// <summary>客户端标识</summary>
     private String? _clientId;
 
     /// <summary>遗嘱消息。客户端异常断开时需要发布</summary>
     private PublishMessage? _willMessage;
+
+    /// <summary>遗嘱延迟发布秒数。MQTT 5.0 WillDelayInterval，0 表示立即发布</summary>
+    private UInt32 _willDelaySeconds;
 
     /// <summary>是否正常断开。正常断开时清除遗嘱</summary>
     private Boolean _normalDisconnect;
@@ -84,6 +90,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
     /// <summary>当前会话的订阅关系</summary>
     private readonly Dictionary<String, QualityOfService> _subscriptions = [];
+
+    /// <summary>SASL 增强认证机制（握手期间有值）</summary>
+    private ISaslMechanism? _saslMechanism;
+
+    /// <summary>SASL 握手期间暂存的 CONNECT 消息，用于握手完成后建立会话</summary>
+    private ConnectMessage? _pendingSaslConnect;
 
     #region 接收消息
     /// <summary>处理消息</summary>
@@ -112,7 +124,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>客户端连接时</summary>
     /// <param name="message">消息</param>
     /// <returns></returns>
-    protected virtual ConnAck? OnConnect(ConnectMessage message)
+    protected virtual MqttMessage? OnConnect(ConnectMessage message)
     {
         // MQTT 3.1 协议名为 "MQIsdp"，服务端不支持；返回 0x01（不接受的协议版本）并给出明确提示
         if (message.ProtocolName == "MQIsdp")
@@ -125,7 +137,34 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         _cleanSession = message.CleanSession;
         _protocolLevel = message.ProtocolLevel;
 
-        // ACL 认证
+        // MQTT 5.0 增强认证（SASL）：若客户端请求且服务端支持则启动挑战
+        if (_protocolLevel >= 5 && SaslCredentialStore != null && message.Properties != null)
+        {
+            var authMethod = message.Properties.GetString(MqttPropertyId.AuthenticationMethod);
+            if (!authMethod.IsNullOrEmpty())
+            {
+                var authData = message.Properties.GetBinary(MqttPropertyId.AuthenticationData);
+                var mechanism = CreateSaslMechanism(authMethod);
+                if (mechanism != null)
+                {
+                    var step = mechanism.Process(authData);
+                    _saslMechanism = mechanism;
+                    _pendingSaslConnect = message;
+
+                    var authMsg = new AuthMessage { ReasonCode = 0x18 };
+                    authMsg.Properties = new MqttProperties();
+                    authMsg.Properties.SetString(MqttPropertyId.AuthenticationMethod, authMethod);
+                    if (step.ServerData != null)
+                        authMsg.Properties.SetBinary(MqttPropertyId.AuthenticationData, step.ServerData);
+                    return authMsg;
+                }
+
+                // 不支持的 SASL 机制
+                return new ConnAck { ReturnCode = ConnectReturnCode.RefusedBadUsernameOrPassword };
+            }
+        }
+
+        // 普通认证
         if (Authenticator != null)
         {
             var code = Authenticator.Authenticate(message.ClientId, message.Username, message.Password);
@@ -133,6 +172,14 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 return new ConnAck { ReturnCode = code };
         }
 
+        return CompleteConnect(message, null);
+    }
+
+    /// <summary>完成连接建立（SASL 成功或普通认证通过后调用）</summary>
+    /// <param name="message">CONNECT 消息</param>
+    /// <param name="authenticationData">SASL 服务端最终数据（用于 CONNACK 属性），普通认证时为 null</param>
+    private ConnAck? CompleteConnect(ConnectMessage message, Byte[]? authenticationData)
+    {
         var exchange = Exchange;
         exchange?.Add(Session.ID, this);
 
@@ -150,6 +197,17 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 QoS = message.WillQualityOfService,
                 Retain = message.WillRetain,
             };
+
+            // MQTT 5.0 遗嘱延迟发布
+            if (_protocolLevel >= 5 && message.WillProperties != null)
+            {
+                var delay = message.WillProperties.GetUInt32(MqttPropertyId.WillDelayInterval);
+                if (delay.HasValue) _willDelaySeconds = delay.Value;
+
+                // 遗嘱消息内带的属性（MessageExpiryInterval / ContentType 等）一并捆带
+                if (message.WillProperties.Count > 0)
+                    _willMessage.Properties = message.WillProperties;
+            }
         }
 
         // 初始化 Inflight 管理器（服务端消息重发）
@@ -167,11 +225,23 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             _capabilities = new MqttSessionCapabilities();
             _capabilities.ApplyConnectProperties(message.Properties);
 
+            // 服务端 KeepAlive 覆盖（MQTT 5.0）
+            if (Exchange is MqttExchange mqttExForKA && mqttExForKA.ServerKeepAlive > 0)
+                _capabilities.ServerKeepAlive = mqttExForKA.ServerKeepAlive;
+
             // 构建 CONNACK 属性
+            var props = _capabilities.BuildConnAckProperties();
+            if (authenticationData != null && _saslMechanism != null)
+            {
+                props ??= new MqttProperties();
+                props.SetString(MqttPropertyId.AuthenticationMethod, _saslMechanism.Name);
+                props.SetBinary(MqttPropertyId.AuthenticationData, authenticationData);
+            }
+
             ack = new ConnAck
             {
                 ReturnCode = ConnectReturnCode.Accepted,
-                Properties = _capabilities.BuildConnAckProperties(),
+                Properties = props,
             };
         }
         else
@@ -182,8 +252,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         // 处理 CleanSession / 持久会话
         if (!_cleanSession && exchange != null && !_clientId.IsNullOrEmpty())
         {
-            // CleanSession=0，尝试恢复旧会话
+            // CleanSession=0，优先恢复本地会话
             sessionPresent = exchange.RestorePersistentSession(_clientId, Session.ID);
+
+            // 本地无会话时向集群节点查询（F035 集群会话漂移）
+            if (!sessionPresent && ClusterExchange?.Cluster != null)
+                sessionPresent = TryMigrateClusterSession(_clientId, Session.ID, exchange);
         }
         else if (_cleanSession && exchange != null && !_clientId.IsNullOrEmpty())
         {
@@ -193,7 +267,61 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         ack.SessionPresent = sessionPresent;
 
+        // SASL 握手完成，清理状态
+        _saslMechanism = null;
+        _pendingSaslConnect = null;
+
         return ack;
+    }
+
+    /// <summary>根据机制名称创建 SASL 机制实例</summary>
+    /// <param name="methodName">认证方法名（如 "SCRAM-SHA-256"）</param>
+    protected virtual ISaslMechanism? CreateSaslMechanism(String methodName)
+    {
+        if (SaslCredentialStore == null) return null;
+        return methodName switch
+        {
+            "SCRAM-SHA-256" => new ScramSha256Mechanism(SaslCredentialStore),
+            _ => null,
+        };
+    }
+
+    /// <summary>从集群其他节点迁移持久会话（F035 集群会话漂移）</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <param name="sessionId">新会话标识</param>
+    /// <param name="exchange">本地交换机</param>
+    /// <returns>是否成功找到并迁移了会话</returns>
+    private Boolean TryMigrateClusterSession(String clientId, Int32 sessionId, IMqttExchange exchange)
+    {
+        var cluster = ClusterExchange?.Cluster;
+        if (cluster == null) return false;
+
+        foreach (var item in cluster.Nodes)
+        {
+            try
+            {
+                var info = item.Value.GetSession(clientId).GetAwaiter().GetResult();
+                if (info == null || info.ClientId.IsNullOrEmpty()) continue;
+
+                WriteLog("从集群节点[{0}]迁移会话：{1}，订阅数：{2}", item.Key, clientId, info.Subscriptions.Count);
+
+                // 本地恢复订阅关系
+                foreach (var kv in info.Subscriptions)
+                {
+                    var qos = (QualityOfService)kv.Value;
+                    exchange.Subscribe(sessionId, kv.Key, qos);
+                    _subscriptions[kv.Key] = qos;
+                }
+
+                // 通知源节点删除旧会话（避免重复）
+                _ = item.Value.DeleteSession(clientId);
+
+                return true;
+            }
+            catch { /* 单个节点失败不影响其他节点 */ }
+        }
+
+        return false;
     }
 
     /// <summary>客户端断开时</summary>
@@ -227,6 +355,36 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual MqttMessage? OnAuth(AuthMessage message)
     {
+        // 继续 SASL 握手
+        if (_saslMechanism != null && _pendingSaslConnect != null)
+        {
+            var authData = message.Properties?.GetBinary(MqttPropertyId.AuthenticationData);
+            var step = _saslMechanism.Process(authData);
+
+            if (step.IsComplete)
+            {
+                if (step.Success)
+                {
+                    // SASL 认证成功，完成连接建立
+                    var connectMsg = _pendingSaslConnect;
+                    return CompleteConnect(connectMsg, step.ServerData);
+                }
+
+                // SASL 认证失败
+                _saslMechanism = null;
+                _pendingSaslConnect = null;
+                return new ConnAck { ReturnCode = ConnectReturnCode.RefusedBadUsernameOrPassword };
+            }
+
+            // 还需要更多步骤
+            var authMsg = new AuthMessage { ReasonCode = 0x18 };
+            authMsg.Properties = new MqttProperties();
+            authMsg.Properties.SetString(MqttPropertyId.AuthenticationMethod, _saslMechanism.Name);
+            if (step.ServerData != null)
+                authMsg.Properties.SetBinary(MqttPropertyId.AuthenticationData, step.ServerData);
+            return authMsg;
+        }
+
         // 默认实现返回认证成功
         return new AuthMessage { ReasonCode = 0x00 };
     }
@@ -500,12 +658,31 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <param name="reason"></param>
     public virtual void Close(String reason)
     {
-        // 异常断开时发布遗嘱消息
+        // 异常断开时发布遗嘱消息（支持延迟发布）
         if (!_normalDisconnect && _willMessage != null)
         {
-            Exchange?.Publish(_willMessage);
-            ClusterExchange?.Publish(Session, _willMessage);
+            var will = _willMessage;
             _willMessage = null;
+
+            var exchange = Exchange;
+            var clusterExchange = ClusterExchange;
+            var session = Session;
+
+            if (_willDelaySeconds > 0)
+            {
+                // MQTT 5.0 WillDelayInterval：延迟指定秒数后发布遗嘱消息
+                WriteLog("遗嘱延迟发布：{0} 秒后发布 [{1}]", _willDelaySeconds, will.Topic);
+                _ = Task.Delay(TimeSpan.FromSeconds(_willDelaySeconds)).ContinueWith(_ =>
+                {
+                    exchange?.Publish(will);
+                    clusterExchange?.Publish(session, will);
+                });
+            }
+            else
+            {
+                exchange?.Publish(will);
+                clusterExchange?.Publish(session, will);
+            }
         }
 
         // CleanSession=0 时保存持久会话

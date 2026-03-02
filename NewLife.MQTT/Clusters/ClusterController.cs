@@ -1,4 +1,5 @@
 ﻿using NewLife.Data;
+using NewLife.MQTT.Handlers;
 using NewLife.Remoting;
 
 namespace NewLife.MQTT.Clusters;
@@ -148,6 +149,36 @@ public class ClusterController : IApi, IActionFilter
         // 集群发布3，收到其它节点转发的消息
         var exchange = _cluster.Exchange;
         exchange?.Publish(info.Message);
+
+        return "OK";
+    }
+    #endregion
+
+    #region 会话漂移
+    /// <summary>从本节点查询客户端的持久会话（供重连到其他节点的客户端使用）</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <returns>会话信息；本节点无此会话时返回 null</returns>
+    public SessionInfo? GetSession(String clientId)
+    {
+        if (_cluster.Exchange is not MqttExchange exchange) return null;
+
+        var session = exchange.GetPersistentSessionInfo(clientId);
+        if (session == null) return null;
+
+        return new SessionInfo
+        {
+            ClientId = clientId,
+            Subscriptions = session.Subscriptions.ToDictionary(kv => kv.Key, kv => (Int32)kv.Value),
+        };
+    }
+
+    /// <summary>删除本节点的持久会话（会话迁移至新节点后调用，避免重复）</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <returns>"OK"</returns>
+    public String DeleteSession(String clientId)
+    {
+        if (_cluster.Exchange is MqttExchange exchange)
+            exchange.DeletePersistentSession(clientId);
 
         return "OK";
     }

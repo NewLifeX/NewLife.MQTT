@@ -29,6 +29,13 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>集群服务端</summary>
     public ClusterServer? Cluster { get; set; }
 
+    /// <summary>HTTP 管理端口。设置后将在该端口启动 HTTP 管理 API（stats/clients/topics/retained）。0 表示不启用</summary>
+    public Int32 ManagementPort { get; set; }
+    /// <summary>是否启用 Web 看板。需要先设置 <see cref="ManagementPort"/> 才生效。看板端口默认为 ManagementPort + 1</summary>
+    public Boolean EnableDashboard { get; set; }
+    /// <summary>HTTP 管理服务端</summary>
+    public MqttManagementServer? Management { get; set; }
+
     /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
     public IPacketEncoder Encoder { get; set; } = null!;
 
@@ -79,6 +86,9 @@ public class MqttServer : NetServer<MqttSession>
 
         // 创建集群
         CreateCluster();
+
+        // 创建管理服务
+        CreateManagement();
     }
 
     /// <summary>创建集群</summary>
@@ -125,10 +135,30 @@ public class MqttServer : NetServer<MqttSession>
         }
     }
 
+    /// <summary>创建 HTTP 管理服务</summary>
+    protected virtual void CreateManagement()
+    {
+        if (ManagementPort <= 0) return;
+
+        var exchange = Exchange as MqttExchange;
+        if (exchange == null) return;
+
+        var mgmt = Management ?? new MqttManagementServer();
+        mgmt.Port = ManagementPort;
+        mgmt.Exchange = exchange;
+        mgmt.EnableDashboard = EnableDashboard;
+        mgmt.Log = Log;
+        mgmt.Tracer = Tracer;
+        mgmt.Start();
+
+        Management = mgmt;
+    }
+
     /// <summary>停止</summary>
     /// <param name="reason"></param>
     protected override void OnStop(String? reason)
     {
+        Management.TryDispose();
         Cluster.TryDispose();
 
         base.OnStop(reason);
