@@ -114,6 +114,13 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual ConnAck? OnConnect(ConnectMessage message)
     {
+        // MQTT 3.1 协议名为 "MQIsdp"，服务端不支持；返回 0x01（不接受的协议版本）并给出明确提示
+        if (message.ProtocolName == "MQIsdp")
+        {
+            WriteLog("客户端 [{0}] 使用不受支持的 MQTT 3.1 协议（ProtocolName=MQIsdp），请升级至 MQTT 3.1.1 或更高版本", message.ClientId);
+            return new ConnAck { ReturnCode = ConnectReturnCode.RefusedUnacceptableProtocolVersion };
+        }
+
         _clientId = message.ClientId;
         _cleanSession = message.CleanSession;
         _protocolLevel = message.ProtocolLevel;
