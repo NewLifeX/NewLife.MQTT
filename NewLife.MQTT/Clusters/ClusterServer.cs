@@ -27,6 +27,12 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>集群交换机</summary>
     public ClusterExchange? ClusterExchange { get; set; }
 
+    /// <summary>是否启用 UDP 广播自动发现。启用后在局域网内无需手动配置节点地址。默认 false</summary>
+    public Boolean EnableDiscovery { get; set; }
+
+    /// <summary>自动发现服务实例</summary>
+    public ClusterDiscovery? Discovery { get; private set; }
+
     /// <summary>服务提供者。主要用于创建控制器实例，支持构造函数注入</summary>
     public IServiceProvider? ServiceProvider { get; set; }
 
@@ -84,6 +90,18 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         _server = server;
 
         _timer = new TimerX(DoPing, null, 1_000, 15_000) { Async = true };
+
+        // 启动自动发现
+        if (EnableDiscovery)
+        {
+            var discovery = new ClusterDiscovery
+            {
+                Cluster = this,
+                Log = Log,
+            };
+            discovery.Start();
+            Discovery = discovery;
+        }
     }
 
     /// <summary>停止服务</summary>
@@ -103,6 +121,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         _timer.TryDispose();
         _timer = null;
+
+        Discovery?.Stop();
+        Discovery = null;
 
         _server.TryDispose();
         _server = null;

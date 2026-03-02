@@ -46,12 +46,19 @@ public class MqttCodec : MessageCodec<MqttMessage>
             ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), GetLength2 = p => GetLength(p, 1, 0) };
 
         var pks = pc.Parse(pk);
-        //var list = pks.Select(_Factory.ReadMessage).ToList();
         var list = new List<MqttMessage>();
         foreach (var item in pks)
         {
-            var msg = _Factory.ReadMessage(item);
-            if (msg != null) list.Add(msg);
+            // 使用当前连接已知的协议版本解码（支持 MQTT 5.0 属性读取）
+            var protocolLevel = ss["ProtocolLevel"] is Byte pl ? pl : (Byte)4;
+            var msg = _Factory.ReadMessage(item, protocolLevel);
+            if (msg != null)
+            {
+                // 从 CONNECT 消息中记录协议版本，供后续消息编解码使用
+                if (msg is ConnectMessage connect)
+                    ss["ProtocolLevel"] = connect.ProtocolLevel;
+                list.Add(msg);
+            }
         }
 
         return list;

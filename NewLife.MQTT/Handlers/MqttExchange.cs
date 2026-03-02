@@ -26,6 +26,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <summary>$SYS 主题发布间隔（秒）。默认60秒</summary>
     public Int32 SysTopicInterval { get; set; } = 60;
 
+    /// <summary>服务端指定的 KeepAlive（秒）。设置后将在 CONNACK 中通知 MQTT 5.0 客户端覆盖客户端 KeepAlive。0 表示不覆盖</summary>
+    public UInt16 ServerKeepAlive { get; set; }
+
     /// <summary>本地缓存，保存设备的对象引用，具备定时清理能力</summary>
     private readonly ConcurrentDictionary<Int32, IMqttHandler> _sessions = new();
     private TimerX? _timer;
@@ -186,6 +189,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         // 统计接收
         Interlocked.Increment(ref Stats.MessagesReceived);
 
+        // 记录服务端接收时间，用于 MessageExpiryInterval 过期检查
+        if (message.ReceivedAt == default) message.ReceivedAt = DateTime.Now;
+
         // 处理保留消息
         if (message.Retain)
         {
@@ -204,6 +210,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
         // $SYS 主题不对普通通配符订阅者分发
         if (message.Topic.StartsWith("$SYS/")) return;
+
+        // 检查消息是否已过期，过期消息不分发
+        if (IsMessageExpired(message)) return;
 
         // 遍历所有Topic，找到匹配的订阅者
         foreach (var item in _topics)
@@ -278,7 +287,6 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <param name="topic">主题过滤器</param>
     /// <param name="qos">服务质量</param>
     public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos) => Subscribe(sessionId, topic, qos, false, false, 0);
-
     /// <summary>订阅主题（含 MQTT 5.0 订阅选项）</summary>
     /// <param name="sessionId">会话标识</param>
     /// <param name="topic">主题过滤器</param>
@@ -324,6 +332,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             {
                 if (MqttTopicFilter.IsMatch(retain.Key, topic))
                 {
+                    // 订阅时检查 retain 消息是否已过期
+                    if (IsMessageExpired(retain.Value)) continue;
+
                     var msg = new PublishMessage
                     {
                         Topic = retain.Value.Topic,
@@ -366,6 +377,19 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                 list.Add(item.Value);
         }
         return list;
+    }
+
+    /// <summary>检查消息是否已过期（MessageExpiryInterval）。MQTT 5.0</summary>
+    /// <param name="message">待检查消息</param>
+    /// <returns>true 表示已过期，应丢弃；false 表示未过期或无过期设置</returns>
+    private static Boolean IsMessageExpired(PublishMessage message)
+    {
+        if (message.ReceivedAt == default) return false;
+
+        var expiry = message.Properties?.GetUInt32(MqttPropertyId.MessageExpiryInterval);
+        if (expiry == null) return false;
+
+        return (DateTime.Now - message.ReceivedAt).TotalSeconds > expiry.Value;
     }
 
     /// <summary>保存持久化会话（CleanSession=0）</summary>
@@ -538,5 +562,45 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             }
         }
     }
+    #endregion
+
+    #region 管理查询
+    /// <summary>获取持久会话信息（只读，不恢复订阅关系）。用于集群会话漂移 RPC 查询</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <returns>持久会话；不存在时返回 null</returns>
+    public PersistentSession? GetPersistentSessionInfo(String clientId) =>
+        _persistentSessions.TryGetValue(clientId, out var session) ? session : null;
+
+    /// <summary>删除持久会话（用于集群会话迁移后清理源节点数据）</summary>
+    /// <param name="clientId">客户端标识</param>
+    public void DeletePersistentSession(String clientId)
+    {
+        if (_persistentSessions.TryRemove(clientId, out _))
+            Interlocked.Decrement(ref Stats.RetainedMessages);
+    }
+
+    /// <summary>获取已连接客户端 ID 列表</summary>
+    public IReadOnlyList<String> GetConnectedClients()
+    {
+        var list = new List<String>(_clientIdMap.Count);
+        foreach (var kv in _clientIdMap)
+        {
+            if (!kv.Value.IsNullOrEmpty())
+                list.Add(kv.Value);
+        }
+        return list;
+    }
+
+    /// <summary>获取主题订阅统计。key=主题，value=订阅者数量</summary>
+    public IReadOnlyDictionary<String, Int32> GetTopicSubscriptions()
+    {
+        var result = new Dictionary<String, Int32>(_topics.Count);
+        foreach (var kv in _topics)
+            result[kv.Key] = kv.Value.Count;
+        return result;
+    }
+
+    /// <summary>获取保留消息的主题列表</summary>
+    public IReadOnlyList<String> GetRetainedTopics() => _retainMessages.Keys.ToArray();
     #endregion
 }
