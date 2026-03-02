@@ -1,4 +1,4 @@
-# NewLife.MQTT - 纯国产 MQTT 协议完整实现
+# NewLife.MQTT — 纯国产 MQTT 协议完整实现
 
 ![GitHub top language](https://img.shields.io/github/languages/top/newlifex/newlife.mqtt?logo=github)
 ![GitHub License](https://img.shields.io/github/license/newlifex/newlife.mqtt?logo=github)
@@ -6,7 +6,299 @@
 ![Nuget](https://img.shields.io/nuget/v/newlife.mqtt?logo=nuget)
 ![Nuget (with prereleases)](https://img.shields.io/nuget/vpre/newlife.mqtt?label=dev%20nuget&logo=nuget)
 
-**NewLife.MQTT** 是一个**纯国产自主研发、零第三方依赖、MIT 开源**的 MQTT 完整协议实现，同时包含客户端 `MqttClient` 和服务端 `MqttServer`，以单一 NuGet 包形式交付。
+**NewLife.MQTT** 是一款**纯国产自主研发、零第三方依赖、MIT 开源**的 MQTT 完整协议实现，以单一 NuGet 包同时提供功能完整的 `MqttClient` 客户端和高性能 `MqttServer` 服务端（Broker），覆盖 .NET Framework 4.5 至 .NET 10 全部主流运行时。
+
+---
+
+## 核心特性
+
+| 特性 | 说明 |
+|------|------|
+| **协议完整** | MQTT 3.1 / 3.1.1 / 5.0，14 种基础报文 + AUTH 报文，30 种 5.0 属性 |
+| **零依赖** | 仅依赖 NewLife.Core，NuGet 依赖链中无任何第三方包，无供应链安全风险 |
+| **客户端+服务端一体** | 单一 `NewLife.MQTT` NuGet 包，无需区分客户端/服务端版本 |
+| **六种传输** | TCP / TLS / WebSocket / WSS / QUIC（.NET 7+）/ 可靠 UDP（全平台独创）|
+| **高性能** | 基于 NewLife.Net，单机百万级连接（400 万验证），千万级消息吞吐（2266 万 tps 验证）|
+| **企业功能免费** | 集群 / 桥接 / 规则引擎 / WebHook / $SYS / ACL 全部免费内置 |
+| **自动重订阅** | 断线重连后自动重新订阅全部主题，无需用户代码干预 |
+| **全版本覆盖** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 ~ net10 |
+| **信创合规** | 完全自主研发，MIT 开源，无 Copyleft / 专利条款，无境外供应链风险 |
+
+---
+
+## 差异化优势
+
+### MQTT over QUIC（业界罕见）
+目前**仅 EMQX 和 NewLife.MQTT 支持**此传输方式：
+- 低延迟、无队头阻塞，适合弱网和移动场景
+- .NET 7/8 需启用预览特性，.NET 9+ 稳定可用
+- 默认端口 14567，ALPN 标识 `"mqtt"`
+
+### MQTT over 可靠 UDP（业界独创）
+**全球独创，无需操作系统 msquic 支持，全平台可用**：
+- 自研 4 字节帧头 + 序列号 + ACK 确认 + 超时重发
+- 覆盖 ARM Linux 4.x 等不支持 msquic 的嵌入式平台
+
+### 断线后自动重订阅
+MQTTnet / Eclipse Paho 断线重连后需要用户手动重新订阅，NewLife.MQTT 自动完成：
+
+```csharp
+await client.SubscribeAsync("/device/+/data", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
+// 重连后无需任何额外代码，订阅自动恢复
+```
+
+### 企业功能内置免费
+- **消息桥接**：In / Out / Both 三种方向，主题前缀映射，QoS 上限控制
+- **规则引擎**：5 种动作（Republish / WebHook / Bridge / Drop / Custom）
+- **WebHook**：6 种事件异步推送，失败自动重试
+- **集群**：跨节点订阅同步与消息转发，独立 RPC 端口（2883）
+- **$SYS 系统主题**：14 种标准主题，实时运行统计
+- **ProxyProtocol v1/v2**：nginx/HAProxy 透传真实客户端 IP
+
+---
+
+## 快速开始
+
+### 安装
+
+```bash
+dotnet add package NewLife.MQTT
+```
+
+### 启动服务端
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+    Log = XTrace.Log,
+};
+server.Start();
+```
+
+### 连接客户端
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid().ToString(),
+};
+await client.ConnectAsync();
+
+// 订阅（重连后自动重订阅）
+await client.SubscribeAsync("/test/#", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
+
+// 发布
+await client.PublishAsync("/test/hello", "Hello MQTT");
+```
+
+### 连接字符串初始化
+
+```csharp
+var client = new MqttClient();
+client.Init("Server=tcp://127.0.0.1:1883;UserName=admin;Password=secret;ClientId=myDevice");
+await client.ConnectAsync();
+```
+
+---
+
+## 客户端详细用法
+
+### 指定协议版本
+
+```csharp
+var client = new MqttClient
+{
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = "myDevice",
+    Version = MqttVersion.V500,   // V310 / V311（默认）/ V500
+};
+```
+
+### QoS 发布
+
+```csharp
+await client.PublishAsync("/sensor/temp", "25.6");                                 // QoS 0
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.AtLeastOnce);  // QoS 1
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.ExactlyOnce);  // QoS 2
+```
+
+### QoS 服务质量说明
+
+发布 QoS 和订阅 QoS 取**较小值**作为消费 QoS：
+
+| QoS | 名称 | 说明 |
+|-----|------|------|
+| 0 | 至多一次 | 发送后不确认，可能丢失，适合传感器心跳 |
+| 1 | 至少一次 | Broker 答复 PUBACK，可能重复，适合重要数据 |
+| 2 | 恰好一次 | 四步握手，不丢不重，适合计费/订单 |
+
+### 通配符订阅
+
+```csharp
+await client.SubscribeAsync("/device/+/data", handler);   // + 匹配单层
+await client.SubscribeAsync("/device/#", handler);        // # 匹配多层
+```
+
+### 共享订阅（负载均衡）
+
+格式 `$share/{group}/{topic}`，同组多消费者轮询分发：
+
+```csharp
+await client.SubscribeAsync("$share/workers/orders/new", e =>
+    XTrace.WriteLine($"收到: {e.Payload.ToStr()}"));
+```
+
+### TLS / WebSocket / QUIC
+
+```csharp
+new MqttClient { Server = "ssl://broker.example.com:8883" };           // TLS
+new MqttClient { Server = "ws://broker.example.com:8083" };            // WebSocket
+new MqttClient { Server = "wss://broker.example.com:8084" };           // WSS
+new MqttClient { Server = "quic://broker.example.com:14567" };         // QUIC (.NET 7+)
+```
+
+---
+
+## 服务端详细用法
+
+### 自定义处理器
+
+继承 `MqttHandler` 拦截各类消息，适合 IoT 平台直接落库：
+
+```csharp
+public class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("连接[{0}] user={1} clientId={2}",
+            Session.Remote.EndPoint, message.Username, message.ClientId);
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("断开[{0}]", Session.Remote);
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("[{0} QoS={1}] {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+        return base.OnPublish(message);
+    }
+}
+
+services.AddTransient<IMqttHandler, MyHandler>();
+```
+
+### 自定义认证（ACL）
+
+```csharp
+public class MyAuthenticator : IMqttAuthenticator
+{
+    public Boolean Authenticate(String clientId, String username, String password)
+        => username == "admin" && password == "secret";
+
+    public Boolean AuthorizePublish(String clientId, String topic)
+        => !topic.StartsWith("$SYS/");
+
+    public Boolean AuthorizeSubscribe(String clientId, String topic) => true;
+}
+
+services.AddSingleton<IMqttAuthenticator, MyAuthenticator>();
+```
+
+---
+
+## 企业功能
+
+### 消息桥接
+
+```csharp
+var bridge = new MqttBridge
+{
+    Name = "to-cloud",
+    Server = "tcp://cloud-broker.example.com:1883",
+    Direction = BridgeDirection.Both,
+    TopicPrefix = "edge/factory1/",
+    MaxQoS = QualityOfService.AtLeastOnce,
+};
+bridge.Start();
+```
+
+### 规则引擎
+
+```csharp
+var engine = new MqttRuleEngine();
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/sensor/+/temperature",
+    Action = RuleAction.Republish,
+    TargetTopic = "/analytics/temperature",
+});
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/alarm/#",
+    Action = RuleAction.WebHook,
+    WebHookUrl = "https://api.example.com/alarm",
+});
+```
+
+### 集群部署
+
+三节点集群配置（每节点配置其他节点地址）：
+
+```csharp
+var cluster = new ClusterServer
+{
+    Nodes = new[] { "192.168.1.11:2883", "192.168.1.12:2883" },
+    ClusterPort = 2883,
+};
+cluster.Start();
+services.AddSingleton<IMqttExchange, ClusterExchange>();
+```
+
+集群操作：Join 加入（启动时）→ Ping 保活（15 秒）→ Lease 离开（停止时），超时节点（5 分钟）自动剔除。
+
+### 阿里云 IoT 适配
+
+```csharp
+var client = new AliyunMqttClient
+{
+    ProductKey = "a1xxxxxxxx",
+    DeviceName = "myDevice",
+    DeviceSecret = "xxxxxxxx",
+};
+await client.ConnectAsync();
+await client.PublishPropertyAsync(new { temperature = 25.6 });
+```
+
+---
+
+## 快速体验
+
+打开源码，将 `Test` 设为启动项目，即同时运行 Server 和 Client：
+
+![Demo](Doc/Demo.png)
+
+---
+
+
 
 ## 核心特点
 

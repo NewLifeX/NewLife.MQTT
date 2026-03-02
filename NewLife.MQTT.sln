@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.2.11430.68 d18.0
+VisualStudioVersion = 18.2.11430.68
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{50583EA9-E914-41A8-8B88-4CAFB3C8A8C3}"
 	ProjectSection(SolutionItems) = preProject
@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other", "Other", "{50583EA9
 		README.md = README.md
 		.github\workflows\test.yml = .github\workflows\test.yml
 		Doc\架构设计.md = Doc\架构设计.md
+		Doc\需求文档.md = Doc\需求文档.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", "{109E4120-8D43-4BFB-B1A4-A2FACD1A6817}"
