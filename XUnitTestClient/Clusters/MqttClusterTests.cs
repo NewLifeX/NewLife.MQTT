@@ -46,7 +46,8 @@ public class MqttClusterTests
         {
             servers[i] = new ClusterServer
             {
-                Port = 2883 + ((i + 2) * 10000),
+                // 使用不与 ClusterServerTests 冲突的独立端口段
+                Port = 62884 + i,
                 ServiceProvider = _server.ServiceProvider,
 
                 Log = XTrace.Log
