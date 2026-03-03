@@ -128,6 +128,9 @@ public class ClusterServerTests
         {
             Assert.Equal(1, servers[i].Nodes.Count);
         }
+
+        // 测试结束后停止所有临时服务器，避免端口被后续测试占用
+        foreach (var s in servers) s.Stop("TestDone");
     }
 
     [Fact]

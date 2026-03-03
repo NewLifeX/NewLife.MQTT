@@ -8,7 +8,7 @@ namespace XUnitTestClient;
 
 public class AliyunMqttClientTests
 {
-    [Fact]
+    [Fact(Skip = "需要联网访问阿里云 IoT 服务，仅在手动测试环境运行")]
     public async Task Test3()
     {
         var client = new AliyunMqttClient("a18RQ72tLHD", "dev1", "6oSl3CjHKM13J50DVVWNF3WbWWJjhAUf");

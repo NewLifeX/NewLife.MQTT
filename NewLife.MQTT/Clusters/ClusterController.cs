@@ -52,7 +52,7 @@ public class ClusterController : IApi, IActionFilter
         node.Times = 1;
         node.LastActive = DateTime.Now;
 
-        Session["Node"] = node;
+        if (Session != null) Session["Node"] = node;
 
         //if (node.Times == 1)
         _cluster.WriteLog("节点[{0}]加入集群，来自：{1}", node, Session);
@@ -85,7 +85,8 @@ public class ClusterController : IApi, IActionFilter
         if (_cluster.Nodes.TryRemove(endpoint, out var node))
         {
             _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Session);
-            node.TryDispose();
+            // 延迟销毁，避免在 RPC 响应返回前关闭 Session 导致客户端超时
+            _ = Task.Run(() => { try { node.TryDispose(); } catch { } });
         }
 
         return "OK";
