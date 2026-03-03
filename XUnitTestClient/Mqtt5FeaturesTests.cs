@@ -405,7 +405,7 @@ public class Mqtt5FeaturesTests
         var exchange = new MqttExchange();
         var server = new MqttManagementServer
         {
-            Port = Rand.Next(35000, 36000),
+            Port = 0,   // 端口0让OS自动分配，避免并发冲突
             Exchange = exchange,
         };
 
@@ -420,7 +420,7 @@ public class Mqtt5FeaturesTests
         var exchange = new MqttExchange();
         var mgmtServer = new MqttManagementServer
         {
-            Port = Rand.Next(36000, 37000),
+            Port = 0,   // 端口0让OS自动分配，避免并发冲突
             Exchange = exchange,
         };
         mgmtServer.Start();
@@ -447,6 +447,8 @@ public class Mqtt5FeaturesTests
     [System.ComponentModel.DisplayName("ClusterDiscovery：启动后 DiscoveryPort 已赋值")]
     public void ClusterDiscovery_Start_BindsPort()
     {
+        // ClusterServer 只用于提供端口数字，不真正启动 TCP 服务
+        // UDP 广播端口需要是具体值，不能为 0（否则会被替换为 Cluster.Port+1=1，属于特权端口）
         var clusterPort = Rand.Next(40000, 41000);
         var cluster = new NewLife.MQTT.Clusters.ClusterServer { Port = clusterPort };
 
@@ -496,6 +498,7 @@ public class Mqtt5FeaturesTests
         var discovery = new NewLife.MQTT.Clusters.ClusterDiscovery
         {
             Cluster = cluster,
+            // 不设置 DiscoveryPort，验证 Start() 自动计算为 Cluster.Port+1
         };
 
         discovery.Start();

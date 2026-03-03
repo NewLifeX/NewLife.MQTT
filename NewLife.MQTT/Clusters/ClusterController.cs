@@ -86,7 +86,7 @@ public class ClusterController : IApi, IActionFilter
         {
             _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Session);
             // 延迟销毁，避免在 RPC 响应返回前关闭 Session 导致客户端超时
-            _ = Task.Run(() => { try { node.TryDispose(); } catch { } });
+            _ = Task.Run(() => { try { node.TryDispose(); } catch (Exception ex) { _cluster?.WriteLog("节点[{0}]延迟销毁异常: {1}", node, ex.Message); } });
         }
 
         return "OK";
