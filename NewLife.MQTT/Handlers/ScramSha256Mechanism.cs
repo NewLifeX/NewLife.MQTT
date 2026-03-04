@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 
 namespace NewLife.MQTT.Handlers;
@@ -81,11 +81,14 @@ public class ScramSha256Mechanism : ISaslMechanism
         AuthenticatedUser = username;
 
         // 生成服务端随机 nonce，拼接客户端 nonce
-        var snonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(18));
+        var snonceBytes = new Byte[18];
+        GenerateRandomBytes(snonceBytes);
+        var snonce = Convert.ToBase64String(snonceBytes);
         _nonce = cnonce + snonce;
 
         // 生成随机盐
-        var salt = RandomNumberGenerator.GetBytes(16);
+        var salt = new Byte[16];
+        GenerateRandomBytes(salt);
         var saltB64 = Convert.ToBase64String(salt);
 
         _serverFirstMessage = $"r={_nonce},s={saltB64},i={_iterations}";
@@ -128,18 +131,30 @@ public class ScramSha256Mechanism : ISaslMechanism
         var authMessageBytes = Encoding.UTF8.GetBytes(authMessage);
 
         // SaltedPassword = Hi(password, salt, iterations) — PBKDF2-SHA256
-        var saltedPassword = Rfc2898DeriveBytes.Pbkdf2(
+        Byte[] saltedPassword;
+#if NET6_0_OR_GREATER
+        saltedPassword = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password),
             _salt,
             _iterations,
             HashAlgorithmName.SHA256,
             32);
+#else
+        using (var pbkdf2 = new Rfc2898DeriveBytes(password, _salt, _iterations))
+        {
+            saltedPassword = pbkdf2.GetBytes(32);
+        }
+#endif
 
         // ClientKey = HMAC-SHA256(SaltedPassword, "Client Key")
         var clientKey = HmacSha256(saltedPassword, Encoding.UTF8.GetBytes("Client Key"));
 
         // StoredKey = H(ClientKey)
-        var storedKey = SHA256.HashData(clientKey);
+        Byte[] storedKey;
+        using (var sha256 = SHA256.Create())
+        {
+            storedKey = sha256.ComputeHash(clientKey);
+        }
 
         // ClientSignature = HMAC-SHA256(StoredKey, AuthMessage)
         var clientSignature = HmacSha256(storedKey, authMessageBytes);
@@ -151,7 +166,7 @@ public class ScramSha256Mechanism : ISaslMechanism
 
         // 验证
         var receivedProof = Convert.FromBase64String(proofB64);
-        if (!CryptographicOperations.FixedTimeEquals(expectedProof, receivedProof))
+        if (!FixedTimeEquals(expectedProof, receivedProof))
             return new SaslStep { IsComplete = true, Success = false };
 
         // ServerKey = HMAC-SHA256(SaltedPassword, "Server Key")
@@ -171,7 +186,41 @@ public class ScramSha256Mechanism : ISaslMechanism
     #endregion
 
     #region 辅助
-    private static Byte[] HmacSha256(Byte[] key, Byte[] data) => HMACSHA256.HashData(key, data);
+    private static Byte[] HmacSha256(Byte[] key, Byte[] data)
+    {
+#if NET6_0_OR_GREATER
+        return HMACSHA256.HashData(key, data);
+#else
+        using (var hmac = new HMACSHA256(key))
+        {
+            return hmac.ComputeHash(data);
+        }
+#endif
+    }
+
+    private static void GenerateRandomBytes(Byte[] buffer)
+    {
+#if NET6_0_OR_GREATER
+        RandomNumberGenerator.Fill(buffer);
+#else
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(buffer);
+        }
+#endif
+    }
+
+    private static Boolean FixedTimeEquals(Byte[] a, Byte[] b)
+    {
+        if (a.Length != b.Length)
+            return false;
+
+        var result = 0;
+        for (var i = 0; i < a.Length; i++)
+            result |= a[i] ^ b[i];
+
+        return result == 0;
+    }
 
     private static Dictionary<String, String> ParsePairs(String input)
     {

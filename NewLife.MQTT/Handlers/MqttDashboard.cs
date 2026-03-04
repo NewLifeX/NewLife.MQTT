@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http;
 using System.Text;
 using NewLife.Log;
@@ -108,7 +108,22 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
             HttpListenerContext? ctx = null;
             try
             {
+#if NET6_0_OR_GREATER
                 ctx = await listener.GetContextAsync().WaitAsync(ct).ConfigureAwait(false);
+#else
+                var getContextTask = listener.GetContextAsync();
+                var tcs = new TaskCompletionSource<Boolean>();
+                using (ct.Register(() => tcs.TrySetCanceled()))
+                {
+                    var completedTask = await Task.WhenAny(getContextTask, tcs.Task).ConfigureAwait(false);
+                    if (completedTask == tcs.Task)
+                    {
+                        // 取消请求
+                        break;
+                    }
+                    ctx = await getContextTask.ConfigureAwait(false);
+                }
+#endif
             }
             catch (OperationCanceledException) { break; }
             catch { break; }
@@ -133,7 +148,11 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
                 var data = Encoding.UTF8.GetBytes(html);
                 resp.ContentType = "text/html; charset=utf-8";
                 resp.ContentLength64 = data.Length;
+#if NET6_0_OR_GREATER
                 await resp.OutputStream.WriteAsync(data.AsMemory(), default).ConfigureAwait(false);
+#else
+                await resp.OutputStream.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
+#endif
             }
             else if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
             {
@@ -145,10 +164,18 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
                 try
                 {
                     var apiResp = await proxy.GetAsync(apiUrl).ConfigureAwait(false);
+#if NET5_0_OR_GREATER
                     var body = await apiResp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+#else
+                    var body = await apiResp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+#endif
                     resp.ContentType = "application/json; charset=utf-8";
                     resp.ContentLength64 = body.Length;
+#if NET6_0_OR_GREATER
                     await resp.OutputStream.WriteAsync(body.AsMemory(), default).ConfigureAwait(false);
+#else
+                    await resp.OutputStream.WriteAsync(body, 0, body.Length).ConfigureAwait(false);
+#endif
                 }
                 catch
                 {
@@ -156,7 +183,11 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
                     resp.StatusCode = 500;
                     resp.ContentType = "application/json; charset=utf-8";
                     resp.ContentLength64 = err.Length;
+#if NET6_0_OR_GREATER
                     await resp.OutputStream.WriteAsync(err.AsMemory(), default).ConfigureAwait(false);
+#else
+                    await resp.OutputStream.WriteAsync(err, 0, err.Length).ConfigureAwait(false);
+#endif
                 }
             }
             else
