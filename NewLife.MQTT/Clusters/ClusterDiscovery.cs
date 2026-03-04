@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using NewLife.Log;
@@ -101,7 +101,23 @@ public class ClusterDiscovery : DisposeBase, ILogFeature
         {
             try
             {
+#if NET5_0_OR_GREATER
                 var result = await udp.ReceiveAsync(token).ConfigureAwait(false);
+#else
+                UdpReceiveResult result;
+                var receiveTask = udp.ReceiveAsync();
+                var tcs = new TaskCompletionSource<Boolean>();
+                using (token.Register(() => tcs.TrySetCanceled()))
+                {
+                    var completedTask = await Task.WhenAny(receiveTask, tcs.Task).ConfigureAwait(false);
+                    if (completedTask == tcs.Task)
+                    {
+                        // 取消请求
+                        break;
+                    }
+                    result = await receiveTask.ConfigureAwait(false);
+                }
+#endif
                 var msg = Encoding.UTF8.GetString(result.Buffer);
 
                 if (!msg.StartsWith("MQTT-CLUSTER:")) continue;

@@ -84,7 +84,7 @@ internal class Program
 
         public MyHandler(ILog log) => _log = log;
 
-        protected override ConnAck OnConnect(ConnectMessage message)
+        protected override MqttMessage? OnConnect(ConnectMessage message)
         {
             _log.Info("客户端[{0}]连接 user={1} pass={2} clientId={3}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
 
