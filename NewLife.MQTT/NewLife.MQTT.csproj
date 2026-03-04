@@ -23,6 +23,12 @@
     <WarningsAsErrors>CA2007</WarningsAsErrors>
   </PropertyGroup>
 
+  <!-- QUIC 预览功能：.NET 7/8 需启用，.NET 9+ 已稳定 -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net7.0' Or '$(TargetFramework)' == 'net8.0'">
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <NoWarn>$(NoWarn);CA2252</NoWarn>
+  </PropertyGroup>
+
   <PropertyGroup>
     <PackageId>$(AssemblyName)</PackageId>
     <Authors>$(Company)</Authors>
