@@ -20,7 +20,19 @@ public class MqttCodec : MessageCodec<MqttMessage>
     /// <returns></returns>
     protected override Object? Encode(IHandlerContext context, MqttMessage msg)
     {
-        if (msg is MqttMessage cmd) return cmd.ToPacket();
+        // 客户端发送 CONNECT 时记录协议版本，供后续编码 MQTT 5.0 属性使用
+        if (msg is ConnectMessage connect && context.Owner is IExtend ssConn)
+            ssConn["ProtocolLevel"] = connect.ProtocolLevel;
+
+        if (msg is MqttMessage cmd)
+        {
+            // 若当前连接已知为 MQTT 5.0，则携带协议版本 context，以便 PublishMessage 等写入空属性长度字节
+            var pl = context.Owner is IExtend ss && ss["ProtocolLevel"] is Byte level ? level : (Byte)MqttVersion.V311;
+            var ms = new MemoryStream();
+            cmd.Write(ms, pl >= (Byte)MqttVersion.V500 ? (Object)pl : null);
+            ms.Position = 0;
+            return new ArrayPacket(ms);
+        }
 
         return null;
     }
