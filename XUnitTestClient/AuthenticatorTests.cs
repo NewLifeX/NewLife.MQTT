@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
@@ -217,8 +218,7 @@ public class AuthenticatorTests
         var password = "testpassword";
 
         // SaltedPassword = Hi(password, salt, iterations)
-        Byte[] saltedPassword;
-        saltedPassword = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
+        var saltedPassword = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password),
             salt,
             iterations,
@@ -297,9 +297,9 @@ public class AuthenticatorTests
     #endregion
 
     #region 辅助
-    private static System.Collections.Generic.Dictionary<String, String> ParseScramResponse(String input)
+    private static Dictionary<String, String> ParseScramResponse(String input)
     {
-        var result = new System.Collections.Generic.Dictionary<String, String>();
+        var result = new Dictionary<String, String>();
         foreach (var segment in input.Split(','))
         {
             var eq = segment.IndexOf('=');
@@ -312,7 +312,7 @@ public class AuthenticatorTests
     /// <summary>测试用凭证存储</summary>
     private class TestCredentialStore : IMqttSaslCredentialStore
     {
-        public System.Collections.Generic.Dictionary<String, String> Users { get; } = [];
+        public Dictionary<String, String> Users { get; } = [];
 
         public String? GetPassword(String username)
         {
