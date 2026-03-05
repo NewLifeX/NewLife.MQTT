@@ -135,22 +135,22 @@ public class WebHookTests
     }
 
     [Fact]
-    public void MqttWebHook_OnClientConnected_CreatesEventData()
+    public void MqttWebHook_OnClientConnected_NoEndpoints_NoException()
     {
-        // 验证便捷方法不抛异常（没有端点时）
+        // 没有端点时调用便捷方法不应抛异常
         using var hook = new MqttWebHook();
         hook.OnClientConnected("client1", "user1");
     }
 
     [Fact]
-    public void MqttWebHook_OnClientDisconnected_CreatesEventData()
+    public void MqttWebHook_OnClientDisconnected_NoEndpoints_NoException()
     {
         using var hook = new MqttWebHook();
         hook.OnClientDisconnected("client1", "normal");
     }
 
     [Fact]
-    public void MqttWebHook_OnMessagePublish_CreatesEventData()
+    public void MqttWebHook_OnMessagePublish_NoEndpoints_NoException()
     {
         using var hook = new MqttWebHook();
         var msg = new PublishMessage
@@ -165,7 +165,7 @@ public class WebHookTests
     }
 
     [Fact]
-    public void MqttWebHook_OnClientSubscribe_CreatesEventData()
+    public void MqttWebHook_OnClientSubscribe_NoEndpoints_NoException()
     {
         using var hook = new MqttWebHook();
         hook.OnClientSubscribe("client1", "test/#", QualityOfService.AtLeastOnce);
