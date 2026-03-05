@@ -6,7 +6,7 @@
     <Description>纯国产自主MQTT 3.1/3.1.1/5.0完整协议实现，MqttClient客户端与MqttServer服务端一体化。六种传输TCP/TLS/WebSocket/WSS/QUIC/UDP；内置集群、桥接、规则引擎、WebHook、ACL、$SYS等企业功能免费；零第三方依赖，MIT开源，信创合规</Description>
     <Company>新生命开发团队</Company>
     <Copyright>版权所有(C) 新生命开发团队 2002~2026</Copyright>
-    <VersionPrefix>2.3</VersionPrefix>
+    <VersionPrefix>3.0</VersionPrefix>
     <VersionSuffix>$([System.DateTime]::Now.ToString(`yyyy.MMdd`))</VersionSuffix>
     <Version>$(VersionPrefix).$(VersionSuffix)</Version>
     <FileVersion>$(Version)</FileVersion>
@@ -37,7 +37,7 @@
     <RepositoryUrl>https://github.com/NewLifeX/NewLife.MQTT</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>新生命团队;X组件;NewLife;$(AssemblyName);MQTT;MQTTClient;MQTTServer;MQTTBroker;IoT;物联网;MQTT5;QoS;PubSub;WebSocket;QUIC;TLS;集群;桥接;规则引擎;信创</PackageTags>
-    <PackageReleaseNotes>完整支持MQTT 3.1.1/5.0协议；六种传输TCP/TLS/WS/WSS/QUIC/UDP；内置集群、桥接、规则引擎、WebHook、ProxyProtocol；零第三方依赖，MIT开源</PackageReleaseNotes>
+    <PackageReleaseNotes>完善 MQTT 5.0 协议与集群自动发现/管理 API；新增 EMQX 共享订阅与客户端 MQTT 版本指定；修复集群缺陷并补充 MQTT 5.0 单元测试；提升 .NET 多目标兼容性并完善 QUIC(net7/net8) 预览能力；升级 NewLife.Core/NewLife.Remoting/NewLife.Stardust 依赖并优化文档与元数据。</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
