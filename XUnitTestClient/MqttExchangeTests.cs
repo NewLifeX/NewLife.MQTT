@@ -542,6 +542,10 @@ public class MqttExchangeTests : IDisposable
         // 两个订阅者合计收到2条消息
         var total = handler1.PublishedMessages.Count + handler2.PublishedMessages.Count;
         Assert.Equal(2, total);
+
+        // 验证轮询分发：每个订阅者各收到1条消息
+        Assert.Equal(1, handler1.PublishedMessages.Count);
+        Assert.Equal(1, handler2.PublishedMessages.Count);
     }
     #endregion
 
