@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
