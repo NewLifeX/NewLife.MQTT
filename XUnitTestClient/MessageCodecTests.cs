@@ -38,7 +38,7 @@ public class MessageCodecTests
             Password = "pass123",
             CleanSession = true,
             KeepAliveInSeconds = 60,
-            ProtocolLevel = 0x04,
+            ProtocolLevel = MqttVersion.V311,
         };
 
         var result = RoundTrip(msg);
@@ -48,7 +48,7 @@ public class MessageCodecTests
         Assert.Equal("pass123", result.Password);
         Assert.True(result.CleanSession);
         Assert.Equal(60, result.KeepAliveInSeconds);
-        Assert.Equal(0x04, result.ProtocolLevel);
+        Assert.Equal(MqttVersion.V311, result.ProtocolLevel);
         Assert.Equal(MqttType.Connect, result.Type);
     }
 
@@ -81,7 +81,7 @@ public class MessageCodecTests
         var msg = new ConnectMessage
         {
             ClientId = "v5_client",
-            ProtocolLevel = 0x05,
+            ProtocolLevel = MqttVersion.V500,
             CleanSession = true,
             KeepAliveInSeconds = 30,
         };
@@ -90,7 +90,7 @@ public class MessageCodecTests
         var result = RoundTrip(msg);
 
         Assert.Equal("v5_client", result.ClientId);
-        Assert.Equal(0x05, result.ProtocolLevel);
+        Assert.Equal(MqttVersion.V500, result.ProtocolLevel);
     }
 
     [Fact]

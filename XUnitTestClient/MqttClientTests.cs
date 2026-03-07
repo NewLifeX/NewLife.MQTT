@@ -195,14 +195,14 @@ public class MqttClientTests
         {
             ClientId = "test_client_1"
         };
-        Assert.Equal((Byte)0x04, msg1.ProtocolLevel);
+        Assert.Equal(MqttVersion.V311, msg1.ProtocolLevel);
 
         // 测试设置协议级别
         var msg2 = new ConnectMessage
         {
             ClientId = "test_client_2",
-            ProtocolLevel = (Byte)MqttVersion.V500
+            ProtocolLevel = MqttVersion.V500
         };
-        Assert.Equal((Byte)0x05, msg2.ProtocolLevel);
+        Assert.Equal(MqttVersion.V500, msg2.ProtocolLevel);
     }
 }

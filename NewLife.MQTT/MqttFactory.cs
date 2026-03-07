@@ -40,19 +40,19 @@ public class MqttFactory
     /// <summary>读取消息</summary>
     /// <param name="pk"></param>
     /// <returns></returns>
-    public virtual MqttMessage? ReadMessage(IPacket pk) => ReadMessage(pk, 4);
+    public virtual MqttMessage? ReadMessage(IPacket pk) => ReadMessage(pk, MqttVersion.V311);
 
     /// <summary>读取消息（支持 MQTT 5.0 属性）</summary>
     /// <param name="pk">数据包</param>
-    /// <param name="protocolLevel">协议版本，5 表示 MQTT 5.0</param>
+    /// <param name="protocolLevel">协议版本</param>
     /// <returns></returns>
-    public virtual MqttMessage? ReadMessage(IPacket pk, Byte protocolLevel)
+    public virtual MqttMessage? ReadMessage(IPacket pk, MqttVersion protocolLevel)
     {
         try
         {
             var msg = CreateMessage((MqttType)(pk[0] >> 4));
             // 仅 MQTT 5.0 时将协议版本作为 context 传入（PublishMessage 等需要读取属性）
-            Object? ctx = protocolLevel >= 5 ? (Object)protocolLevel : null;
+            Object? ctx = protocolLevel >= MqttVersion.V500 ? (Object)protocolLevel : null;
             if (!msg.Read(pk.GetStream(), ctx)) return null;
 
             return msg;

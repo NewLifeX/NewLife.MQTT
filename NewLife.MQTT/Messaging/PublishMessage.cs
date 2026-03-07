@@ -35,7 +35,7 @@ public sealed class PublishMessage : MqttIdMessage
     #region 方法
     /// <summary>从数据流中读取消息</summary>
     /// <param name="stream">数据流</param>
-    /// <param name="context">上下文，传入 ProtocolLevel（Byte）时按 MQTT 5.0 读取属性</param>
+    /// <param name="context">上下文，传入 MqttVersion 时按 MQTT 5.0 读取属性</param>
     /// <returns>是否成功</returns>
     protected override Boolean OnRead(Stream stream, Object? context)
     {
@@ -46,8 +46,8 @@ public sealed class PublishMessage : MqttIdMessage
             if (!base.OnRead(stream, context)) return false;
         }
 
-        // MQTT 5.0 属性（ProtocolLevel >= 5 时读取）
-        if (context is Byte pl && pl >= 5)
+        // MQTT 5.0 属性（MqttVersion >= V500 时读取）
+        if (context is MqttVersion ver && ver >= MqttVersion.V500)
         {
             Properties = new MqttProperties();
             Properties.Read(stream);
@@ -61,7 +61,7 @@ public sealed class PublishMessage : MqttIdMessage
 
     /// <summary>把消息写入到数据流中</summary>
     /// <param name="stream">数据流</param>
-    /// <param name="context">上下文，传入 ProtocolLevel（Byte）时按 MQTT 5.0 写入属性</param>
+    /// <param name="context">上下文，传入 MqttVersion 时按 MQTT 5.0 写入属性</param>
     protected override Boolean OnWrite(Stream stream, Object? context)
     {
         WriteString(stream, Topic);
@@ -76,7 +76,7 @@ public sealed class PublishMessage : MqttIdMessage
         {
             Properties.Write(stream);
         }
-        else if (context is Byte pl && pl >= 5)
+        else if (context is MqttVersion ver && ver >= MqttVersion.V500)
         {
             // MQTT 5.0 连接但无属性时写入空属性长度（1字节，值=0）
             stream.WriteByte(0);

@@ -1,5 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using NewLife.Collections;
 
 namespace NewLife.MQTT.Handlers;
 
@@ -81,9 +82,17 @@ public class ScramSha256Mechanism : ISaslMechanism
         AuthenticatedUser = username;
 
         // 生成服务端随机 nonce，拼接客户端 nonce
-        var snonceBytes = new Byte[18];
-        GenerateRandomBytes(snonceBytes);
-        var snonce = Convert.ToBase64String(snonceBytes);
+        var snonceBytes = Pool.Shared.Rent(18);
+        String snonce;
+        try
+        {
+            GenerateRandomBytes(snonceBytes);
+            snonce = Convert.ToBase64String(snonceBytes, 0, 18);
+        }
+        finally
+        {
+            Pool.Shared.Return(snonceBytes);
+        }
         _nonce = cnonce + snonce;
 
         // 生成随机盐
@@ -160,14 +169,21 @@ public class ScramSha256Mechanism : ISaslMechanism
         var clientSignature = HmacSha256(storedKey, authMessageBytes);
 
         // ClientProof = ClientKey XOR ClientSignature
-        var expectedProof = new Byte[clientKey.Length];
-        for (var i = 0; i < expectedProof.Length; i++)
-            expectedProof[i] = (Byte)(clientKey[i] ^ clientSignature[i]);
+        var expectedProof = Pool.Shared.Rent(clientKey.Length);
+        try
+        {
+            for (var i = 0; i < clientKey.Length; i++)
+                expectedProof[i] = (Byte)(clientKey[i] ^ clientSignature[i]);
 
-        // 验证
-        var receivedProof = Convert.FromBase64String(proofB64);
-        if (!FixedTimeEquals(expectedProof, receivedProof))
-            return new SaslStep { IsComplete = true, Success = false };
+            // 验证
+            var receivedProof = Convert.FromBase64String(proofB64);
+            if (!FixedTimeEquals(expectedProof.AsSpan(0, clientKey.Length), receivedProof))
+                return new SaslStep { IsComplete = true, Success = false };
+        }
+        finally
+        {
+            Pool.Shared.Return(expectedProof, clearArray: true);
+        }
 
         // ServerKey = HMAC-SHA256(SaltedPassword, "Server Key")
         var serverKey = HmacSha256(saltedPassword, Encoding.UTF8.GetBytes("Server Key"));
@@ -210,7 +226,7 @@ public class ScramSha256Mechanism : ISaslMechanism
 #endif
     }
 
-    private static Boolean FixedTimeEquals(Byte[] a, Byte[] b)
+    private static Boolean FixedTimeEquals(ReadOnlySpan<Byte> a, ReadOnlySpan<Byte> b)
     {
         if (a.Length != b.Length)
             return false;

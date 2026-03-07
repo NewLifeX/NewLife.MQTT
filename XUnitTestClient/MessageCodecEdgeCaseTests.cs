@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using NewLife.Data;
 using NewLife.MQTT;
@@ -11,10 +11,10 @@ namespace XUnitTestClient;
 public class MessageCodecEdgeCaseTests
 {
     private static readonly MqttFactory _factory = new();
-    private static readonly Byte _v500Level = (Byte)MqttVersion.V500;  // 0x05
+    private static readonly MqttVersion _v500Level = MqttVersion.V500;  // 0x05
 
     /// <summary>辅助：序列化再反序列化</summary>
-    private static T RoundTrip<T>(T msg, Byte? protocolLevel = null) where T : MqttMessage
+    private static T RoundTrip<T>(T msg, MqttVersion? protocolLevel = null) where T : MqttMessage
     {
         var buf = msg.ToArray();
         Assert.True(buf.Length > 0);
@@ -96,7 +96,7 @@ public class MessageCodecEdgeCaseTests
         {
             ClientId = "v310_client",
             ProtocolName = "MQIsdp",
-            ProtocolLevel = 0x03,
+            ProtocolLevel = MqttVersion.V310,
             CleanSession = true,
             KeepAliveInSeconds = 60,
         };
@@ -104,7 +104,7 @@ public class MessageCodecEdgeCaseTests
         var result = RoundTrip(msg);
 
         Assert.Equal("MQIsdp", result.ProtocolName);
-        Assert.Equal(0x03, result.ProtocolLevel);
+        Assert.Equal(MqttVersion.V310, result.ProtocolLevel);
         Assert.Equal("v310_client", result.ClientId);
         Assert.True(result.CleanSession);
     }
@@ -117,7 +117,7 @@ public class MessageCodecEdgeCaseTests
         {
             ClientId = "v310_cred",
             ProtocolName = "MQIsdp",
-            ProtocolLevel = 0x03,
+            ProtocolLevel = MqttVersion.V310,
             Username = "user1",
             Password = "pass1",
             KeepAliveInSeconds = 30,
@@ -126,7 +126,7 @@ public class MessageCodecEdgeCaseTests
         var result = RoundTrip(msg);
 
         Assert.Equal("MQIsdp", result.ProtocolName);
-        Assert.Equal(0x03, result.ProtocolLevel);
+        Assert.Equal(MqttVersion.V310, result.ProtocolLevel);
         Assert.Equal("user1", result.Username);
         Assert.Equal("pass1", result.Password);
     }
@@ -148,7 +148,7 @@ public class MessageCodecEdgeCaseTests
         var msg = new ConnectMessage
         {
             ClientId = "v5_full_client",
-            ProtocolLevel = 0x05,
+            ProtocolLevel = MqttVersion.V500,
             CleanSession = true,
             KeepAliveInSeconds = 60,
             HasWill = true,
@@ -161,7 +161,7 @@ public class MessageCodecEdgeCaseTests
 
         var result = RoundTrip(msg);
 
-        Assert.Equal(0x05, result.ProtocolLevel);
+        Assert.Equal(MqttVersion.V500, result.ProtocolLevel);
         Assert.Equal("v5_full_client", result.ClientId);
         Assert.True(result.HasWill);
         Assert.Equal("status/offline", result.WillTopicName);
@@ -179,13 +179,13 @@ public class MessageCodecEdgeCaseTests
         var msg = new ConnectMessage
         {
             ClientId = "v5_empty_props",
-            ProtocolLevel = 0x05,
+            ProtocolLevel = MqttVersion.V500,
             CleanSession = true,
         };
 
         var result = RoundTrip(msg);
 
-        Assert.Equal(0x05, result.ProtocolLevel);
+        Assert.Equal(MqttVersion.V500, result.ProtocolLevel);
         Assert.Equal("v5_empty_props", result.ClientId);
         // 无属性或空属性均可
         Assert.True(result.Properties == null || result.Properties.Count == 0);

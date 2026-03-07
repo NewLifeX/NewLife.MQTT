@@ -453,7 +453,7 @@ public class MqttClient : DisposeBase
             Username = UserName,
             Password = Password,
             CleanSession = CleanSession,
-            ProtocolLevel = (Byte)Version,
+            ProtocolLevel = Version,
         };
 
         // 设置遗嘱消息

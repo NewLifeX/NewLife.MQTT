@@ -82,7 +82,7 @@ public class MqttFactoryTests
         var data = new Byte[] { 0xC0, 0x00 };
         var pk = new ArrayPacket(data);
 
-        var msg = factory.ReadMessage(pk, 5);
+        var msg = factory.ReadMessage(pk, MqttVersion.V500);
 
         Assert.NotNull(msg);
         Assert.IsType<PingRequest>(msg);

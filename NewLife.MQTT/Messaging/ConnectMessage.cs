@@ -21,7 +21,7 @@ public sealed class ConnectMessage : MqttMessage
     /// 3.1.1版本的协议等级是4（0x04）。
     /// 如果协议等级不被服务端支持，服务端必须响应一个包含代码0x01（不接受的协议等级）CONNACK包，然后断开和客户端的连接。
     /// </remarks>
-    public Byte ProtocolLevel { get; set; } = 0x04;
+    public MqttVersion ProtocolLevel { get; set; } = MqttVersion.V311;
 
     /// <summary>清理会话</summary>
     /// <remarks>
@@ -116,7 +116,7 @@ public sealed class ConnectMessage : MqttMessage
         ProtocolName = ReadString(stream);
 
         // 协议等级
-        ProtocolLevel = (Byte)stream.ReadByte();
+        ProtocolLevel = (MqttVersion)stream.ReadByte();
 
         // 连接标记 Connect Flags
         // 连接标志字节包含一些用于指定MQTT连接行为的参数。它还指出有效载荷中的字段是否存在。
@@ -132,19 +132,19 @@ public sealed class ConnectMessage : MqttMessage
         KeepAliveInSeconds = stream.ReadBytes(2).ToUInt16(0, false);
 
         // MQTT 5.0 属性集合
-        if (ProtocolLevel >= 5)
+        if (ProtocolLevel >= MqttVersion.V500)
         {
             Properties = new MqttProperties();
             Properties.Read(stream);
         }
 
-        // CONNECT报文的有效载荷（payload）包含一个或多个以长度为前缀的字段，可变报头中的标志决定是否包含这些字段。
+        // CONNECT报文的有效载荷
         // 如果包含的话，必须按这个顺序出现：客户端标识符，遗嘱属性(5.0)，遗嘱主题，遗嘱消息，用户名，密码 
         ClientId = ReadString(stream);
         if (HasWill)
         {
             // MQTT 5.0 遗嘱属性
-            if (ProtocolLevel >= 5)
+            if (ProtocolLevel >= MqttVersion.V500)
             {
                 WillProperties = new MqttProperties();
                 WillProperties.Read(stream);
@@ -168,7 +168,7 @@ public sealed class ConnectMessage : MqttMessage
         WriteString(stream, ProtocolName);
 
         // 协议等级
-        stream.Write(ProtocolLevel);
+        stream.Write((Byte)ProtocolLevel);
 
         // 连接标识
         if (!WillTopicName.IsNullOrEmpty() || WillMessage != null) HasWill = true;
@@ -188,7 +188,7 @@ public sealed class ConnectMessage : MqttMessage
         stream.Write(KeepAliveInSeconds.GetBytes(false));
 
         // MQTT 5.0 属性集合
-        if (ProtocolLevel >= 5)
+        if (ProtocolLevel >= MqttVersion.V500)
         {
             if (Properties != null && Properties.Count > 0)
                 Properties.Write(stream);
@@ -201,7 +201,7 @@ public sealed class ConnectMessage : MqttMessage
         if (HasWill)
         {
             // MQTT 5.0 遗嘱属性
-            if (ProtocolLevel >= 5)
+            if (ProtocolLevel >= MqttVersion.V500)
             {
                 if (WillProperties != null && WillProperties.Count > 0)
                     WillProperties.Write(stream);
