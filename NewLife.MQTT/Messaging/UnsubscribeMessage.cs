@@ -1,4 +1,6 @@
-﻿namespace NewLife.MQTT.Messaging;
+﻿using NewLife.Buffers;
+
+namespace NewLife.MQTT.Messaging;
 
 /// <summary>取消订阅</summary>
 public sealed class UnsubscribeMessage : MqttIdMessage
@@ -24,34 +26,34 @@ public sealed class UnsubscribeMessage : MqttIdMessage
     #endregion
 
     #region 方法
-    /// <summary>从数据流中读取消息</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader读取消息</summary>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
-        if (!base.OnRead(stream, context)) return false;
+        if (!base.OnRead(ref reader, context)) return false;
 
         var list = new List<String>();
-        while (stream.Position < stream.Length)
+        while (reader.Available > 0)
         {
-            list.Add(ReadString(stream));
+            list.Add(ReadString(ref reader));
         }
         TopicFilters = list;
 
         return true;
     }
 
-    /// <summary>把消息写入到数据流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>将消息写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
-        if (!base.OnWrite(stream, context)) return false;
+        if (!base.OnWrite(ref writer, context)) return false;
 
         foreach (var item in TopicFilters)
         {
-            WriteString(stream, item);
+            WriteString(ref writer, item);
         }
 
         return true;

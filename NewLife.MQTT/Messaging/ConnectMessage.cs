@@ -1,4 +1,4 @@
-﻿using NewLife.Data;
+﻿using NewLife.Buffers;
 
 namespace NewLife.MQTT.Messaging;
 
@@ -106,21 +106,21 @@ public sealed class ConnectMessage : MqttMessage
     #endregion
 
     #region 读写方法
-    /// <summary>从数据流中读取消息</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader读取消息</summary>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
         // 协议名
-        ProtocolName = ReadString(stream);
+        ProtocolName = ReadString(ref reader);
 
         // 协议等级
-        ProtocolLevel = (MqttVersion)stream.ReadByte();
+        ProtocolLevel = (MqttVersion)reader.ReadByte();
 
         // 连接标记 Connect Flags
         // 连接标志字节包含一些用于指定MQTT连接行为的参数。它还指出有效载荷中的字段是否存在。
-        var flag = (Byte)stream.ReadByte();
+        var flag = reader.ReadByte();
         CleanSession = (flag & 0b0000_0010) > 0;
         HasWill = (flag & 0b0000_0100) > 0;
         WillQualityOfService = (QualityOfService)((flag & 0b0001_1000) >> 3);
@@ -129,46 +129,46 @@ public sealed class ConnectMessage : MqttMessage
         HasUsername = (flag & 0b1000_0000) > 0;
 
         // 连接超时
-        KeepAliveInSeconds = stream.ReadBytes(2).ToUInt16(0, false);
+        KeepAliveInSeconds = reader.ReadUInt16();
 
         // MQTT 5.0 属性集合
         if (ProtocolLevel >= MqttVersion.V500)
         {
             Properties = new MqttProperties();
-            Properties.Read(stream);
+            Properties.Read(ref reader);
         }
 
         // CONNECT报文的有效载荷
         // 如果包含的话，必须按这个顺序出现：客户端标识符，遗嘱属性(5.0)，遗嘱主题，遗嘱消息，用户名，密码 
-        ClientId = ReadString(stream);
+        ClientId = ReadString(ref reader);
         if (HasWill)
         {
             // MQTT 5.0 遗嘱属性
             if (ProtocolLevel >= MqttVersion.V500)
             {
                 WillProperties = new MqttProperties();
-                WillProperties.Read(stream);
+                WillProperties.Read(ref reader);
             }
 
-            WillTopicName = ReadString(stream);
-            WillMessage = ReadData(stream);
+            WillTopicName = ReadString(ref reader);
+            WillMessage = ReadData(ref reader);
         }
-        if (HasUsername) Username = ReadString(stream);
-        if (HasPassword) Password = ReadString(stream);
+        if (HasUsername) Username = ReadString(ref reader);
+        if (HasPassword) Password = ReadString(ref reader);
 
         return true;
     }
 
-    /// <summary>把消息写入到数据流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>将消息写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
         // 协议名
-        WriteString(stream, ProtocolName);
+        WriteString(ref writer, ProtocolName);
 
         // 协议等级
-        stream.Write((Byte)ProtocolLevel);
+        writer.WriteByte((Byte)ProtocolLevel);
 
         // 连接标识
         if (!WillTopicName.IsNullOrEmpty() || WillMessage != null) HasWill = true;
@@ -182,41 +182,51 @@ public sealed class ConnectMessage : MqttMessage
         if (WillRetain) flag |= 0b0010_0000;
         if (HasPassword) flag |= 0b0100_0000;
         if (HasUsername) flag |= 0b1000_0000;
-        stream.Write((Byte)flag);
+        writer.WriteByte((Byte)flag);
 
         // 连接超时
-        stream.Write(KeepAliveInSeconds.GetBytes(false));
+        writer.Write(KeepAliveInSeconds);
 
         // MQTT 5.0 属性集合
         if (ProtocolLevel >= MqttVersion.V500)
         {
             if (Properties != null && Properties.Count > 0)
-                Properties.Write(stream);
+                Properties.Write(ref writer);
             else
-                MqttProperties.WriteVariableInt(stream, 0);
+                writer.WriteEncodedInt(0);
         }
 
         // 载荷
-        WriteString(stream, ClientId);
+        WriteString(ref writer, ClientId);
         if (HasWill)
         {
             // MQTT 5.0 遗嘱属性
             if (ProtocolLevel >= MqttVersion.V500)
             {
                 if (WillProperties != null && WillProperties.Count > 0)
-                    WillProperties.Write(stream);
+                    WillProperties.Write(ref writer);
                 else
-                    MqttProperties.WriteVariableInt(stream, 0);
+                    writer.WriteEncodedInt(0);
             }
 
-            WriteString(stream, WillTopicName);
-            WriteData(stream, WillMessage);
+            WriteString(ref writer, WillTopicName);
+            WriteData(ref writer, WillMessage);
         }
-        if (HasUsername) WriteString(stream, Username);
-        if (HasPassword) WriteString(stream, Password);
+        if (HasUsername) WriteString(ref writer, Username);
+        if (HasPassword) WriteString(ref writer, Password);
 
         return true;
     }
+
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize() =>
+        128 +
+        (ClientId?.Length ?? 0) * 3 +
+        (Username?.Length ?? 0) * 3 +
+        (Password?.Length ?? 0) * 3 +
+        (WillTopicName?.Length ?? 0) * 3 +
+        (WillMessage?.Length ?? 0);
 
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>

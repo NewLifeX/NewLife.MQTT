@@ -60,6 +60,7 @@ public class MqttUdpClient : DisposeBase
     public event EventHandler<MqttMessage>? MessageReceived;
 
     private ISocketClient? _udp;
+    private readonly MqttFactory _factory = new();
     private Int32 _nextSeqId;
     private readonly ConcurrentDictionary<UInt16, PendingFrame> _pendingAcks = new();
     private readonly ConcurrentDictionary<UInt16, DateTime> _receivedSeqs = new();
@@ -89,7 +90,7 @@ public class MqttUdpClient : DisposeBase
         _udp = client;
 
         // 发送连接帧
-        var connectFrame = BuildFrame(FrameConnect, 0, null);
+        var connectFrame = BuildFrame(FrameConnect, 0, default);
         client.Send(connectFrame);
 
         // 等待 ConnAck
@@ -133,9 +134,9 @@ public class MqttUdpClient : DisposeBase
         if (_udp == null || !IsConnected)
             throw new InvalidOperationException("未建立 UDP 连接");
 
-        var data = message.ToArray();
+        using var pk = message.ToPacket();
         var seqId = (UInt16)Interlocked.Increment(ref _nextSeqId);
-        var frame = BuildFrame(FrameData, seqId, data);
+        var frame = BuildFrame(FrameData, seqId, pk.GetSpan());
 
         // 加入待确认队列
         _pendingAcks[seqId] = new PendingFrame
@@ -156,7 +157,7 @@ public class MqttUdpClient : DisposeBase
     {
         if (_udp != null && IsConnected)
         {
-            var closeFrame = BuildFrame(FrameClose, 0, null);
+            var closeFrame = BuildFrame(FrameClose, 0, default);
             _udp.Send(closeFrame);
         }
 
@@ -180,27 +181,27 @@ public class MqttUdpClient : DisposeBase
 
     #region 帧处理
     /// <summary>构建传输帧</summary>
-    private static Byte[] BuildFrame(Byte frameType, UInt16 seqId, Byte[]? payload)
+    private static Byte[] BuildFrame(Byte frameType, UInt16 seqId, ReadOnlySpan<Byte> payload)
     {
-        var len = FrameHeaderSize + (payload?.Length ?? 0);
+        var len = FrameHeaderSize + payload.Length;
         var buf = new Byte[len];
         buf[0] = frameType;
         buf[1] = (Byte)(seqId >> 8);
         buf[2] = (Byte)(seqId & 0xFF);
         buf[3] = 0; // flags
 
-        if (payload != null && payload.Length > 0)
-            Buffer.BlockCopy(payload, 0, buf, FrameHeaderSize, payload.Length);
+        if (!payload.IsEmpty)
+            payload.CopyTo(buf.AsSpan(FrameHeaderSize));
 
         return buf;
     }
 
     /// <summary>解析帧头</summary>
-    private static Boolean ParseFrameHeader(IPacket pk, out Byte frameType, out UInt16 seqId, out ArraySegment<Byte> payload)
+    private static Boolean ParseFrameHeader(IPacket pk, out Byte frameType, out UInt16 seqId, out IPacket? payload)
     {
         frameType = 0;
         seqId = 0;
-        payload = default;
+        payload = null;
 
         var data = pk.GetSpan();
         if (data.Length < FrameHeaderSize) return false;
@@ -209,10 +210,7 @@ public class MqttUdpClient : DisposeBase
         seqId = (UInt16)((data[1] << 8) | data[2]);
 
         if (data.Length > FrameHeaderSize)
-        {
-            var arr = pk.ToArray();
-            payload = new ArraySegment<Byte>(arr, FrameHeaderSize, arr.Length - FrameHeaderSize);
-        }
+            payload = pk.Slice(FrameHeaderSize);
 
         return true;
     }
@@ -238,7 +236,7 @@ public class MqttUdpClient : DisposeBase
                 // 回复 Ack
                 if (_udp != null)
                 {
-                    var ackFrame = BuildFrame(FrameAck, seqId, null);
+                    var ackFrame = BuildFrame(FrameAck, seqId, default);
                     _udp.Send(ackFrame);
                 }
 
@@ -246,13 +244,11 @@ public class MqttUdpClient : DisposeBase
                 if (!_receivedSeqs.TryAdd(seqId, DateTime.Now)) break;
 
                 // 解析 MQTT 消息
-                if (payload.Count > 0)
+                if (payload != null && payload.Total > 0)
                 {
                     try
                     {
-                        var pk = new ArrayPacket(payload.Array!, payload.Offset, payload.Count);
-                        var factory = new MqttFactory();
-                        var msg = factory.ReadMessage(pk);
+                        var msg = _factory.ReadMessage(payload);
                         if (msg != null) MessageReceived?.Invoke(this, msg);
                     }
                     catch { }
@@ -352,6 +348,7 @@ public class MqttUdpListener : DisposeBase
 
     /// <summary>活跃连接。key=远程端点字符串</summary>
     private readonly ConcurrentDictionary<String, UdpMqttPeer> _peers = new();
+    private readonly MqttFactory _factory = new();
     private TimerX? _cleanupTimer;
     #endregion
 
@@ -412,7 +409,7 @@ public class MqttUdpListener : DisposeBase
                 _peers[remoteKey] = peer;
 
                 // 回复 ConnAck
-                var connAckFrame = BuildFrame(FrameConnAck, 0, null);
+                var connAckFrame = BuildFrame(FrameConnAck, 0, default);
                 session.Session?.Send(new ArrayPacket(connAckFrame));
 
                 ConnectionReceived?.Invoke(this, new UdpMqttConnectionEventArgs(remoteKey, peer));
@@ -423,20 +420,18 @@ public class MqttUdpListener : DisposeBase
                 dataPeer.LastActiveTime = DateTime.Now;
 
                 // 回复 Ack
-                var ackFrame = BuildFrame(FrameAck, seqId, null);
+                var ackFrame = BuildFrame(FrameAck, seqId, default);
                 session.Session?.Send(new ArrayPacket(ackFrame));
 
                 // 去重
                 if (!dataPeer.ReceivedSeqs.TryAdd(seqId, DateTime.Now)) break;
 
                 // 解析 MQTT 消息
-                if (payload.Count > 0)
+                if (payload != null && payload.Total > 0)
                 {
                     try
                     {
-                        var pk = new ArrayPacket(payload.Array!, payload.Offset, payload.Count);
-                        var factory = new MqttFactory();
-                        var msg = factory.ReadMessage(pk);
+                        var msg = _factory.ReadMessage(payload);
                         if (msg != null)
                             MessageReceived?.Invoke(this, new UdpMqttMessageEventArgs(remoteKey, msg));
                     }
@@ -457,9 +452,9 @@ public class MqttUdpListener : DisposeBase
     {
         if (!_peers.TryGetValue(remoteKey, out var peer)) return;
 
-        var data = message.ToArray();
+        using var pk = message.ToPacket();
         var seqId = peer.NextSeqId();
-        var frame = BuildFrame(FrameData, seqId, data);
+        var frame = BuildFrame(FrameData, seqId, pk.GetSpan());
 
         peer.Session?.Session?.Send(new ArrayPacket(frame));
     }
@@ -489,27 +484,27 @@ public class MqttUdpListener : DisposeBase
 
     #region 辅助
     /// <summary>构建传输帧</summary>
-    private static Byte[] BuildFrame(Byte frameType, UInt16 seqId, Byte[]? payload)
+    private static Byte[] BuildFrame(Byte frameType, UInt16 seqId, ReadOnlySpan<Byte> payload)
     {
-        var len = FrameHeaderSize + (payload?.Length ?? 0);
+        var len = FrameHeaderSize + payload.Length;
         var buf = new Byte[len];
         buf[0] = frameType;
         buf[1] = (Byte)(seqId >> 8);
         buf[2] = (Byte)(seqId & 0xFF);
         buf[3] = 0;
 
-        if (payload != null && payload.Length > 0)
-            Buffer.BlockCopy(payload, 0, buf, FrameHeaderSize, payload.Length);
+        if (!payload.IsEmpty)
+            payload.CopyTo(buf.AsSpan(FrameHeaderSize));
 
         return buf;
     }
 
     /// <summary>解析帧头</summary>
-    private static Boolean ParseFrameHeader(IPacket pk, out Byte frameType, out UInt16 seqId, out ArraySegment<Byte> payload)
+    private static Boolean ParseFrameHeader(IPacket pk, out Byte frameType, out UInt16 seqId, out IPacket? payload)
     {
         frameType = 0;
         seqId = 0;
-        payload = default;
+        payload = null;
 
         var data = pk.GetSpan();
         if (data.Length < FrameHeaderSize) return false;
@@ -518,10 +513,7 @@ public class MqttUdpListener : DisposeBase
         seqId = (UInt16)((data[1] << 8) | data[2]);
 
         if (data.Length > FrameHeaderSize)
-        {
-            var arr = pk.ToArray();
-            payload = new ArraySegment<Byte>(arr, FrameHeaderSize, arr.Length - FrameHeaderSize);
-        }
+            payload = pk.Slice(FrameHeaderSize);
 
         return true;
     }
