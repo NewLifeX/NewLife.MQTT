@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using NewLife.Buffers;
+using NewLife.Data;
 
 namespace NewLife.MQTT.Messaging;
 
@@ -196,9 +197,9 @@ public class MqttProperties
     /// <returns></returns>
     public Boolean Write(ref SpanWriter writer)
     {
-        // 先写入临时缓冲区计算属性总长度
-        var propBuf = new Byte[GetEstimatedSize()];
-        var propWriter = new SpanWriter(propBuf) { IsLittleEndian = false };
+        // 使用池化缓冲区写入属性数据，避免 GC 分配
+        using var propPk = new OwnerPacket(GetEstimatedSize());
+        var propWriter = new SpanWriter(propPk) { IsLittleEndian = false };
 
         foreach (var item in _props)
         {
@@ -303,9 +304,16 @@ public class MqttProperties
 
     private static void WriteUtf8String(ref SpanWriter writer, String? value)
     {
-        var buf = value?.GetBytes() ?? [];
-        writer.Write((UInt16)buf.Length);
-        if (buf.Length > 0) writer.Write(buf);
+        if (value.IsNullOrEmpty())
+        {
+            writer.Write((UInt16)0);
+            return;
+        }
+
+        // 直接计算字节数写入长度前缀，再用 Write(String, -1) 零分配写入 UTF-8 数据
+        var byteCount = Encoding.UTF8.GetByteCount(value);
+        writer.Write((UInt16)byteCount);
+        writer.Write(value, -1);
     }
 
     private static Byte[] ReadBinaryData(ref SpanReader reader)
