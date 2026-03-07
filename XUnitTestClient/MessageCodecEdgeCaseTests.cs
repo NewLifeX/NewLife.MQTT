@@ -16,10 +16,9 @@ public class MessageCodecEdgeCaseTests
     /// <summary>辅助：序列化再反序列化</summary>
     private static T RoundTrip<T>(T msg, MqttVersion? protocolLevel = null) where T : MqttMessage
     {
-        var buf = msg.ToArray();
-        Assert.True(buf.Length > 0);
+        using var pk = msg.ToPacket();
+        Assert.True(pk.Total > 0);
 
-        var pk = new ArrayPacket(buf);
         var result = protocolLevel.HasValue
             ? _factory.ReadMessage(pk, protocolLevel.Value)
             : _factory.ReadMessage(pk);
@@ -35,10 +34,10 @@ public class MessageCodecEdgeCaseTests
     {
         // 构造一条 PINGREQ（固定 2 字节：0xC0 0x00），验证长度字段为 1 字节
         var msg = new PingRequest();
-        var buf = msg.ToArray();
-        Assert.Equal(2, buf.Length);
+        using var pk = msg.ToPacket();
+        Assert.Equal(2, pk.Total);
         // 第二个字节是剩余长度，值为 0
-        Assert.Equal(0, buf[1]);
+        Assert.Equal(0, pk[1]);
     }
 
     [Fact]
@@ -56,9 +55,9 @@ public class MessageCodecEdgeCaseTests
             Payload = new ArrayPacket(payload),
         };
 
-        var buf = msg.ToArray();
+        using var pk = msg.ToPacket();
         // 第二个字节的最高位应为 1（表示后续还有字节）
-        Assert.True((buf[1] & 0x80) == 0x80);
+        Assert.True((pk[1] & 0x80) == 0x80);
 
         var result = RoundTrip(msg);
         Assert.Equal("test/big", result.Topic);
@@ -77,10 +76,10 @@ public class MessageCodecEdgeCaseTests
             Payload = new ArrayPacket(payload),
         };
 
-        var buf = msg.ToArray();
+        using var pk = msg.ToPacket();
         // 前三个 Remaining Length 字节的高位均应为 1（第三个不需要，但前两个需要）
-        Assert.True((buf[1] & 0x80) == 0x80);
-        Assert.True((buf[2] & 0x80) == 0x80);
+        Assert.True((pk[1] & 0x80) == 0x80);
+        Assert.True((pk[2] & 0x80) == 0x80);
 
         var result = RoundTrip(msg);
         Assert.Equal(20000, result.Payload!.Total);
@@ -247,12 +246,12 @@ public class MessageCodecEdgeCaseTests
     public void DisconnectMessage_V311_Empty_RoundTrip()
     {
         var msg = new DisconnectMessage();
-        var buf = msg.ToArray();
+        using var pk = msg.ToPacket();
 
         // MQTT 3.1.1 的 DISCONNECT 是固定 2 字节 0xE0 0x00
-        Assert.Equal(2, buf.Length);
-        Assert.Equal(0xE0, buf[0]);
-        Assert.Equal(0x00, buf[1]);
+        Assert.Equal(2, pk.Total);
+        Assert.Equal(0xE0, pk[0]);
+        Assert.Equal(0x00, pk[1]);
 
         var result = RoundTrip(msg);
         Assert.Equal(MqttType.Disconnect, result.Type);
@@ -274,11 +273,11 @@ public class MessageCodecEdgeCaseTests
         };
 
         // DisconnectMessage 的 Write 需要 5.0 感知
-        var ms = new MemoryStream();
-        msg.Write(ms, _v500Level);
-        ms.Position = 0;
+        var buf = new Byte[msg.GetEstimatedSize()];
+        var writer = new NewLife.Buffers.SpanWriter(buf) { IsLittleEndian = false };
+        msg.Write(ref writer, _v500Level);
 
-        var buf2 = ms.ToArray();
+        var buf2 = writer.WrittenSpan.ToArray();
         var pk = new ArrayPacket(buf2);
         var result = _factory.ReadMessage(pk, _v500Level) as DisconnectMessage;
         Assert.NotNull(result);
@@ -309,8 +308,7 @@ public class MessageCodecEdgeCaseTests
         };
 
         // V500 往返：写入时不需要 context，读取时需要 protocolLevel=5
-        var buf = msg.ToArray();
-        var pk = new ArrayPacket(buf);
+        using var pk = msg.ToPacket();
         var result = _factory.ReadMessage(pk, _v500Level) as PublishMessage;
 
         Assert.NotNull(result);
@@ -342,8 +340,7 @@ public class MessageCodecEdgeCaseTests
             Payload = new ArrayPacket("Hello!"u8.ToArray()),
         };
 
-        var buf = msg.ToArray();
-        var pk = new ArrayPacket(buf);
+        using var pk = msg.ToPacket();
         var result = _factory.ReadMessage(pk, _v500Level) as PublishMessage;
 
         Assert.NotNull(result);
@@ -440,11 +437,11 @@ public class MessageCodecEdgeCaseTests
         var msgZero = new PubAck { Id = 0 };
         var msgNonZero = new PubAck { Id = 123 };
 
-        var bufZero = msgZero.ToArray();
-        var bufNonZero = msgNonZero.ToArray();
+        using var pkZero = msgZero.ToPacket();
+        using var pkNonZero = msgNonZero.ToPacket();
 
         // 两者字节长度相同（固定格式），但 Id 字节不同
-        Assert.Equal(bufZero.Length, bufNonZero.Length);
+        Assert.Equal(pkZero.Total, pkNonZero.Total);
 
         var resZero = RoundTrip(msgZero);
         var resNonZero = RoundTrip(msgNonZero);

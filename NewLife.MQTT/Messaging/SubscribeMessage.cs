@@ -1,4 +1,6 @@
-﻿namespace NewLife.MQTT.Messaging;
+﻿using NewLife.Buffers;
+
+namespace NewLife.MQTT.Messaging;
 
 /// <summary>订阅请求</summary>
 public sealed class SubscribeMessage : MqttIdMessage
@@ -24,19 +26,19 @@ public sealed class SubscribeMessage : MqttIdMessage
     #endregion
 
     #region 读写方法
-    /// <summary>从数据流中读取消息</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader读取消息</summary>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
-        if (!base.OnRead(stream, context)) return false;
+        if (!base.OnRead(ref reader, context)) return false;
 
         var list = new List<Subscription>();
-        while (stream.Position < stream.Length)
+        while (reader.Available > 0)
         {
-            var topicFilter = ReadString(stream);
-            var options = (Byte)stream.ReadByte();
+            var topicFilter = ReadString(ref reader);
+            var options = reader.ReadByte();
 
             // MQTT 5.0 订阅选项字节格式：
             // Bit 0-1: QoS (0/1/2)
@@ -57,26 +59,38 @@ public sealed class SubscribeMessage : MqttIdMessage
         return true;
     }
 
-    /// <summary>把消息写入到数据流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>将消息写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
-        if (!base.OnWrite(stream, context)) return false;
+        if (!base.OnWrite(ref writer, context)) return false;
 
         foreach (var item in Requests)
         {
-            WriteString(stream, item.TopicFilter);
+            WriteString(ref writer, item.TopicFilter);
 
             // MQTT 5.0 订阅选项字节
             var options = (Byte)item.QualityOfService;
             if (item.NoLocal) options |= 0x04;
             if (item.RetainAsPublished) options |= 0x08;
             options |= (Byte)((item.RetainHandling & 0x03) << 4);
-            stream.Write(options);
+            writer.WriteByte(options);
         }
 
         return true;
+    }
+
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize()
+    {
+        var size = 64;
+        foreach (var item in Requests)
+        {
+            size += 3 + (item.TopicFilter?.Length ?? 0) * 3;
+        }
+        return size;
     }
 
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>

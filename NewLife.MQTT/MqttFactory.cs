@@ -1,4 +1,5 @@
-﻿using NewLife.Data;
+﻿using NewLife.Buffers;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
 
@@ -51,9 +52,10 @@ public class MqttFactory
         try
         {
             var msg = CreateMessage((MqttType)(pk[0] >> 4));
-            // 仅 MQTT 5.0 时将协议版本作为 context 传入（PublishMessage 等需要读取属性）
+            // 使用 SpanReader 直接从数据包读取，避免创建 MemoryStream
             Object? ctx = protocolLevel >= MqttVersion.V500 ? (Object)protocolLevel : null;
-            if (!msg.Read(pk.GetStream(), ctx)) return null;
+            var reader = new SpanReader(pk) { IsLittleEndian = false };
+            if (!msg.Read(ref reader, ctx)) return null;
 
             return msg;
         }

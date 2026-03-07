@@ -1,4 +1,6 @@
-﻿namespace NewLife.MQTT.Messaging;
+﻿using NewLife.Buffers;
+
+namespace NewLife.MQTT.Messaging;
 
 /// <summary>认证交换消息。MQTT 5.0 新增</summary>
 /// <remarks>
@@ -29,10 +31,10 @@ public sealed class AuthMessage : MqttMessage
 
     #region 方法
     /// <summary>子消息读取</summary>
-    /// <param name="stream">数据流</param>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
         // AUTH 报文的可变报头：原因码 + 属性
         if (Length == 0)
@@ -42,35 +44,35 @@ public sealed class AuthMessage : MqttMessage
             return true;
         }
 
-        ReasonCode = (Byte)stream.ReadByte();
+        ReasonCode = reader.ReadByte();
 
         // 读取属性
         if (Length > 1)
         {
             Properties = new MqttProperties();
-            Properties.Read(stream);
+            Properties.Read(ref reader);
         }
 
         return true;
     }
 
     /// <summary>子消息写入</summary>
-    /// <param name="stream">数据流</param>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
         // 如果原因码为0且无属性，可省略可变报头
         if (ReasonCode == 0x00 && (Properties == null || Properties.Count == 0))
             return true;
 
-        stream.Write(ReasonCode);
+        writer.WriteByte(ReasonCode);
 
         // 写入属性
         if (Properties != null && Properties.Count > 0)
-            Properties.Write(stream);
+            Properties.Write(ref writer);
         else
-            MqttProperties.WriteVariableInt(stream, 0);
+            writer.WriteEncodedInt(0);
 
         return true;
     }

@@ -77,8 +77,8 @@ public class MqttQuicClient : DisposeBase
     {
         var stream = _stream ?? throw new InvalidOperationException("未建立 QUIC 连接");
 
-        var data = message.ToArray();
-        await stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+        using var data = message.ToPacket();
+        await stream.WriteAsync(data.GetMemory(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>接收 MQTT 消息</summary>
@@ -88,20 +88,13 @@ public class MqttQuicClient : DisposeBase
     {
         var stream = _stream ?? throw new InvalidOperationException("未建立 QUIC 连接");
 
-        var buffer = Pool.Shared.Rent(65536);
-        try
-        {
-            var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-            if (bytesRead == 0) return null;
+        using var pk = new OwnerPacket(64 * 1024);
+        var bytesRead = await stream.ReadAsync(pk.GetMemory(), cancellationToken).ConfigureAwait(false);
+        if (bytesRead == 0) return null;
 
-            var pk = new ArrayPacket(buffer, 0, bytesRead);
-            var factory = new MqttFactory();
-            return factory.ReadMessage(pk);
-        }
-        finally
-        {
-            Pool.Shared.Return(buffer);
-        }
+        pk.Resize(bytesRead);
+        var factory = new MqttFactory();
+        return factory.ReadMessage(pk);
     }
 
     /// <summary>关闭 QUIC 连接</summary>

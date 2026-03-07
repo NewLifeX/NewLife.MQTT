@@ -1,4 +1,6 @@
-﻿namespace NewLife.MQTT.Messaging;
+﻿using NewLife.Buffers;
+
+namespace NewLife.MQTT.Messaging;
 
 /// <summary>带Id的消息</summary>
 /// <remarks>
@@ -22,26 +24,22 @@ public abstract class MqttIdMessage : MqttMessage
     #endregion
 
     #region 读写方法
-    /// <summary>从数据流中读取消息</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader读取Id</summary>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
-        // 读Id
-        Id = stream.ReadBytes(2).ToUInt16(0, false);
-
+        Id = reader.ReadUInt16();
         return true;
     }
 
-    /// <summary>把消息写入到数据流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>将Id写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
-        // 写Id
-        stream.Write(Id.GetBytes(false));
-
+        writer.Write(Id);
         return true;
     }
     #endregion

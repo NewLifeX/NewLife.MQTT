@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using NewLife.Buffers;
 using NewLife.Data;
 using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
@@ -16,10 +17,9 @@ public class MessageCodecTests
     /// <summary>辅助方法：序列化再反序列化</summary>
     private static T RoundTrip<T>(T msg) where T : MqttMessage
     {
-        var buf = msg.ToArray();
-        Assert.True(buf.Length > 0);
+        using var pk = msg.ToPacket();
+        Assert.True(pk.Total > 0);
 
-        var pk = new ArrayPacket(buf);
         var result = _factory.ReadMessage(pk);
         Assert.NotNull(result);
         Assert.IsType<T>(result);
@@ -424,12 +424,13 @@ public class MessageCodecTests
         var props = new MqttProperties();
         props.SetByte(MqttPropertyId.PayloadFormatIndicator, 1);
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[64];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal((Byte)1, result.GetByte(MqttPropertyId.PayloadFormatIndicator));
     }
@@ -440,12 +441,13 @@ public class MessageCodecTests
         var props = new MqttProperties();
         props.SetUInt16(MqttPropertyId.ReceiveMaximum, 1024);
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[64];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal((UInt16)1024, result.GetUInt16(MqttPropertyId.ReceiveMaximum));
     }
@@ -456,12 +458,13 @@ public class MessageCodecTests
         var props = new MqttProperties();
         props.SetUInt32(MqttPropertyId.SessionExpiryInterval, 3600);
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[64];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal((UInt32)3600, result.GetUInt32(MqttPropertyId.SessionExpiryInterval));
     }
@@ -472,12 +475,13 @@ public class MessageCodecTests
         var props = new MqttProperties();
         props.SetString(MqttPropertyId.ContentType, "application/json");
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[128];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal("application/json", result.GetString(MqttPropertyId.ContentType));
     }
@@ -489,12 +493,13 @@ public class MessageCodecTests
         var props = new MqttProperties();
         props.SetBinary(MqttPropertyId.CorrelationData, data);
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[64];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal(data, result.GetBinary(MqttPropertyId.CorrelationData));
     }
@@ -506,12 +511,13 @@ public class MessageCodecTests
         props.UserProperties.Add(new KeyValuePair<String, String>("key1", "value1"));
         props.UserProperties.Add(new KeyValuePair<String, String>("key2", "value2"));
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[256];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal(2, result.UserProperties.Count);
         Assert.Equal("key1", result.UserProperties[0].Key);
@@ -530,12 +536,13 @@ public class MessageCodecTests
         props.SetUInt16(MqttPropertyId.TopicAlias, 5);
         props.UserProperties.Add(new KeyValuePair<String, String>("app", "mqtt-test"));
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[256];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal((Byte)1, result.GetByte(MqttPropertyId.PayloadFormatIndicator));
         Assert.Equal((UInt32)600, result.GetUInt32(MqttPropertyId.MessageExpiryInterval));
@@ -550,15 +557,16 @@ public class MessageCodecTests
     {
         var props = new MqttProperties();
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[16];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
         // 空属性只写入一个字节（长度0）
-        Assert.Equal(1, ms.Length);
+        Assert.Equal(1, writer.WrittenCount);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal(0, result.Count);
     }
@@ -569,12 +577,13 @@ public class MessageCodecTests
         var props = new MqttProperties();
         props.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, 268435455); // 最大变长整数
 
-        var ms = new MemoryStream();
-        props.Write(ms);
+        var buf = new Byte[64];
+        var writer = new SpanWriter(buf) { IsLittleEndian = false };
+        props.Write(ref writer);
 
-        ms.Position = 0;
+        var reader = new SpanReader(buf, 0, writer.WrittenCount) { IsLittleEndian = false };
         var result = new MqttProperties();
-        result.Read(ms);
+        result.Read(ref reader);
 
         Assert.Equal(268435455, result.GetVariableInt(MqttPropertyId.SubscriptionIdentifier));
     }
@@ -595,10 +604,10 @@ public class MessageCodecTests
             Payload = new ArrayPacket("data"u8.ToArray()),
         };
 
-        var buf = msg.ToArray();
+        using var pk = msg.ToPacket();
 
         // 检查固定头字节中的 QoS 位
-        var firstByte = buf[0];
+        var firstByte = pk[0];
         var actualQoS = (QualityOfService)((firstByte >> 1) & 0x03);
         Assert.Equal(qos, actualQoS);
     }
@@ -614,8 +623,8 @@ public class MessageCodecTests
             Payload = new ArrayPacket("data"u8.ToArray()),
         };
 
-        var buf = msg.ToArray();
-        var firstByte = buf[0];
+        using var pk = msg.ToPacket();
+        var firstByte = pk[0];
 
         // Retain 在最低位
         Assert.True((firstByte & 0x01) == 1);
@@ -633,8 +642,8 @@ public class MessageCodecTests
             Payload = new ArrayPacket("data"u8.ToArray()),
         };
 
-        var buf = msg.ToArray();
-        var firstByte = buf[0];
+        using var pk = msg.ToPacket();
+        var firstByte = pk[0];
 
         // DUP 在第3位
         Assert.True((firstByte & 0x08) == 0x08);

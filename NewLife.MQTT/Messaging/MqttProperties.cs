@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using NewLife.Buffers;
 
 namespace NewLife.MQTT.Messaging;
 
@@ -106,19 +107,19 @@ public class MqttProperties
     #endregion
 
     #region 读写方法
-    /// <summary>从流中读取属性集合</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader读取属性集合</summary>
+    /// <param name="reader">Span读取器</param>
     /// <returns></returns>
-    public Boolean Read(Stream stream)
+    public Boolean Read(ref SpanReader reader)
     {
         // 读取属性总长度（变长整数编码）
-        var totalLen = ReadVariableInt(stream);
+        var totalLen = reader.ReadEncodedInt();
         if (totalLen <= 0) return true;
 
-        var endPos = stream.Position + totalLen;
-        while (stream.Position < endPos)
+        var startPos = reader.Position;
+        while (reader.Position - startPos < totalLen)
         {
-            var idByte = (Byte)stream.ReadByte();
+            var idByte = reader.ReadByte();
             var id = (MqttPropertyId)idByte;
 
             switch (id)
@@ -132,7 +133,7 @@ public class MqttProperties
                 case MqttPropertyId.WildcardSubscriptionAvailable:
                 case MqttPropertyId.SubscriptionIdentifierAvailable:
                 case MqttPropertyId.SharedSubscriptionAvailable:
-                    _props[id] = (Byte)stream.ReadByte();
+                    _props[id] = reader.ReadByte();
                     break;
 
                 // UInt16 类型
@@ -140,7 +141,7 @@ public class MqttProperties
                 case MqttPropertyId.ReceiveMaximum:
                 case MqttPropertyId.TopicAliasMaximum:
                 case MqttPropertyId.TopicAlias:
-                    _props[id] = stream.ReadBytes(2).ToUInt16(0, false);
+                    _props[id] = reader.ReadUInt16();
                     break;
 
                 // UInt32 类型
@@ -148,12 +149,12 @@ public class MqttProperties
                 case MqttPropertyId.SessionExpiryInterval:
                 case MqttPropertyId.WillDelayInterval:
                 case MqttPropertyId.MaximumPacketSize:
-                    _props[id] = stream.ReadBytes(4).ToUInt32(0, false);
+                    _props[id] = reader.ReadUInt32();
                     break;
 
                 // 变长整数类型
                 case MqttPropertyId.SubscriptionIdentifier:
-                    _props[id] = ReadVariableInt(stream);
+                    _props[id] = reader.ReadEncodedInt();
                     break;
 
                 // UTF-8 字符串类型
@@ -164,25 +165,25 @@ public class MqttProperties
                 case MqttPropertyId.ResponseInformation:
                 case MqttPropertyId.ServerReference:
                 case MqttPropertyId.ReasonString:
-                    _props[id] = ReadUtf8String(stream);
+                    _props[id] = ReadUtf8String(ref reader);
                     break;
 
                 // 二进制数据类型
                 case MqttPropertyId.CorrelationData:
                 case MqttPropertyId.AuthenticationData:
-                    _props[id] = ReadBinaryData(stream);
+                    _props[id] = ReadBinaryData(ref reader);
                     break;
 
                 // UTF-8 字符串对（用户属性，可出现多次）
                 case MqttPropertyId.UserProperty:
-                    var key = ReadUtf8String(stream);
-                    var value = ReadUtf8String(stream);
+                    var key = ReadUtf8String(ref reader);
+                    var value = ReadUtf8String(ref reader);
                     UserProperties.Add(new KeyValuePair<String, String>(key, value));
                     break;
 
                 default:
                     // 未知属性，跳到结尾避免解析异常
-                    stream.Position = endPos;
+                    reader.Advance(totalLen - (reader.Position - startPos));
                     break;
             }
         }
@@ -190,16 +191,18 @@ public class MqttProperties
         return true;
     }
 
-    /// <summary>写入属性集合到流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>写入属性集合到SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <returns></returns>
-    public Boolean Write(Stream stream)
+    public Boolean Write(ref SpanWriter writer)
     {
-        // 先写入临时流计算属性总长度
-        var ms = new MemoryStream();
+        // 先写入临时缓冲区计算属性总长度
+        var propBuf = new Byte[GetEstimatedSize()];
+        var propWriter = new SpanWriter(propBuf) { IsLittleEndian = false };
+
         foreach (var item in _props)
         {
-            ms.WriteByte((Byte)item.Key);
+            propWriter.WriteByte((Byte)item.Key);
 
             switch (item.Key)
             {
@@ -212,7 +215,7 @@ public class MqttProperties
                 case MqttPropertyId.WildcardSubscriptionAvailable:
                 case MqttPropertyId.SubscriptionIdentifierAvailable:
                 case MqttPropertyId.SharedSubscriptionAvailable:
-                    ms.WriteByte((Byte)item.Value);
+                    propWriter.WriteByte((Byte)item.Value);
                     break;
 
                 // UInt16 类型
@@ -220,7 +223,7 @@ public class MqttProperties
                 case MqttPropertyId.ReceiveMaximum:
                 case MqttPropertyId.TopicAliasMaximum:
                 case MqttPropertyId.TopicAlias:
-                    ms.Write(((UInt16)item.Value).GetBytes(false));
+                    propWriter.Write((UInt16)item.Value);
                     break;
 
                 // UInt32 类型
@@ -228,12 +231,12 @@ public class MqttProperties
                 case MqttPropertyId.SessionExpiryInterval:
                 case MqttPropertyId.WillDelayInterval:
                 case MqttPropertyId.MaximumPacketSize:
-                    ms.Write(((UInt32)item.Value).GetBytes(false));
+                    propWriter.Write((UInt32)item.Value);
                     break;
 
                 // 变长整数类型
                 case MqttPropertyId.SubscriptionIdentifier:
-                    WriteVariableInt(ms, (Int32)item.Value);
+                    propWriter.WriteEncodedInt((Int32)item.Value);
                     break;
 
                 // UTF-8 字符串类型
@@ -244,13 +247,13 @@ public class MqttProperties
                 case MqttPropertyId.ResponseInformation:
                 case MqttPropertyId.ServerReference:
                 case MqttPropertyId.ReasonString:
-                    WriteUtf8String(ms, (String)item.Value);
+                    WriteUtf8String(ref propWriter, (String)item.Value);
                     break;
 
                 // 二进制数据类型
                 case MqttPropertyId.CorrelationData:
                 case MqttPropertyId.AuthenticationData:
-                    WriteBinaryData(ms, (Byte[])item.Value);
+                    WriteBinaryData(ref propWriter, (Byte[])item.Value);
                     break;
             }
         }
@@ -258,84 +261,64 @@ public class MqttProperties
         // 写入用户属性（可出现多次）
         foreach (var item in UserProperties)
         {
-            ms.WriteByte((Byte)MqttPropertyId.UserProperty);
-            WriteUtf8String(ms, item.Key);
-            WriteUtf8String(ms, item.Value);
+            propWriter.WriteByte((Byte)MqttPropertyId.UserProperty);
+            WriteUtf8String(ref propWriter, item.Key);
+            WriteUtf8String(ref propWriter, item.Value);
         }
 
         // 写入属性总长度（变长整数编码）+ 属性数据
-        WriteVariableInt(stream, (Int32)ms.Length);
-        ms.Position = 0;
-        ms.CopyTo(stream);
+        writer.WriteEncodedInt(propWriter.WrittenCount);
+        if (propWriter.WrittenCount > 0) writer.Write(propWriter.WrittenSpan);
 
         return true;
+    }
+
+    /// <summary>获取属性估算大小</summary>
+    /// <returns></returns>
+    private Int32 GetEstimatedSize()
+    {
+        var size = 64;
+        foreach (var item in _props)
+        {
+            size += 1; // id byte
+            if (item.Value is String s) size += 2 + s.Length * 3;
+            else if (item.Value is Byte[]) size += 2 + ((Byte[])item.Value).Length;
+            else size += 5;
+        }
+        foreach (var item in UserProperties)
+        {
+            size += 1 + 2 + item.Key.Length * 3 + 2 + item.Value.Length * 3;
+        }
+        return size;
     }
     #endregion
 
     #region 辅助方法
-    /// <summary>读取变长整数</summary>
-    /// <param name="stream">数据流</param>
-    /// <returns></returns>
-    public static Int32 ReadVariableInt(Stream stream)
+    private static String ReadUtf8String(ref SpanReader reader)
     {
-        var multiplier = 1;
-        var value = 0;
-        Byte encodedByte;
-
-        do
-        {
-            encodedByte = (Byte)stream.ReadByte();
-            value += (encodedByte & 0x7F) * multiplier;
-            if (multiplier > 128 * 128 * 128) throw new InvalidDataException("变长整数编码异常，超过4字节限制");
-            multiplier *= 128;
-        }
-        while ((encodedByte & 0x80) != 0);
-
-        return value;
-    }
-
-    /// <summary>写入变长整数</summary>
-    /// <param name="stream">数据流</param>
-    /// <param name="value">值</param>
-    public static void WriteVariableInt(Stream stream, Int32 value)
-    {
-        do
-        {
-            var encodedByte = (Byte)(value % 128);
-            value /= 128;
-            if (value > 0) encodedByte |= 0x80;
-            stream.WriteByte(encodedByte);
-        }
-        while (value > 0);
-    }
-
-    private static String ReadUtf8String(Stream stream)
-    {
-        var len = stream.ReadBytes(2).ToUInt16(0, false);
+        var len = reader.ReadUInt16();
         if (len == 0) return String.Empty;
-
-        var buf = stream.ReadBytes(len);
-        return Encoding.UTF8.GetString(buf);
+        return reader.ReadString(len);
     }
 
-    private static void WriteUtf8String(Stream stream, String? value)
+    private static void WriteUtf8String(ref SpanWriter writer, String? value)
     {
         var buf = value?.GetBytes() ?? [];
-        stream.Write(((UInt16)buf.Length).GetBytes(false));
-        if (buf.Length > 0) stream.Write(buf);
+        writer.Write((UInt16)buf.Length);
+        if (buf.Length > 0) writer.Write(buf);
     }
 
-    private static Byte[] ReadBinaryData(Stream stream)
+    private static Byte[] ReadBinaryData(ref SpanReader reader)
     {
-        var len = stream.ReadBytes(2).ToUInt16(0, false);
-        return len > 0 ? stream.ReadBytes(len) : [];
+        var len = reader.ReadUInt16();
+        return len > 0 ? reader.ReadBytes(len).ToArray() : [];
     }
 
-    private static void WriteBinaryData(Stream stream, Byte[]? data)
+    private static void WriteBinaryData(ref SpanWriter writer, Byte[]? data)
     {
         var len = data?.Length ?? 0;
-        stream.Write(((UInt16)len).GetBytes(false));
-        if (len > 0 && data != null) stream.Write(data);
+        writer.Write((UInt16)len);
+        if (len > 0 && data != null) writer.Write(data);
     }
     #endregion
 }

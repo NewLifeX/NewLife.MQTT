@@ -1,4 +1,5 @@
-﻿using NewLife.Data;
+﻿using NewLife.Buffers;
+using NewLife.Data;
 using NewLife.Serialization;
 
 namespace NewLife.MQTT.Messaging;
@@ -16,7 +17,7 @@ namespace NewLife.MQTT.Messaging;
 /// 5.小型传输，开销很小（固定长度的头部是 2 字节），协议交换最小化，以降低网络流量。
 /// 6.使用 Last Will 和 Testament 特性通知有关各方客户端异常中断的机制。
 /// </remarks>
-public abstract class MqttMessage : IAccessor
+public abstract class MqttMessage : ISpanSerializable
 {
     #region 属性
     /// <summary>消息类型</summary>
@@ -73,51 +74,48 @@ public abstract class MqttMessage : IAccessor
     #endregion
 
     #region 核心读写方法
-    /// <summary>从数据流中读取消息</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader反序列化读取消息</summary>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns>是否成功</returns>
-    public virtual Boolean Read(Stream stream, Object? context)
+    public virtual Boolean Read(ref SpanReader reader, Object? context)
     {
-        var flag = stream.ReadByte();
-        if (flag < 0) return false;
+        var flag = reader.ReadByte();
 
         Type = (MqttType)((flag & 0b1111_0000) >> 4);
         Duplicate = ((flag & 0b0000_1000) >> 3) > 0;
         QoS = (QualityOfService)((flag & 0b0000_0110) >> 1);
         Retain = ((flag & 0b0000_0001) >> 0) > 0;
 
-        Length = stream.ReadEncodedInt();
+        var len = Length = reader.ReadEncodedInt();
+        if (len > 0 && reader.Available < len) throw new InvalidDataException("消息负载的数据长度不足！");
 
-        if (Length > 0 && stream.CanSeek && stream.Length < Length) throw new InvalidDataException("消息负载的数据长度不足！");
-
-        return OnRead(stream, context);
+        return OnRead(ref reader, context);
     }
 
     /// <summary>子消息读取</summary>
-    /// <param name="stream">数据流</param>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected virtual Boolean OnRead(Stream stream, Object? context) => true;
+    protected virtual Boolean OnRead(ref SpanReader reader, Object? context) => true;
 
-    /// <summary>把消息写入到数据流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>将消息序列化写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
-    public virtual Boolean Write(Stream stream, Object? context)
+    /// <returns>是否成功</returns>
+    public virtual Boolean Write(ref SpanWriter writer, Object? context)
     {
-        // 子消息先写入，再写头部，因为头部需要负载长度
-        var ms = new MemoryStream();
-        if (!OnWrite(ms, context)) return false;
+        // 使用池化缓冲区写入消息体，避免 GC 分配，且不需要移位处理变长头部
+        using var pk = new OwnerPacket(GetEstimatedBodySize());
+        var bodyWriter = new SpanWriter(pk) { IsLittleEndian = false };
+        if (!OnWrite(ref bodyWriter, context)) return false;
 
-        var flag = GetFlag();
+        var len = Length = bodyWriter.WrittenCount;
 
-        Length = (Int32)ms.Length;
-
-        stream.Write((Byte)flag);
-        stream.WriteEncodedInt(Length);
-
-        ms.Position = 0;
-        ms.CopyTo(stream);
+        // 写固定头：标记位 + 变长长度 + 消息体
+        writer.WriteByte(GetFlag());
+        writer.WriteEncodedInt(len);
+        if (len > 0) writer.Write(bodyWriter.WrittenSpan);
 
         return true;
     }
@@ -136,30 +134,39 @@ public abstract class MqttMessage : IAccessor
     }
 
     /// <summary>子消息写入</summary>
-    /// <param name="stream">数据流</param>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected virtual Boolean OnWrite(Stream stream, Object? context) => true;
+    protected virtual Boolean OnWrite(ref SpanWriter writer, Object? context) => true;
 
-    /// <summary>消息转为字节数组</summary>
+    /// <summary>获取子消息体估算大小，子类可覆盖以优化缓冲区分配</summary>
     /// <returns></returns>
-    public virtual Byte[] ToArray()
-    {
-        var ms = new MemoryStream();
-        Write(ms, null);
-        return ms.ToArray();
-    }
+    protected virtual Int32 GetEstimatedBodySize() => 256;
+
+    /// <summary>获取消息总估算大小（含固定头部），用于缓冲区预分配</summary>
+    /// <returns></returns>
+    public Int32 GetEstimatedSize() => 5 + GetEstimatedBodySize();
 
     /// <summary>转数据包</summary>
     /// <returns></returns>
-    public virtual IPacket ToPacket()
+    public virtual IOwnerPacket ToPacket()
     {
-        var ms = new MemoryStream();
-        Write(ms, null);
-
-        ms.Position = 0;
-        return new ArrayPacket(ms);
+        var pk = new OwnerPacket(GetEstimatedSize());
+        var writer = new SpanWriter(pk) { IsLittleEndian = false };
+        Write(ref writer, null);
+        pk.Resize(writer.WrittenCount);
+        return pk;
     }
+    #endregion
+
+    #region ISpanSerializable
+    /// <summary>从SpanReader反序列化读取</summary>
+    /// <param name="reader">Span读取器</param>
+    void ISpanSerializable.Read(ref SpanReader reader) => Read(ref reader, null);
+
+    /// <summary>将对象成员序列化写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
+    void ISpanSerializable.Write(ref SpanWriter writer) => Write(ref writer, null);
     #endregion
 
     #region 辅助
@@ -173,47 +180,52 @@ public abstract class MqttMessage : IAccessor
         MqttType.UnSubAck or
         MqttType.PingResp;
 
-    /// <summary>读字符串</summary>
-    /// <param name="stream"></param>
+    /// <summary>读字符串（2字节大端长度前缀 + UTF-8数据）</summary>
+    /// <param name="reader">Span读取器</param>
     /// <returns></returns>
-    protected String ReadString(Stream stream)
+    protected String ReadString(ref SpanReader reader)
     {
-        var len = stream.ReadBytes(2).ToUInt16(0, false);
-        return stream.ReadBytes(len).ToStr();
+        var len = reader.ReadUInt16();
+        if (len == 0) return String.Empty;
+        return reader.ReadString(len);
     }
 
-    /// <summary>读字节数组</summary>
-    /// <param name="stream"></param>
+    /// <summary>读字节数组（2字节大端长度前缀 + 数据）</summary>
+    /// <param name="reader">Span读取器</param>
     /// <returns></returns>
-    protected Byte[] ReadData(Stream stream)
+    protected Byte[] ReadData(ref SpanReader reader)
     {
-        var len = stream.ReadBytes(2).ToUInt16(0, false);
-        return stream.ReadBytes(len);
+        var len = reader.ReadUInt16();
+        return reader.ReadBytes(len).ToArray();
     }
 
-    /// <summary>写字符串</summary>
-    /// <param name="stream"></param>
-    /// <param name="value"></param>
-    protected void WriteString(Stream stream, String? value) => WriteData(stream, value?.GetBytes());
+    /// <summary>写字符串（2字节大端长度前缀 + UTF-8数据）</summary>
+    /// <param name="writer">Span写入器</param>
+    /// <param name="value">字符串值</param>
+    protected void WriteString(ref SpanWriter writer, String? value) => WriteData(ref writer, value?.GetBytes());
 
-    /// <summary>写字节数组</summary>
-    /// <param name="stream"></param>
-    /// <param name="buf"></param>
-    protected void WriteData(Stream stream, Byte[]? buf)
+    /// <summary>写字节数组（2字节大端长度前缀 + 数据）</summary>
+    /// <param name="writer">Span写入器</param>
+    /// <param name="buf">字节数组</param>
+    protected void WriteData(ref SpanWriter writer, Byte[]? buf)
     {
         var len = buf == null ? 0 : buf.Length;
-        stream.Write(((UInt16)len).GetBytes(false));
-        if (len > 0 && buf != null) stream.Write(buf);
+        writer.Write((UInt16)len);
+        if (len > 0 && buf != null) writer.Write(buf);
     }
 
-    /// <summary>写字节数组</summary>
-    /// <param name="stream"></param>
-    /// <param name="pk"></param>
-    protected void WriteData(Stream stream, IPacket? pk)
+    /// <summary>写数据包（2字节大端长度前缀 + 数据）</summary>
+    /// <param name="writer">Span写入器</param>
+    /// <param name="pk">数据包</param>
+    protected void WriteData(ref SpanWriter writer, IPacket? pk)
     {
         var len = pk == null ? 0 : pk.Total;
-        stream.Write(((UInt16)len).GetBytes(false));
-        if (len > 0 && pk != null) pk.CopyTo(stream);
+        writer.Write((UInt16)len);
+        if (len > 0 && pk != null)
+        {
+            var span = pk.GetSpan();
+            writer.Write(span);
+        }
     }
     #endregion
 }

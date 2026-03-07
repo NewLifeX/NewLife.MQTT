@@ -1,4 +1,6 @@
-﻿namespace NewLife.MQTT.Messaging;
+﻿using NewLife.Buffers;
+
+namespace NewLife.MQTT.Messaging;
 
 /// <summary>连接返回代码。MQTT 3.1.1</summary>
 public enum ConnectReturnCode
@@ -122,39 +124,39 @@ public sealed class ConnAck : MqttMessage
 
     #region 方法
     /// <summary>子消息读取</summary>
-    /// <param name="stream">数据流</param>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
-        SessionPresent = stream.ReadByte() > 0;
+        SessionPresent = reader.ReadByte() > 0;
 
-        var code = (Byte)stream.ReadByte();
+        var code = reader.ReadByte();
         ReturnCode = (ConnectReturnCode)code;
         ReasonCode = (ConnAckReasonCode)code;
 
         // MQTT 5.0 属性
-        if (stream.Position < stream.Length)
+        if (reader.Available > 0)
         {
             Properties = new MqttProperties();
-            Properties.Read(stream);
+            Properties.Read(ref reader);
         }
 
         return true;
     }
 
     /// <summary>子消息写入</summary>
-    /// <param name="stream">数据流</param>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文</param>
     /// <returns></returns>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
-        stream.Write((Byte)(SessionPresent ? 1 : 0));
-        stream.Write((Byte)ReturnCode);
+        writer.WriteByte(SessionPresent ? 1 : 0);
+        writer.WriteByte((Byte)ReturnCode);
 
         // MQTT 5.0 属性
         if (Properties != null && Properties.Count > 0)
-            Properties.Write(stream);
+            Properties.Write(ref writer);
 
         return true;
     }

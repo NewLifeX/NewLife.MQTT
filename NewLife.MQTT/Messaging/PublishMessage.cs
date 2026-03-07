@@ -1,4 +1,5 @@
-﻿using NewLife.Data;
+﻿using NewLife.Buffers;
+using NewLife.Data;
 
 namespace NewLife.MQTT.Messaging;
 
@@ -33,60 +34,72 @@ public sealed class PublishMessage : MqttIdMessage
     #endregion
 
     #region 方法
-    /// <summary>从数据流中读取消息</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>从SpanReader读取消息</summary>
+    /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文，传入 MqttVersion 时按 MQTT 5.0 读取属性</param>
     /// <returns>是否成功</returns>
-    protected override Boolean OnRead(Stream stream, Object? context)
+    protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
-        Topic = ReadString(stream);
+        Topic = ReadString(ref reader);
 
         if (QoS > 0)
         {
-            if (!base.OnRead(stream, context)) return false;
+            if (!base.OnRead(ref reader, context)) return false;
         }
 
         // MQTT 5.0 属性（MqttVersion >= V500 时读取）
         if (context is MqttVersion ver && ver >= MqttVersion.V500)
         {
             Properties = new MqttProperties();
-            Properties.Read(stream);
+            Properties.Read(ref reader);
         }
 
-        //Payload = ReadData(stream);
-        Payload = (ArrayPacket)stream.ReadBytes(-1);
+        //Payload = ReadData(ref reader);
+        if (reader.Available > 0)
+            Payload = reader.ReadPacket(reader.Available);
 
         return true;
     }
 
-    /// <summary>把消息写入到数据流中</summary>
-    /// <param name="stream">数据流</param>
+    /// <summary>将消息写入SpanWriter</summary>
+    /// <param name="writer">Span写入器</param>
     /// <param name="context">上下文，传入 MqttVersion 时按 MQTT 5.0 写入属性</param>
-    protected override Boolean OnWrite(Stream stream, Object? context)
+    protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
-        WriteString(stream, Topic);
+        WriteString(ref writer, Topic);
 
         if (QoS > 0)
         {
-            if (!base.OnWrite(stream, context)) return false;
+            if (!base.OnWrite(ref writer, context)) return false;
         }
 
         // MQTT 5.0 属性
         if (Properties != null)
         {
-            Properties.Write(stream);
+            Properties.Write(ref writer);
         }
         else if (context is MqttVersion ver && ver >= MqttVersion.V500)
         {
             // MQTT 5.0 连接但无属性时写入空属性长度（1字节，值=0）
-            stream.WriteByte(0);
+            writer.WriteByte(0);
         }
 
-        //WriteData(stream, Payload);
-        Payload?.CopyTo(stream);
+        //WriteData(ref writer, Payload);
+        if (Payload != null && Payload.Total > 0)
+        {
+            var span = Payload.GetSpan();
+            writer.Write(span);
+        }
 
         return true;
     }
+
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize() =>
+        64 +
+        (Topic?.Length ?? 0) * 3 +
+        (Payload?.Total ?? 0);
 
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>
