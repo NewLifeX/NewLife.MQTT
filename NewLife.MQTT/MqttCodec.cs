@@ -27,9 +27,9 @@ public class MqttCodec : MessageCodec<MqttMessage>
         if (msg is MqttMessage cmd)
         {
             // 若当前连接已知为 MQTT 5.0，则携带协议版本 context，以便 PublishMessage 等写入空属性长度字节
-            var pl = context.Owner is IExtend ss && ss["ProtocolLevel"] is Byte level ? level : (Byte)MqttVersion.V311;
+            var pl = context.Owner is IExtend ss && ss["ProtocolLevel"] is MqttVersion level ? level : MqttVersion.V311;
             var ms = new MemoryStream();
-            cmd.Write(ms, pl >= (Byte)MqttVersion.V500 ? (Object)pl : null);
+            cmd.Write(ms, pl >= MqttVersion.V500 ? (Object)pl : null);
             ms.Position = 0;
             return new ArrayPacket(ms);
         }
@@ -62,7 +62,7 @@ public class MqttCodec : MessageCodec<MqttMessage>
         foreach (var item in pks)
         {
             // 使用当前连接已知的协议版本解码（支持 MQTT 5.0 属性读取）
-            var protocolLevel = ss["ProtocolLevel"] is Byte pl ? pl : (Byte)4;
+            var protocolLevel = ss["ProtocolLevel"] is MqttVersion pl ? pl : MqttVersion.V311;
             var msg = _Factory.ReadMessage(item, protocolLevel);
             if (msg != null)
             {

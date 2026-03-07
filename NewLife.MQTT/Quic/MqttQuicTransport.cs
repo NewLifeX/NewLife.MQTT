@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using NewLife.Collections;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
@@ -87,13 +88,20 @@ public class MqttQuicClient : DisposeBase
     {
         var stream = _stream ?? throw new InvalidOperationException("未建立 QUIC 连接");
 
-        var buffer = new Byte[65536];
-        var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-        if (bytesRead == 0) return null;
+        var buffer = Pool.Shared.Rent(65536);
+        try
+        {
+            var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (bytesRead == 0) return null;
 
-        var pk = new ArrayPacket(buffer, 0, bytesRead);
-        var factory = new MqttFactory();
-        return factory.ReadMessage(pk);
+            var pk = new ArrayPacket(buffer, 0, bytesRead);
+            var factory = new MqttFactory();
+            return factory.ReadMessage(pk);
+        }
+        finally
+        {
+            Pool.Shared.Return(buffer);
+        }
     }
 
     /// <summary>关闭 QUIC 连接</summary>

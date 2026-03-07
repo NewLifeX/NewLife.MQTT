@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using NewLife.Collections;
 using NewLife.Data;
-using NewLife.Log;
 using NewLife.Model;
 using NewLife.Net;
 
@@ -108,12 +108,21 @@ public class WebSocketClientCodec : Handler
     private void SendHandshake(IHandlerContext context)
     {
         // 生成随机 WebSocket Key
-        var keyBytes = new Byte[16];
-        using (var rng = RandomNumberGenerator.Create())
+        var keyBytes = Pool.Shared.Rent(16);
+        try
         {
+#if NET6_0_OR_GREATER
+            RandomNumberGenerator.Fill(keyBytes.AsSpan(0, 16));
+#else
+            using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(keyBytes);
+#endif
+            _wsKey = Convert.ToBase64String(keyBytes, 0, 16);
         }
-        _wsKey = Convert.ToBase64String(keyBytes);
+        finally
+        {
+            Pool.Shared.Return(keyBytes, clearArray: true);
+        }
 
         // 构建 HTTP 升级请求
         var sb = new StringBuilder();
@@ -231,20 +240,29 @@ public class WebSocketClientCodec : Handler
         }
 
         // 生成掩码（客户端必须使用掩码）
-        var maskKey = new Byte[4];
-        using (var rng = RandomNumberGenerator.Create())
+        var maskKey = Pool.Shared.Rent(4);
+        try
         {
+#if NET6_0_OR_GREATER
+            RandomNumberGenerator.Fill(maskKey.AsSpan(0, 4));
+#else
+            using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(maskKey);
-        }
-        frame[offset++] = maskKey[0];
-        frame[offset++] = maskKey[1];
-        frame[offset++] = maskKey[2];
-        frame[offset++] = maskKey[3];
+#endif
+            frame[offset++] = maskKey[0];
+            frame[offset++] = maskKey[1];
+            frame[offset++] = maskKey[2];
+            frame[offset++] = maskKey[3];
 
-        // 写入掩码后的数据
-        for (var i = 0; i < length; i++)
+            // 写入掩码后的数据
+            for (var i = 0; i < length; i++)
+            {
+                frame[offset + i] = (Byte)(data[i] ^ maskKey[i % 4]);
+            }
+        }
+        finally
         {
-            frame[offset + i] = (Byte)(data[i] ^ maskKey[i % 4]);
+            Pool.Shared.Return(maskKey, clearArray: true);
         }
 
         return new ArrayPacket(frame);

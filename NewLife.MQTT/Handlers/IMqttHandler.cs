@@ -80,7 +80,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     private Boolean _cleanSession = true;
 
     /// <summary>MQTT 协议版本</summary>
-    private Byte _protocolLevel;
+    private MqttVersion _protocolLevel;
 
     /// <summary>MQTT 5.0 会话能力</summary>
     private MqttSessionCapabilities? _capabilities;
@@ -138,7 +138,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         _protocolLevel = message.ProtocolLevel;
 
         // MQTT 5.0 增强认证（SASL）：若客户端请求且服务端支持则启动挑战
-        if (_protocolLevel >= 5 && SaslCredentialStore != null && message.Properties != null)
+        if (_protocolLevel >= MqttVersion.V500 && SaslCredentialStore != null && message.Properties != null)
         {
             var authMethod = message.Properties.GetString(MqttPropertyId.AuthenticationMethod);
             if (!authMethod.IsNullOrEmpty())
@@ -199,7 +199,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             };
 
             // MQTT 5.0 遗嘱延迟发布
-            if (_protocolLevel >= 5 && message.WillProperties != null)
+            if (_protocolLevel >= MqttVersion.V500 && message.WillProperties != null)
             {
                 var delay = message.WillProperties.GetUInt32(MqttPropertyId.WillDelayInterval);
                 if (delay.HasValue) _willDelaySeconds = delay.Value;
@@ -220,7 +220,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         // MQTT 5.0 会话能力
         ConnAck ack;
         var sessionPresent = false;
-        if (_protocolLevel >= 5)
+        if (_protocolLevel >= MqttVersion.V500)
         {
             _capabilities = new MqttSessionCapabilities();
             _capabilities.ApplyConnectProperties(message.Properties);

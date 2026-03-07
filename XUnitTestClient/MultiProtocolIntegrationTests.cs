@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -107,7 +107,7 @@ public class MultiProtocolIntegrationTests : IDisposable
         {
             ClientId = "v310_compat_client",
             ProtocolName = "MQTT",      // 标准名，不是 MQIsdp
-            ProtocolLevel = 0x03,
+            ProtocolLevel = MqttVersion.V310,
             CleanSession = true,
         };
 
@@ -132,7 +132,7 @@ public class MultiProtocolIntegrationTests : IDisposable
         {
             ClientId = "mqisdp_client",
             ProtocolName = "MQIsdp",
-            ProtocolLevel = 0x03,
+            ProtocolLevel = MqttVersion.V310,
             CleanSession = true,
         };
 
