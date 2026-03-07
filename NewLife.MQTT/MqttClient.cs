@@ -6,8 +6,8 @@ using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
-using NewLife.MQTT.WebSocket;
 using NewLife.Net;
+using NewLife.Net.Handlers;
 using NewLife.Serialization;
 using NewLife.Threading;
 
@@ -199,37 +199,37 @@ public class MqttClient : DisposeBase
             var isWebSocket = Server.StartsWithIgnoreCase("ws://", "wss://");
             var isWss = Server.StartsWithIgnoreCase("wss://");
 
-            var uri = isWebSocket ? ParseWebSocketUri(Server) : new NetUri(Server);
-            if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
-            if (uri.Port == 0) uri.Port = isWss ? 8884 : isWebSocket ? 8083 : 1883;
-            WriteLog("正在连接[{0}]{1}", uri, isWebSocket ? "(WebSocket)" : "");
+            if (isWebSocket)
+            {
+                // 使用 Core 的 WebSocketClient，自带握手和帧编解码
+                var ws = new WebSocketClient(Server);
+                if (ws.Remote.Port == 0) ws.Remote.Port = isWss ? 8884 : 8083;
+                ws.SetRequestHeader("Sec-WebSocket-Protocol", "mqtt");
+                ws.KeepAlive = TimeSpan.Zero; // MQTT 有自己的心跳，禁用 WebSocket 层 Ping
 
-            client = uri.CreateRemote();
+                // 重建管线，确保顺序：ProxyCodec → WebSocketCodec → MqttCodec
+                ws.Pipeline.Clear();
+                if (EnableProxyProtocol) ws.Add(new ProxyCodec { Client = true });
+                ws.Add(new WebSocketCodec { UserPacket = true });
+                ws.Add(new MqttCodec());
+
+                client = ws;
+                WriteLog("正在连接[{0}](WebSocket)", ws.Remote);
+            }
+            else
+            {
+                var uri = new NetUri(Server);
+                if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+                if (uri.Port == 0) uri.Port = 1883;
+                WriteLog("正在连接[{0}]", uri);
+
+                client = uri.CreateRemote();
+                if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
+                client.Add(new MqttCodec());
+            }
 
             client.Log = Log;
             client.Timeout = Timeout;
-
-            if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
-
-            // WebSocket 连接需要添加 WebSocket 编解码器
-            if (isWebSocket)
-            {
-                var wsPath = "/mqtt";
-                if (Server.Contains("/"))
-                {
-                    var idx = Server.IndexOf('/', isWss ? 6 : 5);
-                    if (idx > 0) wsPath = Server.Substring(idx);
-                }
-
-                client.Add(new WebSocketClientCodec
-                {
-                    Host = uri.Host ?? "localhost",
-                    Port = uri.Port,
-                    Path = wsPath,
-                });
-            }
-
-            client.Add(new MqttCodec());
 
             // 关闭Tcp延迟以合并小包的算法，降低延迟
             if (client is TcpSession tcp)
@@ -763,28 +763,6 @@ public class MqttClient : DisposeBase
         }
 
         return rs;
-    }
-    #endregion
-
-    #region 辅助方法
-    /// <summary>解析 WebSocket URI 为 NetUri（ws:// → tcp://，wss:// → tcp://）</summary>
-    /// <param name="server">WebSocket地址</param>
-    /// <returns></returns>
-    private static NetUri ParseWebSocketUri(String server)
-    {
-        // ws://host:port/path → tcp://host:port
-        // wss://host:port/path → tcp://host:port
-        var s = server;
-        if (s.StartsWithIgnoreCase("wss://"))
-            s = "tcp://" + s.Substring(6);
-        else if (s.StartsWithIgnoreCase("ws://"))
-            s = "tcp://" + s.Substring(5);
-
-        // 去掉路径部分
-        var idx = s.IndexOf('/', 6);
-        if (idx > 0) s = s.Substring(0, idx);
-
-        return new NetUri(s);
     }
     #endregion
 

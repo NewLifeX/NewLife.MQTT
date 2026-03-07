@@ -65,10 +65,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="WebSocket\WebSocketClientCodec.cs" />
-  </ItemGroup>
-  
-  <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.103">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -1,4 +1,5 @@
-﻿using NewLife.Buffers;
+﻿using System.Text;
+using NewLife.Buffers;
 using NewLife.Data;
 using NewLife.Serialization;
 
@@ -202,7 +203,19 @@ public abstract class MqttMessage : ISpanSerializable
     /// <summary>写字符串（2字节大端长度前缀 + UTF-8数据）</summary>
     /// <param name="writer">Span写入器</param>
     /// <param name="value">字符串值</param>
-    protected void WriteString(ref SpanWriter writer, String? value) => WriteData(ref writer, value?.GetBytes());
+    protected void WriteString(ref SpanWriter writer, String? value)
+    {
+        if (value.IsNullOrEmpty())
+        {
+            writer.Write((UInt16)0);
+            return;
+        }
+
+        // 直接计算字节数写入长度前缀，再用 Write(String, -1) 零分配写入 UTF-8 数据
+        var byteCount = Encoding.UTF8.GetByteCount(value);
+        writer.Write((UInt16)byteCount);
+        writer.Write(value, -1);
+    }
 
     /// <summary>写字节数组（2字节大端长度前缀 + 数据）</summary>
     /// <param name="writer">Span写入器</param>
