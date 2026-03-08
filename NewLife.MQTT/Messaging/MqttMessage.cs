@@ -106,17 +106,39 @@ public abstract class MqttMessage : ISpanSerializable
     /// <returns>是否成功</returns>
     public virtual Boolean Write(ref SpanWriter writer, Object? context)
     {
-        // 使用池化缓冲区写入消息体，避免 GC 分配，且不需要移位处理变长头部
-        using var pk = new OwnerPacket(GetEstimatedBodySize());
+        var estimatedSize = GetEstimatedBodySize();
+        if (estimatedSize <= 127)
+        {
+            // 小消息快速路径：直接写入目标缓冲区，长度字段仅需1字节，写完后回填
+            writer.WriteByte(GetFlag());
+            var lenPos = writer.Position;
+            writer.WriteByte(0);
+            var bodyStart = writer.Position;
+
+            if (!OnWrite(ref writer, context)) return false;
+
+            var len = Length = writer.Position - bodyStart;
+
+            // 回填长度字节
+            var savedPos = writer.Position;
+            writer.Position = lenPos;
+            writer.WriteByte(len);
+            writer.Position = savedPos;
+
+            return true;
+        }
+
+        // 大消息：使用池化缓冲区写入消息体，避免移位处理变长头部
+        using var pk = new OwnerPacket(estimatedSize);
         var bodyWriter = new SpanWriter(pk) { IsLittleEndian = false };
         if (!OnWrite(ref bodyWriter, context)) return false;
 
-        var len = Length = bodyWriter.WrittenCount;
+        var len2 = Length = bodyWriter.WrittenCount;
 
         // 写固定头：标记位 + 变长长度 + 消息体
         writer.WriteByte(GetFlag());
-        writer.WriteEncodedInt(len);
-        if (len > 0) writer.Write(bodyWriter.WrittenSpan);
+        writer.WriteEncodedInt(len2);
+        if (len2 > 0) writer.Write(bodyWriter.WrittenSpan);
 
         return true;
     }
@@ -146,7 +168,12 @@ public abstract class MqttMessage : ISpanSerializable
 
     /// <summary>获取消息总估算大小（含固定头部），用于缓冲区预分配</summary>
     /// <returns></returns>
-    public Int32 GetEstimatedSize() => 5 + GetEstimatedBodySize();
+    public Int32 GetEstimatedSize()
+    {
+        var bodySize = GetEstimatedBodySize();
+        // 消息体≤127时长度字段仅需1字节，头部共2字节；否则最多5字节
+        return (bodySize <= 127 ? 2 : 5) + bodySize;
+    }
 
     /// <summary>转数据包</summary>
     /// <returns></returns>

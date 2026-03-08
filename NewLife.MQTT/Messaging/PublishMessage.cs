@@ -87,8 +87,7 @@ public sealed class PublishMessage : MqttIdMessage
         //WriteData(ref writer, Payload);
         if (Payload != null && Payload.Total > 0)
         {
-            var span = Payload.GetSpan();
-            writer.Write(span);
+            writer.Write(Payload);
         }
 
         return true;
@@ -96,10 +95,18 @@ public sealed class PublishMessage : MqttIdMessage
 
     /// <summary>获取子消息体估算大小</summary>
     /// <returns></returns>
-    protected override Int32 GetEstimatedBodySize() =>
-        64 +
-        (Topic?.Length ?? 0) * 3 +
-        (Payload?.Total ?? 0);
+    protected override Int32 GetEstimatedBodySize()
+    {
+        var size = 64 +
+            (Topic?.Length ?? 0) * 3 +
+            (Payload?.Total ?? 0);
+
+        // MQTT 5.0 属性
+        if (Properties != null && Properties.Count > 0)
+            size += 5 + Properties.GetEstimatedSize();
+
+        return size;
+    }
 
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>

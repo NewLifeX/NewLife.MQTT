@@ -220,13 +220,23 @@ public sealed class ConnectMessage : MqttMessage
 
     /// <summary>获取子消息体估算大小</summary>
     /// <returns></returns>
-    protected override Int32 GetEstimatedBodySize() =>
-        128 +
-        (ClientId?.Length ?? 0) * 3 +
-        (Username?.Length ?? 0) * 3 +
-        (Password?.Length ?? 0) * 3 +
-        (WillTopicName?.Length ?? 0) * 3 +
-        (WillMessage?.Length ?? 0);
+    protected override Int32 GetEstimatedBodySize()
+    {
+        var size = 128 +
+            (ClientId?.Length ?? 0) * 3 +
+            (Username?.Length ?? 0) * 3 +
+            (Password?.Length ?? 0) * 3 +
+            (WillTopicName?.Length ?? 0) * 3 +
+            (WillMessage?.Length ?? 0);
+
+        // MQTT 5.0 属性
+        if (Properties != null && Properties.Count > 0)
+            size += 5 + Properties.GetEstimatedSize();
+        if (WillProperties != null && WillProperties.Count > 0)
+            size += 5 + WillProperties.GetEstimatedSize();
+
+        return size;
+    }
 
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>

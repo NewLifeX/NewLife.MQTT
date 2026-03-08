@@ -30,6 +30,16 @@ public sealed class AuthMessage : MqttMessage
     #endregion
 
     #region 方法
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize()
+    {
+        // ReasonCode 1字节 + 可选属性长度前缀(1字节) + 属性数据
+        if (Properties != null && Properties.Count > 0)
+            return 1 + 5 + Properties.GetEstimatedSize();
+        return 2;
+    }
+
     /// <summary>子消息读取</summary>
     /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>
