@@ -18,7 +18,7 @@ public class MqttMessageBenchmark
     private static Byte[] GetBytes(MqttMessage message)
     {
         using var pk = message.ToPacket();
-        return pk.GetBytes();
+        return pk.GetSpan().ToArray();
     }
 
     #region 预构建消息与二进制数据

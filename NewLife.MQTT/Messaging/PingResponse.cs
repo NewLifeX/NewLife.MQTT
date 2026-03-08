@@ -16,5 +16,9 @@ public sealed class PingResponse : MqttMessage
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>
     protected override Byte GetFlag() => (Byte)((Byte)Type << 4);
+
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize() => 0;
     #endregion
 }

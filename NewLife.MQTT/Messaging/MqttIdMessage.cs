@@ -42,5 +42,9 @@ public abstract class MqttIdMessage : MqttMessage
         writer.Write(Id);
         return true;
     }
+
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize() => 2;
     #endregion
 }

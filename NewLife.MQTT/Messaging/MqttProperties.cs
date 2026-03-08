@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using NewLife.Buffers;
 using NewLife.Data;
+using NewLife.Serialization;
 
 namespace NewLife.MQTT.Messaging;
 
@@ -11,7 +12,7 @@ namespace NewLife.MQTT.Messaging;
 /// 属性值类型包括：Byte、UInt16、UInt32、变长整数、UTF-8字符串、二进制数据、UTF-8字符串对。
 /// 用户属性（UserProperty）可以出现多次。
 /// </remarks>
-public class MqttProperties
+public class MqttProperties : ISpanSerializable
 {
     #region 属性
     private readonly Dictionary<MqttPropertyId, Object> _props = [];
@@ -111,11 +112,11 @@ public class MqttProperties
     /// <summary>从SpanReader读取属性集合</summary>
     /// <param name="reader">Span读取器</param>
     /// <returns></returns>
-    public Boolean Read(ref SpanReader reader)
+    public void Read(ref SpanReader reader)
     {
         // 读取属性总长度（变长整数编码）
         var totalLen = reader.ReadEncodedInt();
-        if (totalLen <= 0) return true;
+        if (totalLen <= 0) return;
 
         var startPos = reader.Position;
         while (reader.Position - startPos < totalLen)
@@ -188,14 +189,12 @@ public class MqttProperties
                     break;
             }
         }
-
-        return true;
     }
 
     /// <summary>写入属性集合到SpanWriter</summary>
     /// <param name="writer">Span写入器</param>
     /// <returns></returns>
-    public Boolean Write(ref SpanWriter writer)
+    public void Write(ref SpanWriter writer)
     {
         // 使用池化缓冲区写入属性数据，避免 GC 分配
         using var propPk = new OwnerPacket(GetEstimatedSize());
@@ -270,21 +269,22 @@ public class MqttProperties
         // 写入属性总长度（变长整数编码）+ 属性数据
         writer.WriteEncodedInt(propWriter.WrittenCount);
         if (propWriter.WrittenCount > 0) writer.Write(propWriter.WrittenSpan);
-
-        return true;
     }
 
     /// <summary>获取属性估算大小</summary>
     /// <returns></returns>
-    private Int32 GetEstimatedSize()
+    public Int32 GetEstimatedSize()
     {
         var size = 64;
         foreach (var item in _props)
         {
             size += 1; // id byte
-            if (item.Value is String s) size += 2 + s.Length * 3;
-            else if (item.Value is Byte[]) size += 2 + ((Byte[])item.Value).Length;
-            else size += 5;
+            if (item.Value is String s)
+                size += 2 + s.Length * 3;
+            else if (item.Value is Byte[])
+                size += 2 + ((Byte[])item.Value).Length;
+            else
+                size += 5;
         }
         foreach (var item in UserProperties)
         {

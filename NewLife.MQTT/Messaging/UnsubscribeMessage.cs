@@ -59,6 +59,18 @@ public sealed class UnsubscribeMessage : MqttIdMessage
         return true;
     }
 
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize()
+    {
+        var size = 2;
+        foreach (var item in TopicFilters)
+        {
+            size += 2 + (item?.Length ?? 0) * 3;
+        }
+        return size;
+    }
+
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>
     protected override Byte GetFlag()

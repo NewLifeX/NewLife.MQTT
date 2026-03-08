@@ -164,5 +164,15 @@ public sealed class ConnAck : MqttMessage
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>
     protected override Byte GetFlag() => (Byte)((Byte)Type << 4);
+
+    /// <summary>获取子消息体估算大小</summary>
+    /// <returns></returns>
+    protected override Int32 GetEstimatedBodySize()
+    {
+        // SessionPresent 1字节 + ReturnCode 1字节 + 可选属性
+        if (Properties != null && Properties.Count > 0)
+            return 2 + 5 + Properties.GetEstimatedSize();
+        return 2;
+    }
     #endregion
 }
