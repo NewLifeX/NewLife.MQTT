@@ -30,7 +30,7 @@ public class MqttIntegrationTests : IDisposable
 
         _server = new MqttServer
         {
-            Port = _port,
+            Port = 0,
             ServiceProvider = services.BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
