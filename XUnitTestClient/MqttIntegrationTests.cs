@@ -23,20 +23,21 @@ public class MqttIntegrationTests : IDisposable
 
     public MqttIntegrationTests()
     {
-        // 使用随机端口避免冲突
-        _port = Rand.Next(20000, 30000);
-
+        // 使用 Port=0 让系统自动分配随机端口，避免端口冲突
         var services = ObjectContainer.Current;
         services.AddSingleton(XTrace.Log);
 
         _server = new MqttServer
         {
-            Port = _port,
+            Port = 0,
             ServiceProvider = services.BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };
         _server.Start();
+
+        // 获取实际分配的端口
+        _port = _server.Port;
     }
 
     public void Dispose()
