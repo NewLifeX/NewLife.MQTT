@@ -113,7 +113,7 @@ public sealed class ConnectMessage : MqttMessage
     protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
         // 协议名
-        ProtocolName = ReadString(ref reader);
+        ProtocolName = reader.ReadLengthString(2);
 
         // 协议等级
         ProtocolLevel = (MqttVersion)reader.ReadByte();
@@ -140,7 +140,7 @@ public sealed class ConnectMessage : MqttMessage
 
         // CONNECT报文的有效载荷
         // 如果包含的话，必须按这个顺序出现：客户端标识符，遗嘱属性(5.0)，遗嘱主题，遗嘱消息，用户名，密码 
-        ClientId = ReadString(ref reader);
+        ClientId = reader.ReadLengthString(2);
         if (HasWill)
         {
             // MQTT 5.0 遗嘱属性
@@ -150,11 +150,11 @@ public sealed class ConnectMessage : MqttMessage
                 WillProperties.Read(ref reader);
             }
 
-            WillTopicName = ReadString(ref reader);
-            WillMessage = ReadData(ref reader);
+            WillTopicName = reader.ReadLengthString(2);
+            WillMessage = reader.ReadArray(2).ToArray();
         }
-        if (HasUsername) Username = ReadString(ref reader);
-        if (HasPassword) Password = ReadString(ref reader);
+        if (HasUsername) Username = reader.ReadLengthString(2);
+        if (HasPassword) Password = reader.ReadLengthString(2);
 
         return true;
     }
@@ -165,7 +165,7 @@ public sealed class ConnectMessage : MqttMessage
     protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
         // 协议名
-        WriteString(ref writer, ProtocolName);
+        writer.WriteLengthString(ProtocolName, 2);
 
         // 协议等级
         writer.WriteByte((Byte)ProtocolLevel);
@@ -197,7 +197,7 @@ public sealed class ConnectMessage : MqttMessage
         }
 
         // 载荷
-        WriteString(ref writer, ClientId);
+        writer.WriteLengthString(ClientId, 2);
         if (HasWill)
         {
             // MQTT 5.0 遗嘱属性
@@ -209,11 +209,11 @@ public sealed class ConnectMessage : MqttMessage
                     writer.WriteEncodedInt(0);
             }
 
-            WriteString(ref writer, WillTopicName);
-            WriteData(ref writer, WillMessage);
+            writer.WriteLengthString(WillTopicName, 2);
+            writer.WriteArray(WillMessage, 2);
         }
-        if (HasUsername) WriteString(ref writer, Username);
-        if (HasPassword) WriteString(ref writer, Password);
+        if (HasUsername) writer.WriteLengthString(Username, 2);
+        if (HasPassword) writer.WriteLengthString(Password, 2);
 
         return true;
     }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -6,9 +6,7 @@ using System.Threading.Tasks;
 using NewLife;
 using NewLife.Data;
 using NewLife.Log;
-using NewLife.Model;
 using NewLife.MQTT;
-using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Security;
 using Xunit;
@@ -16,29 +14,15 @@ using Xunit;
 namespace XUnitTestClient;
 
 /// <summary>多传输协议集成测试。验证 TCP/WebSocket 传输 × MQTT V311/V500 版本组合下连接、心跳、订阅发布和退订</summary>
-[Collection("TransportIntegration")]
-public class TransportIntegrationTests : IDisposable
+[Collection("IntegrationTests")]
+public class TransportIntegrationTests : IClassFixture<MqttServerFixture>
 {
-    private readonly MqttServer _server;
     private readonly Int32 _port;
 
-    public TransportIntegrationTests()
+    public TransportIntegrationTests(MqttServerFixture fixture)
     {
-        var services = ObjectContainer.Current;
-        services.AddSingleton(XTrace.Log);
-
-        _server = new MqttServer
-        {
-            Port = 0,
-            ServiceProvider = services.BuildServiceProvider(),
-            Log = XTrace.Log,
-            SessionLog = XTrace.Log,
-        };
-        _server.Start();
-        _port = _server.Port;
+        _port = fixture.Port;
     }
-
-    public void Dispose() => _server.TryDispose();
 
     /// <summary>创建 TCP 客户端</summary>
     private MqttClient CreateTcpClient(String? clientId = null, MqttVersion version = MqttVersion.V311)

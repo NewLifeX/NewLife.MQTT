@@ -40,7 +40,7 @@ public sealed class PublishMessage : MqttIdMessage
     /// <returns>是否成功</returns>
     protected override Boolean OnRead(ref SpanReader reader, Object? context)
     {
-        Topic = ReadString(ref reader);
+        Topic = reader.ReadLengthString(2);
 
         if (QoS > 0)
         {
@@ -66,7 +66,7 @@ public sealed class PublishMessage : MqttIdMessage
     /// <param name="context">上下文，传入 MqttVersion 时按 MQTT 5.0 写入属性</param>
     protected override Boolean OnWrite(ref SpanWriter writer, Object? context)
     {
-        WriteString(ref writer, Topic);
+        writer.WriteLengthString(Topic, 2);
 
         if (QoS > 0)
         {

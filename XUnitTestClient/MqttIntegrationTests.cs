@@ -15,7 +15,7 @@ using Xunit;
 namespace XUnitTestClient;
 
 /// <summary>客户端/服务端集成测试。覆盖QoS全路径、遗嘱消息、Retain消息、会话持久化</summary>
-[Collection("MqttIntegration")]
+[Collection("IntegrationTests")]
 public class MqttIntegrationTests : IDisposable
 {
     private readonly MqttServer _server;
@@ -23,8 +23,7 @@ public class MqttIntegrationTests : IDisposable
 
     public MqttIntegrationTests()
     {
-        // 使用随机端口避免冲突
-        _port = Rand.Next(20000, 30000);
+        _port = 0;
 
         var services = ObjectContainer.Current;
         services.AddSingleton(XTrace.Log);
@@ -37,6 +36,7 @@ public class MqttIntegrationTests : IDisposable
             SessionLog = XTrace.Log,
         };
         _server.Start();
+        _port = _server.Port;
     }
 
     public void Dispose()

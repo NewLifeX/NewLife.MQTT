@@ -37,7 +37,7 @@ public sealed class SubscribeMessage : MqttIdMessage
         var list = new List<Subscription>();
         while (reader.Available > 0)
         {
-            var topicFilter = ReadString(ref reader);
+            var topicFilter = reader.ReadLengthString(2);
             var options = reader.ReadByte();
 
             // MQTT 5.0 订阅选项字节格式：
@@ -68,7 +68,7 @@ public sealed class SubscribeMessage : MqttIdMessage
 
         foreach (var item in Requests)
         {
-            WriteString(ref writer, item.TopicFilter);
+            writer.WriteLengthString(item.TopicFilter, 2);
 
             // MQTT 5.0 订阅选项字节
             var options = (Byte)item.QualityOfService;

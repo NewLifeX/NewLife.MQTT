@@ -37,7 +37,7 @@ public sealed class UnsubscribeMessage : MqttIdMessage
         var list = new List<String>();
         while (reader.Available > 0)
         {
-            list.Add(ReadString(ref reader));
+            list.Add(reader.ReadLengthString(2));
         }
         TopicFilters = list;
 
@@ -53,7 +53,7 @@ public sealed class UnsubscribeMessage : MqttIdMessage
 
         foreach (var item in TopicFilters)
         {
-            WriteString(ref writer, item);
+            writer.WriteLengthString(item, 2);
         }
 
         return true;

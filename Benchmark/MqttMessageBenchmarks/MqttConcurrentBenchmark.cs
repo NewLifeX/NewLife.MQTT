@@ -17,7 +17,7 @@ public class MqttConcurrentBenchmark
     private static Byte[] GetBytes(MqttMessage message)
     {
         using var pk = message.ToPacket();
-        return pk.GetBytes();
+        return pk.GetSpan().ToArray();
     }
 
     /// <summary>动态线程数，包含 CPU 核心数</summary>
