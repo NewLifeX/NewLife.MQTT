@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,19 +23,20 @@ public class MqttIntegrationTests : IDisposable
 
     public MqttIntegrationTests()
     {
-        _port = 0;
-
+        // 使用 Port=0 让系统自动分配随机端口，避免端口冲突
         var services = ObjectContainer.Current;
         services.AddSingleton(XTrace.Log);
 
         _server = new MqttServer
         {
-            Port = _port,
+            Port = 0,
             ServiceProvider = services.BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };
         _server.Start();
+
+        // 获取实际分配的端口
         _port = _server.Port;
     }
 

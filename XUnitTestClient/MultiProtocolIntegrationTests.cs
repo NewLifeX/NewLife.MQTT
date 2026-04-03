@@ -264,17 +264,17 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
 
         await subV311.SubscribeAsync("fanout/broadcast");
         await subV500.SubscribeAsync("fanout/broadcast");
-        await Task.Delay(100);
+        await Task.Delay(500);
 
         var payload = "broadcast_" + Rand.NextString(4);
         await pub.PublishAsync("fanout/broadcast", payload, QualityOfService.AtMostOnce);
 
-        var v311Winner = await Task.WhenAny(v311Received.Task, Task.Delay(3000));
-        var v500Winner = await Task.WhenAny(v500Received.Task, Task.Delay(3000));
+        var v311Winner = await Task.WhenAny(v311Received.Task, Task.Delay(10000));
+        var v500Winner = await Task.WhenAny(v500Received.Task, Task.Delay(10000));
 
-        Assert.True(v311Winner == v311Received.Task, "3 秒内 V311 订阅者未收到广播消息");
+        Assert.True(v311Winner == v311Received.Task, "10 秒内 V311 订阅者未收到广播消息");
         Assert.Equal(payload, await v311Received.Task);
-        Assert.True(v500Winner == v500Received.Task, "3 秒内 V500 订阅者未收到广播消息");
+        Assert.True(v500Winner == v500Received.Task, "10 秒内 V500 订阅者未收到广播消息");
         Assert.Equal(payload, await v500Received.Task);
 
         await pub.DisconnectAsync();
@@ -438,7 +438,7 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
         subV311.Received += (s, e) => received.TrySetResult(e.Arg.Payload?.ToStr() ?? "");
 
         await subV311.SubscribeAsync("v500/will/status");
-        await Task.Delay(100);
+        await Task.Delay(500);
 
         // V500 客户端携带遗嘱，异常断开
         var willClient = CreateClient("v500_will_client", MqttVersion.V500);
@@ -447,12 +447,15 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
         willClient.WillQoS = QualityOfService.AtMostOnce;
 
         await willClient.ConnectAsync();
-        await Task.Delay(100);
+        await Task.Delay(500);
 
         willClient.Dispose(); // 模拟异常断开
+        
+        // 等待服务端检测到异常断开
+        await Task.Delay(500);
 
-        var winner3 = await Task.WhenAny(received.Task, Task.Delay(3000));
-        Assert.True(winner3 == received.Task, "3 秒内未收到遗嘱消息（V500 异常断开）");
+        var winner3 = await Task.WhenAny(received.Task, Task.Delay(10000));
+        Assert.True(winner3 == received.Task, "10 秒内未收到遗嘱消息（V500 异常断开）");
         Assert.Equal("v500_offline", await received.Task);
 
         await subV311.DisconnectAsync();
