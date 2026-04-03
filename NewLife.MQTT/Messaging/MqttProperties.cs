@@ -1,5 +1,4 @@
-﻿using System.Text;
-using NewLife.Buffers;
+﻿using NewLife.Buffers;
 using NewLife.Data;
 using NewLife.Serialization;
 
@@ -167,19 +166,19 @@ public class MqttProperties : ISpanSerializable
                 case MqttPropertyId.ResponseInformation:
                 case MqttPropertyId.ServerReference:
                 case MqttPropertyId.ReasonString:
-                    _props[id] = ReadUtf8String(ref reader);
+                    _props[id] = reader.ReadLengthString(2);
                     break;
 
                 // 二进制数据类型
                 case MqttPropertyId.CorrelationData:
                 case MqttPropertyId.AuthenticationData:
-                    _props[id] = ReadBinaryData(ref reader);
+                    _props[id] = reader.ReadArray(2).ToArray();
                     break;
 
                 // UTF-8 字符串对（用户属性，可出现多次）
                 case MqttPropertyId.UserProperty:
-                    var key = ReadUtf8String(ref reader);
-                    var value = ReadUtf8String(ref reader);
+                    var key = reader.ReadLengthString(2);
+                    var value = reader.ReadLengthString(2);
                     UserProperties.Add(new KeyValuePair<String, String>(key, value));
                     break;
 
@@ -247,13 +246,13 @@ public class MqttProperties : ISpanSerializable
                 case MqttPropertyId.ResponseInformation:
                 case MqttPropertyId.ServerReference:
                 case MqttPropertyId.ReasonString:
-                    WriteUtf8String(ref propWriter, (String)item.Value);
+                    propWriter.WriteLengthString((String)item.Value, 2);
                     break;
 
                 // 二进制数据类型
                 case MqttPropertyId.CorrelationData:
                 case MqttPropertyId.AuthenticationData:
-                    WriteBinaryData(ref propWriter, (Byte[])item.Value);
+                    propWriter.WriteArray((Byte[])item.Value, 2);
                     break;
             }
         }
@@ -262,8 +261,8 @@ public class MqttProperties : ISpanSerializable
         foreach (var item in UserProperties)
         {
             propWriter.WriteByte((Byte)MqttPropertyId.UserProperty);
-            WriteUtf8String(ref propWriter, item.Key);
-            WriteUtf8String(ref propWriter, item.Value);
+            propWriter.WriteLengthString(item.Key, 2);
+            propWriter.WriteLengthString(item.Value, 2);
         }
 
         // 写入属性总长度（变长整数编码）+ 属性数据
@@ -291,42 +290,6 @@ public class MqttProperties : ISpanSerializable
             size += 1 + 2 + item.Key.Length * 3 + 2 + item.Value.Length * 3;
         }
         return size;
-    }
-    #endregion
-
-    #region 辅助方法
-    private static String ReadUtf8String(ref SpanReader reader)
-    {
-        var len = reader.ReadUInt16();
-        if (len == 0) return String.Empty;
-        return reader.ReadString(len);
-    }
-
-    private static void WriteUtf8String(ref SpanWriter writer, String? value)
-    {
-        if (value.IsNullOrEmpty())
-        {
-            writer.Write((UInt16)0);
-            return;
-        }
-
-        // 直接计算字节数写入长度前缀，再用 Write(String, -1) 零分配写入 UTF-8 数据
-        var byteCount = Encoding.UTF8.GetByteCount(value);
-        writer.Write((UInt16)byteCount);
-        writer.Write(value, -1);
-    }
-
-    private static Byte[] ReadBinaryData(ref SpanReader reader)
-    {
-        var len = reader.ReadUInt16();
-        return len > 0 ? reader.ReadBytes(len).ToArray() : [];
-    }
-
-    private static void WriteBinaryData(ref SpanWriter writer, Byte[]? data)
-    {
-        var len = data?.Length ?? 0;
-        writer.Write((UInt16)len);
-        if (len > 0 && data != null) writer.Write(data);
     }
     #endregion
 }

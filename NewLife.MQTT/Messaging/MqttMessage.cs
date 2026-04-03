@@ -1,5 +1,4 @@
-﻿using System.Text;
-using NewLife.Buffers;
+﻿using NewLife.Buffers;
 using NewLife.Data;
 using NewLife.Serialization;
 
@@ -207,65 +206,5 @@ public abstract class MqttMessage : ISpanSerializable
         MqttType.SubAck or
         MqttType.UnSubAck or
         MqttType.PingResp;
-
-    /// <summary>读字符串（2字节大端长度前缀 + UTF-8数据）</summary>
-    /// <param name="reader">Span读取器</param>
-    /// <returns></returns>
-    protected String ReadString(ref SpanReader reader)
-    {
-        var len = reader.ReadUInt16();
-        if (len == 0) return String.Empty;
-        return reader.ReadString(len);
-    }
-
-    /// <summary>读字节数组（2字节大端长度前缀 + 数据）</summary>
-    /// <param name="reader">Span读取器</param>
-    /// <returns></returns>
-    protected Byte[] ReadData(ref SpanReader reader)
-    {
-        var len = reader.ReadUInt16();
-        return reader.ReadBytes(len).ToArray();
-    }
-
-    /// <summary>写字符串（2字节大端长度前缀 + UTF-8数据）</summary>
-    /// <param name="writer">Span写入器</param>
-    /// <param name="value">字符串值</param>
-    protected void WriteString(ref SpanWriter writer, String? value)
-    {
-        if (value.IsNullOrEmpty())
-        {
-            writer.Write((UInt16)0);
-            return;
-        }
-
-        // 直接计算字节数写入长度前缀，再用 Write(String, -1) 零分配写入 UTF-8 数据
-        var byteCount = Encoding.UTF8.GetByteCount(value);
-        writer.Write((UInt16)byteCount);
-        writer.Write(value, -1);
-    }
-
-    /// <summary>写字节数组（2字节大端长度前缀 + 数据）</summary>
-    /// <param name="writer">Span写入器</param>
-    /// <param name="buf">字节数组</param>
-    protected void WriteData(ref SpanWriter writer, Byte[]? buf)
-    {
-        var len = buf == null ? 0 : buf.Length;
-        writer.Write((UInt16)len);
-        if (len > 0 && buf != null) writer.Write(buf);
-    }
-
-    /// <summary>写数据包（2字节大端长度前缀 + 数据）</summary>
-    /// <param name="writer">Span写入器</param>
-    /// <param name="pk">数据包</param>
-    protected void WriteData(ref SpanWriter writer, IPacket? pk)
-    {
-        var len = pk == null ? 0 : pk.Total;
-        writer.Write((UInt16)len);
-        if (len > 0 && pk != null)
-        {
-            var span = pk.GetSpan();
-            writer.Write(span);
-        }
-    }
     #endregion
 }

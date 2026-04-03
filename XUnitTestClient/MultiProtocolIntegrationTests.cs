@@ -16,33 +16,15 @@ using Xunit;
 namespace XUnitTestClient;
 
 /// <summary>多协议版本集成测试。验证同一服务端同时兼容 MQTT 3.1.1 (V311) 与 MQTT 5.0 (V500) 客户端</summary>
-[Collection("MultiProtocol")]
-public class MultiProtocolIntegrationTests : IDisposable
+[Collection("IntegrationTests")]
+public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
 {
-    private readonly MqttServer _server;
     private readonly Int32 _port;
 
-    public MultiProtocolIntegrationTests()
+    public MultiProtocolIntegrationTests(MqttServerFixture fixture)
     {
-        _port = 0; // 系统自动分配随机端口
-
-        var services = ObjectContainer.Current;
-        services.AddSingleton(XTrace.Log);
-
-        _server = new MqttServer
-        {
-            Port = _port,
-            ServiceProvider = services.BuildServiceProvider(),
-            Log = XTrace.Log,
-            SessionLog = XTrace.Log,
-        };
-        _server.Start();
-
-        // 获取实际分配端口
-        _port = _server.Port;
+        _port = fixture.Port;
     }
-
-    public void Dispose() => _server.TryDispose();
 
     private MqttClient CreateClient(String? clientId = null, MqttVersion version = MqttVersion.V311)
     {
