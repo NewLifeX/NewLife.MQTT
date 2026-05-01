@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageReference Include="NewLife.Core" Version="11.14.2026.402" />
+    <PackageReference Include="NewLife.Core" Version="11.15.2026.501" />
   </ItemGroup>
 
   <ItemGroup>
