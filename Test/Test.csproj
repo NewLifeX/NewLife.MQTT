@@ -16,7 +16,7 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.14.2026.402" />
+    <PackageReference Include="NewLife.Core" Version="11.15.2026.501" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />
