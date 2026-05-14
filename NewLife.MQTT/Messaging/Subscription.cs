@@ -24,6 +24,10 @@ public class Subscription : IEquatable<Subscription>
     /// </remarks>
     public Byte RetainHandling { get; set; }
 
+    /// <summary>订阅标识符。MQTT 5.0，服务端转发消息时原样回传，方便客户端区分来自不同订阅的消息</summary>
+    /// <remarks>取值范围 1..268,435,455；0 表示未设置。</remarks>
+    public UInt32 SubscriptionIdentifier { get; set; }
+
     /// <summary>消息处理方法</summary>
     public Action<PublishMessage>? Callback { get; set; }
     #endregion

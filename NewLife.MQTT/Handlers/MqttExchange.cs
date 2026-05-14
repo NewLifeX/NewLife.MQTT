@@ -29,6 +29,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <summary>服务端指定的 KeepAlive（秒）。设置后将在 CONNACK 中通知 MQTT 5.0 客户端覆盖客户端 KeepAlive。0 表示不覆盖</summary>
     public UInt16 ServerKeepAlive { get; set; }
 
+    /// <summary>服务端引用地址。MQTT 5.0，非空时在 CONNACK/DISCONNECT 中附带，引导客户端重定向到另一台 Broker</summary>
+    public String? ServerReference { get; set; }
+
     /// <summary>规则引擎。设置后将在消息发布时调用规则处理</summary>
     public MqttRuleEngine? RuleEngine { get; set; }
 
@@ -168,6 +171,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
         /// <summary>保留消息处理方式。MQTT 5.0（0=订阅时发送，1=仅新订阅时发送，2=不发送）</summary>
         public Byte RetainHandling { get; set; }
+
+        /// <summary>订阅标识符。MQTT 5.0，0 表示未设置；投递时附带在 PUBLISH Properties 中</summary>
+        public UInt32 SubscriptionIdentifier { get; set; }
     }
 
     /// <summary>主题订阅集合</summary>
@@ -253,6 +259,12 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                             QoS = sub.QoS,
                             Properties = message.Properties,
                         };
+                        // MQTT 5.0 订阅标识符回传
+                        if (sub.SubscriptionIdentifier > 0)
+                        {
+                            msg.Properties = msg.Properties != null ? msg.Properties.Clone() : new MqttProperties();
+                            msg.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)sub.SubscriptionIdentifier);
+                        }
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
                     }
@@ -278,6 +290,12 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                             Retain = sub.RetainAsPublished && message.Retain,
                             Properties = message.Properties,
                         };
+                        // MQTT 5.0 订阅标识符回传
+                        if (sub.SubscriptionIdentifier > 0)
+                        {
+                            msg.Properties = msg.Properties != null ? msg.Properties.Clone() : new MqttProperties();
+                            msg.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)sub.SubscriptionIdentifier);
+                        }
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
                     }
@@ -315,7 +333,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <param name="sessionId">会话标识</param>
     /// <param name="topic">主题过滤器</param>
     /// <param name="qos">服务质量</param>
-    public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos) => Subscribe(sessionId, topic, qos, false, false, 0);
+    public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos) => Subscribe(sessionId, topic, qos, false, false, 0, 0);
     /// <summary>订阅主题（含 MQTT 5.0 订阅选项）</summary>
     /// <param name="sessionId">会话标识</param>
     /// <param name="topic">主题过滤器</param>
@@ -324,6 +342,17 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <param name="retainAsPublished">保留消息按发布时的状态转发</param>
     /// <param name="retainHandling">保留消息处理方式</param>
     public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos, Boolean noLocal, Boolean retainAsPublished, Byte retainHandling)
+        => Subscribe(sessionId, topic, qos, noLocal, retainAsPublished, retainHandling, 0);
+
+    /// <summary>订阅主题（含 MQTT 5.0 全部订阅选项与订阅标识符）</summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="topic">主题过滤器</param>
+    /// <param name="qos">服务质量</param>
+    /// <param name="noLocal">不转发自身发布的消息</param>
+    /// <param name="retainAsPublished">保留消息按发布时的状态转发</param>
+    /// <param name="retainHandling">保留消息处理方式</param>
+    /// <param name="subscriptionIdentifier">订阅标识符（0=未设置）。MQTT 5.0，投递时回传给订阅者</param>
+    public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos, Boolean noLocal, Boolean retainAsPublished, Byte retainHandling, UInt32 subscriptionIdentifier)
     {
         // 保存订阅关系
         var subs = _topics.GetOrAdd(topic, []);
@@ -343,6 +372,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                 NoLocal = noLocal,
                 RetainAsPublished = retainAsPublished,
                 RetainHandling = retainHandling,
+                SubscriptionIdentifier = subscriptionIdentifier,
             });
         }
 
@@ -497,6 +527,28 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     #endregion
 
     #region 统计与查询
+    /// <summary>直接向指定客户端注入消息。无需回环客户端，适合服务端主动推送场景</summary>
+    /// <param name="clientId">目标客户端标识</param>
+    /// <param name="message">发布消息</param>
+    /// <returns>是否找到目标客户端（客户端不在线时返回 false）</returns>
+    public virtual Boolean InjectMessage(String clientId, PublishMessage message)
+    {
+        if (clientId.IsNullOrEmpty()) return false;
+        if (message == null) throw new ArgumentNullException(nameof(message));
+
+        // 通过 clientId 反查 sessionId
+        foreach (var kv in _clientIdMap)
+        {
+            if (kv.Value == clientId && _sessions.TryGetValue(kv.Key, out var session))
+            {
+                session.PublishAsync(message);
+                Interlocked.Increment(ref Stats.MessagesSent);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>获取所有在线客户端标识</summary>
     /// <returns></returns>
     public IList<String> GetClientIds() => _clientIdMap.Values.ToList();

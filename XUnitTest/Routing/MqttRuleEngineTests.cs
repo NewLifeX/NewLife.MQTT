@@ -178,5 +178,6 @@ public class MqttRuleEngineTests
         public IList<String> GetClientIds() => [];
         public IList<String> GetTopics() => [];
         public Int32 GetSubscriberCount(String topic) => 0;
+        public Boolean InjectMessage(String clientId, PublishMessage message) => false;
     }
 }

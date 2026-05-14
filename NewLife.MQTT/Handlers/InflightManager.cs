@@ -18,6 +18,9 @@ public class InflightManager : DisposeBase
     /// <summary>最大重发次数。默认3次</summary>
     public Int32 MaxRetries { get; set; } = 3;
 
+    /// <summary>消息超过最大重发次数后被放弃时的回调。参数为 PacketId</summary>
+    public Action<UInt16>? OnMessageAbandoned { get; set; }
+
     private readonly ConcurrentDictionary<UInt16, InflightMessage> _messages = new();
     private TimerX? _timer;
     private readonly Func<PublishMessage, Task> _sendAction;
@@ -78,6 +81,8 @@ public class InflightManager : DisposeBase
             {
                 // 超过最大重试次数，放弃
                 _messages.TryRemove(item.Key, out _);
+                // 通知调用方（用于流控计数器修正，避免 InflightCount 永久占用）
+                OnMessageAbandoned?.Invoke(item.Key);
                 continue;
             }
 
