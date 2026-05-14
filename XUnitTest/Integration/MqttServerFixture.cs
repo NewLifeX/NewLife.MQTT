@@ -4,7 +4,7 @@ using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Integration;
 
 /// <summary>集成测试共享服务端固件。配合 IClassFixture&lt;MqttServerFixture&gt; 使用，每个测试类只启动一次 MQTT 服务端</summary>
 public sealed class MqttServerFixture : IDisposable

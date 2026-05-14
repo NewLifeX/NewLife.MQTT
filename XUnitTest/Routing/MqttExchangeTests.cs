@@ -7,7 +7,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Routing;
 
 /// <summary>MqttExchange 消息交换机单元测试</summary>
 public class MqttExchangeTests : IDisposable

@@ -7,7 +7,7 @@ using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Protocols;
 
 /// <summary>报文编解码单元测试。覆盖所有15种报文类型的序列化/反序列化往返</summary>
 public class MessageCodecTests

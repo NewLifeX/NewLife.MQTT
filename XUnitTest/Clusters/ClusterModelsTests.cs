@@ -4,7 +4,7 @@ using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient.Clusters;
+namespace XUnitTest.Clusters;
 
 /// <summary>Cluster 数据模型单元测试</summary>
 public class ClusterModelsTests

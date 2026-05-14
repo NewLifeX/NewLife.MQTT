@@ -3,7 +3,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Sessions;
 
 /// <summary>PersistentSession 持久化会话单元测试</summary>
 public class PersistentSessionTests

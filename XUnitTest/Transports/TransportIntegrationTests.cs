@@ -9,9 +9,10 @@ using NewLife.Log;
 using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
 using NewLife.Security;
+using XUnitTest.Integration;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Transports;
 
 /// <summary>多传输协议集成测试。验证 TCP/WebSocket 传输 × MQTT V311/V500 版本组合下连接、心跳、订阅发布和退订</summary>
 [Collection("IntegrationTests")]

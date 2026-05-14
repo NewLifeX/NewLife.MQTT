@@ -12,7 +12,7 @@ using NewLife.MQTT.Messaging;
 using NewLife.Security;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Integration;
 
 /// <summary>综合集成测试。全面覆盖 MQTT 核心功能，同时测试 MQTT 3.1.1 和 5.0 协议版本</summary>
 [Collection("ComprehensiveIntegration")]

@@ -4,7 +4,7 @@ using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Integration;
 
 internal class MqttController : MqttHandler
 {

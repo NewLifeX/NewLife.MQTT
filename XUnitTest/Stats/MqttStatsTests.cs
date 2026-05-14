@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using NewLife.MQTT.Handlers;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Stats;
 
 /// <summary>MqttStats 运行统计测试</summary>
 public class MqttStatsTests

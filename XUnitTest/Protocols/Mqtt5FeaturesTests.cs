@@ -14,7 +14,7 @@ using NewLife.Reflection;
 using NewLife.Security;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Protocols;
 
 /// <summary>MQTT 5.0 特性补充测试：消息过期、ServerKeepAlive、SASL/SCRAM-SHA-256、管理 API、ClusterDiscovery</summary>
 public class Mqtt5FeaturesTests

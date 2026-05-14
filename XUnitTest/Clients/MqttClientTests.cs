@@ -10,9 +10,10 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Security;
 using NewLife.UnitTest;
+using XUnitTest.Integration;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Clients;
 
 [TestCaseOrderer("NewLife.UnitTest.DefaultOrderer", "NewLife.UnitTest")]
 public class MqttClientTests

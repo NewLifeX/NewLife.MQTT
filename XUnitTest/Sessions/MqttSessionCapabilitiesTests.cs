@@ -3,7 +3,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Sessions;
 
 /// <summary>MqttSessionCapabilities MQTT 5.0 会话能力单元测试</summary>
 public class MqttSessionCapabilitiesTests

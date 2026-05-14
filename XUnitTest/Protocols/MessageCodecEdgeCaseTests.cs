@@ -5,7 +5,7 @@ using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Protocols;
 
 /// <summary>报文编解码边界情况测试。覆盖变长整数编码、协议名/版本号组合、MQTT 5.0 属性往返</summary>
 public class MessageCodecEdgeCaseTests

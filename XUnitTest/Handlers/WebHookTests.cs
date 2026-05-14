@@ -5,7 +5,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Handlers;
 
 /// <summary>MqttWebHook 和 WebHookEventData 单元测试</summary>
 public class WebHookTests

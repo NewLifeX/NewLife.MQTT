@@ -3,7 +3,7 @@ using NewLife.MQTT.Clusters;
 using NewLife.Serialization;
 using Xunit;
 
-namespace XUnitTestClient.Clusters;
+namespace XUnitTest.Clusters;
 
 public class SubscriptionInfoTests
 {
