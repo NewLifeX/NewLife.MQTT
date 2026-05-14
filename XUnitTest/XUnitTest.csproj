@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
+    <PackageReference Include="MQTTnet" Version="5.*" />
+    <PackageReference Include="MQTTnet.Server" Version="5.*" />
     <PackageReference Include="NewLife.Core" Version="11.15.2026.501" />
     <PackageReference Include="NewLife.UnitTest" Version="1.1.2026.102" />
     <PackageReference Include="xunit" Version="2.9.3" />
