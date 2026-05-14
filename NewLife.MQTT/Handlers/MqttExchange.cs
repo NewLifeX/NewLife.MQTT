@@ -29,6 +29,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <summary>服务端指定的 KeepAlive（秒）。设置后将在 CONNACK 中通知 MQTT 5.0 客户端覆盖客户端 KeepAlive。0 表示不覆盖</summary>
     public UInt16 ServerKeepAlive { get; set; }
 
+    /// <summary>规则引擎。设置后将在消息发布时调用规则处理</summary>
+    public MqttRuleEngine? RuleEngine { get; set; }
+
     /// <summary>本地缓存，保存设备的对象引用，具备定时清理能力</summary>
     private readonly ConcurrentDictionary<Int32, IMqttHandler> _sessions = new();
     private TimerX? _timer;
@@ -214,6 +217,13 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         // 检查消息是否已过期，过期消息不分发
         if (IsMessageExpired(message)) return;
 
+        // 规则引擎处理（转发/丢弃/WebHook等），返回 false 表示丢弃
+        if (RuleEngine != null)
+        {
+            _clientIdMap.TryGetValue(publisherSessionId, out var publisherClientId);
+            if (!RuleEngine.ProcessMessage(message, publisherClientId)) return;
+        }
+
         // 遍历所有Topic，找到匹配的订阅者
         foreach (var item in _topics)
         {
@@ -271,10 +281,26 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                     }
                     else
                     {
-                        // 没有找到订阅者，删除订阅关系
-                        lock (subs)
+                        // 订阅者不在线，检查是否为持久化会话，若是则暂存离线消息
+                        var offlineSession = _persistentSessions.Values.FirstOrDefault(ps => ps.SessionId == sub.Id);
+                        if (offlineSession != null && sub.QoS >= QualityOfService.AtLeastOnce)
                         {
-                            subs.Remove(sub);
+                            var offlineMsg = new PublishMessage
+                            {
+                                Topic = message.Topic,
+                                Payload = message.Payload,
+                                QoS = sub.QoS,
+                                Retain = sub.RetainAsPublished && message.Retain,
+                            };
+                            EnqueueOfflineMessage(offlineSession.ClientId, offlineMsg);
+                        }
+                        else
+                        {
+                            // 没有持久化会话，删除订阅关系
+                            lock (subs)
+                            {
+                                subs.Remove(sub);
+                            }
                         }
                     }
                 }

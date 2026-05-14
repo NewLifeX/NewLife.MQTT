@@ -20,7 +20,7 @@ public sealed class MqttServerFixture : IDisposable
         Server = new MqttServer
         {
             Port = 0,
-            ServiceProvider = ObjectContainer.Current.BuildServiceProvider(),
+            ServiceProvider = new ObjectContainer().BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };

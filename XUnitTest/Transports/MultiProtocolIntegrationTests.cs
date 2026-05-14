@@ -105,12 +105,14 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
     }
 
     [Fact]
-    [System.ComponentModel.DisplayName("多协议：ProtocolName=MQIsdp 被服务端拒绝（RefusedUnacceptableProtocolVersion）")]
-    public async Task MQIsdp_ProtocolName_Rejected_By_Server()
+    [System.ComponentModel.DisplayName("多协议：ProtocolName=MQIsdp（MQTT 3.1）被服务端以兼容模式接受")]
+    public async Task MQIsdp_ProtocolName_Accepted_By_Server()
     {
+        // F044：MQTT 3.1（ProtocolName="MQIsdp", ProtocolLevel=0x03）兼容接入
+        // 服务端应以宽松模式接受并返回 Accepted（0x00）
         using var client = CreateClient("mqisdp_client");
+        client.Version = MqttVersion.V310;
 
-        // 手动构造包含 MQIsdp 协议名的 CONNECT 消息
         var connectMsg = new ConnectMessage
         {
             ClientId = "mqisdp_client",
@@ -119,9 +121,12 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
             CleanSession = true,
         };
 
-        // 服务端应回复 RefusedUnacceptableProtocolVersion
-        var exception = await Assert.ThrowsAsync<Exception>(() => client.ConnectAsync(connectMsg));
-        Assert.Contains("连接失败", exception.Message);
+        var ack = await client.ConnectAsync(connectMsg);
+
+        Assert.NotNull(ack);
+        Assert.Equal(ConnectReturnCode.Accepted, ack.ReturnCode);
+
+        await client.DisconnectAsync();
     }
     #endregion
 
@@ -338,7 +343,7 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
     public async Task V500_ServerKeepAlive_CanBeSet()
     {
         // 创建带 ServerKeepAlive 的专用服务端
-        var services = ObjectContainer.Current;
+        var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
 
         var exchange = new MqttExchange { ServerKeepAlive = 120 };
@@ -526,6 +531,191 @@ public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
         Assert.Equal("user2", client.UserName);
         Assert.Equal("pass2", client.Password);
         Assert.Equal("comma_test", client.ClientId);
+    }
+    #endregion
+
+    #region F044：MQTT 3.1（MQIsdp）服务端兼容接入
+    [Fact]
+    [System.ComponentModel.DisplayName("F044：V310 MQIsdp 客户端连接服务端成功")]
+    public async Task V310_MQIsdp_Client_ConnectsSuccessfully()
+    {
+        using var client = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{_port}",
+            ClientId = "v310_mqisdp_test",
+            Timeout = 5000,
+            Reconnect = false,
+            Version = MqttVersion.V310,
+        };
+
+        var connectMsg = new ConnectMessage
+        {
+            ClientId = "v310_mqisdp_test",
+            ProtocolName = "MQIsdp",
+            ProtocolLevel = MqttVersion.V310,
+            CleanSession = true,
+        };
+
+        var ack = await client.ConnectAsync(connectMsg);
+
+        Assert.NotNull(ack);
+        Assert.Equal(ConnectReturnCode.Accepted, ack.ReturnCode);
+        Assert.True(client.IsConnected);
+
+        await client.DisconnectAsync();
+    }
+
+    [Fact]
+    [System.ComponentModel.DisplayName("F044：V310 客户端发布 QoS0 消息被其他客户端收到")]
+    public async Task V310_Client_Publish_QoS0_Received()
+    {
+        var topic = $"v310/qos0/{Rand.NextString(4)}";
+
+        using var publisher = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{_port}",
+            ClientId = "v310_pub_qos0",
+            Timeout = 5000,
+            Reconnect = false,
+            Version = MqttVersion.V310,
+        };
+        using var subscriber = CreateClient("v311_sub_qos0", MqttVersion.V311);
+
+        await subscriber.ConnectAsync();
+        var received = new TaskCompletionSource<String>();
+        subscriber.Received += (s, e) => received.TrySetResult(e.Arg.Payload?.ToStr() ?? "");
+        await subscriber.SubscribeAsync(topic);
+        await Task.Delay(100);
+
+        var connectMsg = new ConnectMessage
+        {
+            ClientId = "v310_pub_qos0",
+            ProtocolName = "MQIsdp",
+            ProtocolLevel = MqttVersion.V310,
+            CleanSession = true,
+        };
+        await publisher.ConnectAsync(connectMsg);
+
+        var payload = "v310_qos0_" + Rand.NextString(4);
+        await publisher.PublishAsync(topic, payload, QualityOfService.AtMostOnce);
+
+        var winner = await Task.WhenAny(received.Task, Task.Delay(5000));
+        Assert.True(winner == received.Task, "5 秒内未收到 V310 发布的 QoS0 消息");
+        Assert.Equal(payload, await received.Task);
+
+        await publisher.DisconnectAsync();
+        await subscriber.DisconnectAsync();
+    }
+
+    [Fact]
+    [System.ComponentModel.DisplayName("F044：V310 客户端发布 QoS1 消息并收到 PubAck")]
+    public async Task V310_Client_Publish_QoS1_ReceivesPubAck()
+    {
+        using var client = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{_port}",
+            ClientId = "v310_pub_qos1",
+            Timeout = 5000,
+            Reconnect = false,
+            Version = MqttVersion.V310,
+        };
+
+        var connectMsg = new ConnectMessage
+        {
+            ClientId = "v310_pub_qos1",
+            ProtocolName = "MQIsdp",
+            ProtocolLevel = MqttVersion.V310,
+            CleanSession = true,
+        };
+        await client.ConnectAsync(connectMsg);
+
+        var rs = await client.PublishAsync("v310/qos1/test", "qos1_payload", QualityOfService.AtLeastOnce);
+
+        Assert.NotNull(rs);
+        Assert.IsType<PubAck>(rs);
+        Assert.NotEqual(0, rs!.Id);
+
+        await client.DisconnectAsync();
+    }
+
+    [Fact]
+    [System.ComponentModel.DisplayName("F044：V310+V311+V500 三个客户端同服务端并存")]
+    public async Task V310_V311_V500_AllConnect_SameServer()
+    {
+        using var v310Client = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{_port}",
+            ClientId = "coexist_v310",
+            Timeout = 5000,
+            Reconnect = false,
+            Version = MqttVersion.V310,
+        };
+        using var v311Client = CreateClient("coexist_v311", MqttVersion.V311);
+        using var v500Client = CreateClient("coexist_v500", MqttVersion.V500);
+
+        var v310Msg = new ConnectMessage
+        {
+            ClientId = "coexist_v310",
+            ProtocolName = "MQIsdp",
+            ProtocolLevel = MqttVersion.V310,
+            CleanSession = true,
+        };
+
+        var v310Task = v310Client.ConnectAsync(v310Msg);
+        var v311Task = v311Client.ConnectAsync();
+        var v500Task = v500Client.ConnectAsync();
+
+        await Task.WhenAll(v310Task, v311Task, v500Task);
+
+        Assert.Equal(ConnectReturnCode.Accepted, (await v310Task).ReturnCode);
+        Assert.Equal(ConnectReturnCode.Accepted, (await v311Task).ReturnCode);
+        Assert.Equal(ConnectReturnCode.Accepted, (await v500Task).ReturnCode);
+        Assert.True(v310Client.IsConnected);
+        Assert.True(v311Client.IsConnected);
+        Assert.True(v500Client.IsConnected);
+
+        await v310Client.DisconnectAsync();
+        await v311Client.DisconnectAsync();
+        await v500Client.DisconnectAsync();
+    }
+
+    [Fact]
+    [System.ComponentModel.DisplayName("F044：V310 客户端 ClientId 无 23 字节限制（宽松模式）")]
+    public async Task V310_Client_LongClientId_Accepted()
+    {
+        // MQTT 3.1 规范建议 ClientId ≤ 23 字节，但 3.1.1+ 无此限制
+        // 服务端宽松模式下，V310 客户端也不应强制限制 ClientId 长度
+        var longClientId = "v310_long_client_id_exceeds_23_bytes_test_client";
+        Assert.True(longClientId.Length > 23);
+
+        using var client = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{_port}",
+            ClientId = longClientId,
+            Timeout = 5000,
+            Reconnect = false,
+            Version = MqttVersion.V310,
+        };
+
+        var connectMsg = new ConnectMessage
+        {
+            ClientId = longClientId,
+            ProtocolName = "MQIsdp",
+            ProtocolLevel = MqttVersion.V310,
+            CleanSession = true,
+        };
+
+        var ack = await client.ConnectAsync(connectMsg);
+
+        Assert.NotNull(ack);
+        Assert.Equal(ConnectReturnCode.Accepted, ack.ReturnCode);
+
+        await client.DisconnectAsync();
     }
     #endregion
 }

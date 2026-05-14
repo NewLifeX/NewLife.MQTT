@@ -40,7 +40,11 @@ public class MqttServer : NetServer<MqttSession>
     public IPacketEncoder Encoder { get; set; } = null!;
 
     /// <summary>实例化MQTT服务器</summary>
-    public MqttServer() => Port = 1883;
+    public MqttServer()
+    {
+        Port = 1883;
+        ProtocolType = NetType.Tcp;
+    }
 
     /// <summary>已重载。</summary>
     /// <returns></returns>

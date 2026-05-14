@@ -26,7 +26,7 @@ public class NewLifeSelfE2ETests : IDisposable
         _server = new MqttServer
         {
             Port = 0,
-            ServiceProvider = ObjectContainer.Current.BuildServiceProvider(),
+            ServiceProvider = new ObjectContainer().BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };
@@ -113,6 +113,7 @@ public class NewLifeSelfE2ETests : IDisposable
     [Fact(DisplayName = "同一主题多个订阅者均收到消息")]
     public async Task Multiple_Subscribers_All_Receive_Message()
     {
+        var topic = $"e2e/multi/{Rand.NextString(6)}";
         using var pub = CreateClient("e2e_multi_pub");
         using var sub1 = CreateClient("e2e_multi_sub1");
         using var sub2 = CreateClient("e2e_multi_sub2");
@@ -128,12 +129,12 @@ public class NewLifeSelfE2ETests : IDisposable
         sub2.Received += (s, e) => Interlocked.Increment(ref received[1]);
         sub3.Received += (s, e) => Interlocked.Increment(ref received[2]);
 
-        await sub1.SubscribeAsync("e2e/multi/topic");
-        await sub2.SubscribeAsync("e2e/multi/topic");
-        await sub3.SubscribeAsync("e2e/multi/topic");
+        await sub1.SubscribeAsync(topic);
+        await sub2.SubscribeAsync(topic);
+        await sub3.SubscribeAsync(topic);
         await Task.Delay(200);
 
-        await pub.PublishAsync("e2e/multi/topic", "broadcast", QualityOfService.AtMostOnce);
+        await pub.PublishAsync(topic, "broadcast", QualityOfService.AtMostOnce);
         await Task.Delay(1000);
 
         Assert.Equal(1, received[0]);
@@ -249,7 +250,7 @@ public class NewLifeSelfE2ETests : IDisposable
             CleanSession = false,
         };
         await client1.ConnectAsync();
-        await client1.SubscribeAsync("e2e/persist/topic");
+        await client1.SubscribeAsync(new[] { "e2e/persist/topic" }, QualityOfService.AtLeastOnce);
         await client1.DisconnectAsync();
         client1.Dispose();
         await Task.Delay(100);

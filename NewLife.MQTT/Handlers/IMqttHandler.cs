@@ -126,10 +126,19 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual MqttMessage? OnConnect(ConnectMessage message)
     {
-        // MQTT 3.1 协议名为 "MQIsdp"，服务端不支持；返回 0x01（不接受的协议版本）并给出明确提示
+        // MQTT 3.1（ProtocolName="MQIsdp", ProtocolLevel=0x03）兼容接入：
+        // 大量存量 IoT 设备仍使用 MQTT 3.1，服务端以宽松模式接受。
+        // 将 ProtocolLevel 强制对齐为 V310，ClientId 不额外做 23 字节限制。
+        // 与 V311/V500 客户端可同服务端并存，互不干扰。
         if (message.ProtocolName == "MQIsdp")
         {
-            WriteLog("客户端 [{0}] 使用不受支持的 MQTT 3.1 协议（ProtocolName=MQIsdp），请升级至 MQTT 3.1.1 或更高版本", message.ClientId);
+            WriteLog("客户端 [{0}] 使用 MQTT 3.1 协议（MQIsdp），以兼容模式接入", message.ClientId);
+            message.ProtocolLevel = MqttVersion.V310;
+        }
+        else if (message.ProtocolLevel != MqttVersion.V311 && message.ProtocolLevel != MqttVersion.V310 && message.ProtocolLevel != MqttVersion.V500)
+        {
+            // 未知协议版本：返回 0x01（不支持的协议版本）
+            WriteLog("客户端 [{0}] 使用未知协议版本（ProtocolName={1}, ProtocolLevel={2}），拒绝连接", message.ClientId, message.ProtocolName, (Int32)message.ProtocolLevel);
             return new ConnAck { ReturnCode = ConnectReturnCode.RefusedUnacceptableProtocolVersion };
         }
 
