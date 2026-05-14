@@ -67,7 +67,7 @@ public class ProxyProtocolTests
     {
         XTrace.WriteLine("测试ProxyProtocol");
 
-        var services = ObjectContainer.Current;
+        var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
         services.AddSingleton<IMqttHandler, MqttController>();
 

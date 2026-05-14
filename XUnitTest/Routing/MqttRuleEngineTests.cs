@@ -128,7 +128,7 @@ public class MqttRuleEngineTests
     public void MultipleRulesExecuteInOrder()
     {
         var engine = new MqttRuleEngine();
-        var order = new System.Collections.Generic.List<String>();
+        var order = new List<String>();
 
         engine.AddRule(new MqttRule
         {

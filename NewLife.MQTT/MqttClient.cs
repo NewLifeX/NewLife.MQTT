@@ -532,9 +532,25 @@ public class MqttClient : DisposeBase
     /// <returns></returns>
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
+        _isConnected = false;
+
         var message = new DisconnectMessage();
 
-        await SendAsync(message, false, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await SendAsync(message, false, cancellationToken).ConfigureAwait(false);
+        }
+        catch { }
+
+        // 主动关闭底层连接，确保后续重连时可以创建新连接
+        var client = _Client;
+        _Client = null;
+        if (client != null && !client.Disposed)
+        {
+            // 先取消事件订阅，避免 Close 触发 Client_Closed 二次触发 Disconnected
+            client.Closed -= Client_Closed;
+            client.TryDispose();
+        }
 
         var e = new EventArgs();
         Disconnected?.Invoke(this, e);

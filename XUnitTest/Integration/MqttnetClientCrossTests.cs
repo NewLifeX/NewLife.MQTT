@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Text;
 using System.Threading;
@@ -30,7 +30,7 @@ public class MqttnetClientCrossTests : IDisposable
         _server = new MqttServer
         {
             Port = 0,
-            ServiceProvider = ObjectContainer.Current.BuildServiceProvider(),
+            ServiceProvider = new ObjectContainer().BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };
@@ -40,7 +40,7 @@ public class MqttnetClientCrossTests : IDisposable
 
     public void Dispose() => _server.TryDispose();
 
-    private async Task<MQTTnet.IMqttClient> CreateAndConnectMqttnetClient(
+    private async Task<IMqttClient> CreateAndConnectMqttnetClient(
         String clientId,
         MqttProtocolVersion version = MqttProtocolVersion.V311)
     {

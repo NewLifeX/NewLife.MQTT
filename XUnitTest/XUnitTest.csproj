@@ -8,6 +8,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <IsPackable>false</IsPackable>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)\test.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +30,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NewLife.MQTT\NewLife.MQTT.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
