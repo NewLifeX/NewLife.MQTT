@@ -89,5 +89,15 @@ public interface IMqttExchange
     /// <param name="topic">主题过滤器</param>
     /// <returns></returns>
     Int32 GetSubscriberCount(String topic);
+
+    /// <summary>直接向指定客户端注入消息。无需回环客户端，适合服务端主动推送场景</summary>
+    /// <remarks>
+    /// 绕过发布/订阅路由，直接将消息投递给指定在线客户端。
+    /// 客户端不在线时返回 false，调用方可自行决定是否存入离线队列。
+    /// </remarks>
+    /// <param name="clientId">目标客户端标识</param>
+    /// <param name="message">发布消息</param>
+    /// <returns>是否找到目标客户端（客户端不在线时返回 false）</returns>
+    Boolean InjectMessage(String clientId, PublishMessage message);
     #endregion
 }

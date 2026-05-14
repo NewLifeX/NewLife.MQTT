@@ -34,6 +34,13 @@ public sealed class SubscribeMessage : MqttIdMessage
     {
         if (!base.OnRead(ref reader, context)) return false;
 
+        // MQTT 5.0 属性（在 PacketId 之后、Topic Filters 之前）
+        if (context is MqttVersion ver && ver >= MqttVersion.V500)
+        {
+            Properties = new MqttProperties();
+            Properties.Read(ref reader);
+        }
+
         var list = new List<Subscription>();
         while (reader.Available > 0)
         {
@@ -66,6 +73,18 @@ public sealed class SubscribeMessage : MqttIdMessage
     {
         if (!base.OnWrite(ref writer, context)) return false;
 
+        // MQTT 5.0 属性（在 PacketId 之后、Topic Filters 之前）
+        if (context is MqttVersion ver && ver >= MqttVersion.V500)
+        {
+            if (Properties != null)
+                Properties.Write(ref writer);
+            else
+            {
+                // 空属性段：写入 0 字节长度
+                writer.WriteByte(0);
+            }
+        }
+
         foreach (var item in Requests)
         {
             writer.WriteLengthString(item.TopicFilter, 2);
@@ -86,6 +105,8 @@ public sealed class SubscribeMessage : MqttIdMessage
     protected override Int32 GetEstimatedBodySize()
     {
         var size = 64;
+        if (Properties != null && Properties.Count > 0)
+            size += 5 + Properties.GetEstimatedSize();
         foreach (var item in Requests)
         {
             size += 3 + (item.TopicFilter?.Length ?? 0) * 3;

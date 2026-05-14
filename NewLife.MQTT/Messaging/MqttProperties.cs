@@ -291,5 +291,17 @@ public class MqttProperties : ISpanSerializable
         }
         return size;
     }
+
+    /// <summary>克隆属性集合（浅拷贝字典，字符串/值类型安全；字节数组共享引用）</summary>
+    /// <returns></returns>
+    public MqttProperties Clone()
+    {
+        var clone = new MqttProperties();
+        foreach (var kv in _props)
+            clone._props[kv.Key] = kv.Value;
+        foreach (var kv in UserProperties)
+            clone.UserProperties.Add(kv);
+        return clone;
+    }
     #endregion
 }

@@ -2,6 +2,7 @@
 using NewLife.Log;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
+using NewLife.Security;
 
 namespace NewLife.MQTT.Handlers;
 
@@ -97,6 +98,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>SASL 握手期间暂存的 CONNECT 消息，用于握手完成后建立会话</summary>
     private ConnectMessage? _pendingSaslConnect;
 
+    /// <summary>ClientId 是否由服务端分配（客户端来连时 ClientId 为空）</summary>
+    private Boolean _serverAssignedClientId;
+
     #region 接收消息
     /// <summary>处理消息</summary>
     /// <param name="message">消息</param>
@@ -140,6 +144,14 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             // 未知协议版本：返回 0x01（不支持的协议版本）
             WriteLog("客户端 [{0}] 使用未知协议版本（ProtocolName={1}, ProtocolLevel={2}），拒绝连接", message.ClientId, message.ProtocolName, (Int32)message.ProtocolLevel);
             return new ConnAck { ReturnCode = ConnectReturnCode.RefusedUnacceptableProtocolVersion };
+        }
+
+        // MQTT 3.1.1/5.0 允许客户端提交空 ClientId，服务端自动分配
+        if (message.ClientId.IsNullOrEmpty())
+        {
+            message.ClientId = Rand.NextString(12);
+            _serverAssignedClientId = true;
+            WriteLog("客户端未提供 ClientId，服务端分配: [{0}]", message.ClientId);
         }
 
         _clientId = message.ClientId;
@@ -225,6 +237,11 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             Session?.SendMessage(msg);
             return Task.FromResult(0);
         });
+        // F046: ReceiveMaximum 流控修正 - 放弃消息时同步递减 InflightCount，避免流控计数器永久占用
+        _inflightManager.OnMessageAbandoned = _ =>
+        {
+            if (_capabilities != null && _capabilities.InflightCount > 0) _capabilities.InflightCount--;
+        };
 
         // MQTT 5.0 会话能力
         ConnAck ack;
@@ -245,6 +262,20 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 props ??= new MqttProperties();
                 props.SetString(MqttPropertyId.AuthenticationMethod, _saslMechanism.Name);
                 props.SetBinary(MqttPropertyId.AuthenticationData, authenticationData);
+            }
+
+            // F047: 服务端分配的 ClientId（客户端来连时 ClientId 为空）
+            if (_serverAssignedClientId && !_clientId.IsNullOrEmpty())
+            {
+                props ??= new MqttProperties();
+                props.SetString(MqttPropertyId.AssignedClientIdentifier, _clientId);
+            }
+
+            // F048: 服务端引用/迁移（Server Reference）
+            if (Exchange is MqttExchange mqttExForRef && !mqttExForRef.ServerReference.IsNullOrEmpty())
+            {
+                props ??= new MqttProperties();
+                props.SetString(MqttPropertyId.ServerReference, mqttExForRef.ServerReference!);
             }
 
             ack = new ConnAck
@@ -475,6 +506,10 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         var grantedQos = new List<QualityOfService>();
         var exchange = Exchange;
 
+        // F045: 从 SUBSCRIBE 报文属性中提取订阅标识符（MQTT 5.0）
+        var subIdRaw = message.Properties?.GetVariableInt(MqttPropertyId.SubscriptionIdentifier);
+        var subscriptionIdentifier = subIdRaw.HasValue && subIdRaw.Value > 0 ? (UInt32)subIdRaw.Value : 0u;
+
         foreach (var item in message.Requests)
         {
             // ACL 订阅权限检查
@@ -485,9 +520,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 continue;
             }
 
-            // 传递 MQTT 5.0 订阅选项
+            // 传递 MQTT 5.0 订阅选项（含订阅标识符）
             if (exchange is MqttExchange mqttEx)
-                mqttEx.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService, item.NoLocal, item.RetainAsPublished, item.RetainHandling);
+                mqttEx.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService, item.NoLocal, item.RetainAsPublished, item.RetainHandling, subscriptionIdentifier);
             else
                 exchange?.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService);
 

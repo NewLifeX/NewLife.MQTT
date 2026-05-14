@@ -744,6 +744,15 @@ public class MqttClient : DisposeBase
             Requests = subscriptions,
         };
 
+        // F045: 若任意一个订阅项设置了订阅标识符（MQTT 5.0），注入到报文属性中
+        // 注意：单次 SUBSCRIBE 报文只能携带一个 SubscriptionIdentifier
+        var firstSubId = subscriptions.Select(e => e.SubscriptionIdentifier).FirstOrDefault(id => id > 0);
+        if (firstSubId > 0)
+        {
+            message.Properties ??= new MqttProperties();
+            message.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)firstSubId);
+        }
+
         var rs = (await SendAsync(message, true, cancellationToken).ConfigureAwait(false)) as SubAck;
         if (rs != null)
         {
