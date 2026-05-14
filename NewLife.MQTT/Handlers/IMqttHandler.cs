@@ -587,6 +587,19 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
+        // V311 及以下协议不支持 MQTT 5.0 属性，若消息携带 Properties 则清除后再发送
+        if (_protocolLevel < MqttVersion.V500 && message.Properties != null)
+        {
+            message = new PublishMessage
+            {
+                Topic = message.Topic,
+                Payload = message.Payload,
+                QoS = message.QoS,
+                Retain = message.Retain,
+                Id = message.Id,
+            };
+        }
+
         // MQTT 5.0 流控检查
         if (_capabilities != null && message.QoS > QualityOfService.AtMostOnce)
         {

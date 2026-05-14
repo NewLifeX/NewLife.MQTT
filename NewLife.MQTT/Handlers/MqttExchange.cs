@@ -251,6 +251,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                             Topic = message.Topic,
                             Payload = message.Payload,
                             QoS = sub.QoS,
+                            Properties = message.Properties,
                         };
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
@@ -275,6 +276,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                             Payload = message.Payload,
                             QoS = sub.QoS,
                             Retain = sub.RetainAsPublished && message.Retain,
+                            Properties = message.Properties,
                         };
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
@@ -285,10 +287,11 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                         var offlineSession = _persistentSessions.Values.FirstOrDefault(ps => ps.SessionId == sub.Id);
                         if (offlineSession != null && sub.QoS >= QualityOfService.AtLeastOnce)
                         {
+                            // 必须复制 Payload 字节，避免共享网络接收缓冲区导致内容被后续消息覆写
                             var offlineMsg = new PublishMessage
                             {
                                 Topic = message.Topic,
-                                Payload = message.Payload,
+                                Payload = message.Payload != null ? (IPacket?)new ArrayPacket(message.Payload.ToArray()) : null,
                                 QoS = sub.QoS,
                                 Retain = sub.RetainAsPublished && message.Retain,
                             };
