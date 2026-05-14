@@ -3,7 +3,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Routing;
 
 /// <summary>MqttBridgeRule 桥接规则单元测试</summary>
 public class MqttBridgeRuleTests

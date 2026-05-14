@@ -2,7 +2,7 @@
 using NewLife.MQTT;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Auth;
 
 public class MqttSignTests
 {

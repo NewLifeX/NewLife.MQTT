@@ -5,7 +5,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Routing;
 
 /// <summary>MqttRuleEngine 规则引擎测试</summary>
 public class MqttRuleEngineTests

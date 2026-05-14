@@ -5,7 +5,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Auth;
 
 /// <summary>认证器和SASL机制单元测试</summary>
 public class AuthenticatorTests

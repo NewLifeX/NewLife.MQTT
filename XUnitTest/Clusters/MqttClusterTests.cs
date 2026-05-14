@@ -10,7 +10,7 @@ using NewLife.MQTT.Clusters;
 using NewLife.Net;
 using Xunit;
 
-namespace XUnitTestClient.Clusters;
+namespace XUnitTest.Clusters;
 
 [TestCaseOrderer("NewLife.UnitTest.DefaultOrderer", "NewLife.UnitTest")]
 public class MqttClusterTests

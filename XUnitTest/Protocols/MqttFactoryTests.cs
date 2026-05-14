@@ -4,7 +4,7 @@ using NewLife.MQTT;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Protocols;
 
 /// <summary>MqttFactory 消息工厂单元测试</summary>
 public class MqttFactoryTests

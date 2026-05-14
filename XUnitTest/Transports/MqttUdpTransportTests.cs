@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using NewLife.MQTT.Quic;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Transports;
 
 /// <summary>MqttUdpTransport 可靠 UDP 传输测试</summary>
 public class MqttUdpTransportTests

@@ -6,7 +6,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Sessions;
 
 /// <summary>InflightManager 飞行窗口管理器单元测试</summary>
 public class InflightManagerTests : IDisposable

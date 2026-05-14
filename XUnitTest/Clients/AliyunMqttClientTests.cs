@@ -4,7 +4,7 @@ using NewLife.MQTT;
 using NewLife.Security;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Clients;
 
 public class AliyunMqttClientTests
 {

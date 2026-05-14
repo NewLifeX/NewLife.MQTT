@@ -7,9 +7,10 @@ using NewLife.Model;
 using NewLife.MQTT;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.ProxyProtocol;
+using XUnitTest.Integration;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Transports;
 
 public class ProxyProtocolTests
 {

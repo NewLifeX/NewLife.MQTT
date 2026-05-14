@@ -6,7 +6,7 @@ using NewLife.Reflection;
 using NewLife.Remoting;
 using Xunit;
 
-namespace XUnitTestClient.Clusters;
+namespace XUnitTest.Clusters;
 
 public class ClusterControllerTests
 {

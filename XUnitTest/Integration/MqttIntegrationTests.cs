@@ -12,7 +12,7 @@ using NewLife.MQTT.Messaging;
 using NewLife.Security;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Integration;
 
 /// <summary>客户端/服务端集成测试。覆盖QoS全路径、遗嘱消息、Retain消息、会话持久化</summary>
 [Collection("IntegrationTests")]

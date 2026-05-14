@@ -6,7 +6,7 @@ using System.Text;
 using NewLife.MQTT;
 using Xunit;
 
-namespace XUnitTestClient;
+namespace XUnitTest.Protocols;
 
 public class MqttTopicFilterTests
 {
