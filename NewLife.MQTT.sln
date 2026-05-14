@@ -18,7 +18,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MQTT", "NewLife.MQTT\NewLife.MQTT.csproj", "{0924F040-4531-476F-80F4-720A5BCFBD98}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XUnitTestClient", "XUnitTestClient\XUnitTestClient.csproj", "{0485076E-B380-49E7-9497-0EA0CE519F00}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XUnitTest", "XUnitTest\XUnitTest.csproj", "{0485076E-B380-49E7-9497-0EA0CE519F00}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewLife.MqttServer", "NewLife.MqttServer\NewLife.MqttServer.csproj", "{E5C4F10D-AC54-4AB4-8D78-C2FAD3D3B1DA}"
 EndProject
