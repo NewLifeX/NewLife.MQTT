@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -196,6 +196,116 @@ public class MqttIntegrationTests : IDisposable
         Assert.NotNull(rs);
 
         await client.DisconnectAsync();
+    }
+
+    [Fact(DisplayName = "心跳链路：客户端 PingAsync 触发服务端 OnPing 并返回响应")]
+    public async Task Ping_Heartbeat_Triggers_Server_OnPing()
+    {
+        var handler = new TestPingHandler();
+        var services = new ObjectContainer();
+        services.AddSingleton(XTrace.Log);
+        services.AddSingleton<IMqttHandler>(handler);
+
+        using var server = new MqttServer
+        {
+            Port = 0,
+            ServiceProvider = services.BuildServiceProvider(),
+            Log = XTrace.Log,
+            SessionLog = XTrace.Log,
+        };
+        server.Start();
+
+        using var client = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{server.Port}",
+            ClientId = $"ping_chain_{Rand.NextString(6)}",
+            Timeout = 5000,
+            Reconnect = false,
+        };
+
+        await client.ConnectAsync();
+
+        var response = await client.PingAsync();
+
+        Assert.NotNull(response);
+        Assert.IsType<PingResponse>(response);
+        Assert.Equal(1, handler.PingCount);
+        Assert.NotNull(handler.LastPingRequest);
+
+        await client.DisconnectAsync();
+    }
+
+    [Fact(DisplayName = "订阅保活混跑：自动心跳期间持续发布不影响收发")]
+    public async Task Subscribe_With_AutoPing_While_Publishing()
+    {
+        var tracker = new PingTracker();
+        var services = new ObjectContainer();
+        services.AddSingleton(XTrace.Log);
+        services.AddSingleton(tracker);
+        services.AddTransient<IMqttHandler>(_ => new TrackingPingHandler(tracker));
+
+        using var server = new MqttServer
+        {
+            Port = 0,
+            ServiceProvider = services.BuildServiceProvider(),
+            Log = XTrace.Log,
+            SessionLog = XTrace.Log,
+        };
+        server.Start();
+
+        using var publisher = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{server.Port}",
+            ClientId = $"mix_pub_{Rand.NextString(6)}",
+            Timeout = 5000,
+            Reconnect = false,
+        };
+        using var subscriber = new MqttClient
+        {
+            Log = XTrace.Log,
+            Server = $"tcp://127.0.0.1:{server.Port}",
+            ClientId = $"mix_sub_{Rand.NextString(6)}",
+            Timeout = 5000,
+            KeepAlive = 2,
+            Reconnect = false,
+        };
+
+        const Int32 messageCount = 7;
+        var receivedCount = 0;
+        var allReceived = new TaskCompletionSource<Boolean>(TaskCreationOptions.RunContinuationsAsynchronously);
+        subscriber.Received += (s, e) =>
+        {
+            if (Interlocked.Increment(ref receivedCount) >= messageCount)
+                allReceived.TrySetResult(true);
+        };
+
+        await publisher.ConnectAsync();
+        await subscriber.ConnectAsync();
+        await subscriber.SubscribeAsync("mix/keepalive/test");
+        await Task.Delay(100);
+
+        for (var i = 0; i < messageCount; i++)
+        {
+            await publisher.PublishAsync("mix/keepalive/test", $"hello_{i}", QualityOfService.AtMostOnce);
+            await Task.Delay(1000);
+        }
+
+        var winner = await Task.WhenAny(allReceived.Task, Task.Delay(12_000));
+        Assert.True(winner == allReceived.Task, "12秒内未收齐全部发布消息");
+        Assert.Equal(messageCount, Volatile.Read(ref receivedCount));
+
+        await Task.Delay(1500);
+
+        Assert.True(tracker.PingCount > 0, "订阅端在持续发布期间未触发自动心跳");
+        Assert.True(subscriber.IsConnected);
+
+        var ping = await subscriber.PingAsync();
+        Assert.NotNull(ping);
+
+        await publisher.DisconnectAsync();
+        await subscriber.DisconnectAsync();
     }
     #endregion
 
@@ -533,4 +643,36 @@ public class MqttIntegrationTests : IDisposable
         Assert.False(ok);
     }
     #endregion
+
+    private sealed class TestPingHandler : MqttHandler
+    {
+        public Int32 PingCount;
+
+        public PingRequest? LastPingRequest { get; private set; }
+
+        protected override PingResponse? OnPing(PingRequest message)
+        {
+            Interlocked.Increment(ref PingCount);
+            LastPingRequest = message;
+
+            return base.OnPing(message);
+        }
+    }
+
+    private sealed class PingTracker
+    {
+        public Int32 PingCount;
+    }
+
+    private sealed class TrackingPingHandler(PingTracker tracker) : MqttHandler
+    {
+        private readonly PingTracker _tracker = tracker;
+
+        protected override PingResponse? OnPing(PingRequest message)
+        {
+            Interlocked.Increment(ref _tracker.PingCount);
+
+            return base.OnPing(message);
+        }
+    }
 }

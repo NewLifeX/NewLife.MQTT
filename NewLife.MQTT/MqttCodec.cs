@@ -51,6 +51,32 @@ public class MqttCodec : MessageCodec<MqttMessage>
         if (!msg.Reply) base.AddToQueue(context, msg);
     }
 
+
+    /// <summary>读取消息</summary>
+    /// <param name="context"></param>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    public override Object? Read(IHandlerContext context, Object message)
+    {
+        if (message is not IPacket pk) return base.Read(context, message);
+
+        var list = Decode(context, pk);
+        if (list == null) return null;
+
+        var queue = Queue;
+        foreach (var msg in list)
+        {
+            if (msg == null) continue;
+
+            if (queue != null && msg.Reply)
+                queue.Match(context.Owner, msg, msg, IsMatch);
+
+            base.Read(context, msg);
+        }
+
+        return null;
+    }
+
     /// <summary>解码</summary>
     /// <param name="context"></param>
     /// <param name="pk"></param>
