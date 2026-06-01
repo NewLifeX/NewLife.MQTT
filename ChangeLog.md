@@ -1,5 +1,35 @@
 # 新生命MQTT协议 - 版本变更历史
 
+## v3.1.2026.0601 (2026-06-01)
+
+### MQTT 5.0 高级特性（Phase-2）
+- **服务端消息注入（InjectMessage）**：服务端可主动向指定客户端推送消息，支持 MQTT 5.0 属性透传
+- **服务端分配 ClientId**：MQTT 5.0 CONNACK 携带 AssignedClientIdentifier，完成 Phase-2 服务端特性支持
+- **ServerReference**：MQTT 5.0 服务端重定向属性支持（F045~F049 全覆盖）
+- **InflightManager 放弃回调**：修正 Inflight 流控，支持放弃消息的回调通知
+
+### MQTT 3.1 服务端兼容接入（F044）
+- **MQIsdp 协议名识别**：服务端识别 MQTT 3.1 协议名 `MQIsdp`，允许旧版 3.1 设备无缝接入
+- **ClientId 限制放开**：MQTT 3.1 设备 ClientId 不再强制 23 字节上限
+
+### 协议兼容增强
+- **V3/V3.1.1 自动清除 5.0 属性**：PublishAsync 根据协议版本自动清除 5.0 Properties，提升互操作兼容性
+- **消息属性透传**：MqttExchange 支持消息属性透传，线内消息 Payload 深拷贝
+- **PubAck 增强**：ReasonCode 与 Properties 完整读写支持，ToString 输出增强
+
+### 跨框架互操作测试
+- **MQTTnet 交叉集成 E2E 测试**：新增 NewLife MqttClient → MQTTnet 服务端、MQTTnet 客户端 → NewLife MqttServer 双向端到端测试，覆盖连接、QoS 0/1/2、通配符、重连、遗嘱等核心场景
+- **NewLife 自测 E2E**：覆盖 QoS 1/2 端到端、多订阅者、手动重连、MQTT 5.0、CleanSession=false 等场景
+
+### 编解码优化
+- **MqttCodec 队列匹配**：新增 `Read` 重载，支持 IPacket 解包时 Reply 消息队列匹配；补充 PingRequest/PingResponse 队列匹配测试
+
+### 测试工程重构
+- **项目重命名**：XUnitTestClient → XUnitTest，更新解决方案与 CI 路径
+- **目录模块化**：按功能领域整理测试文件（Protocols/Clients/Sessions/Routing/Transports/Auth/Stats/Handlers/Integration/Clusters）
+
+---
+
 ## v3.0.2026.0501 (2026-05-01)
 
 ### 测试与质量
