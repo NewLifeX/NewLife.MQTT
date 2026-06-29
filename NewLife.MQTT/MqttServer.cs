@@ -5,6 +5,7 @@ using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
+using NewLife.MQTT.Quic;
 using NewLife.Net;
 using NewLife.Remoting.Http;
 using NewLife.Serialization;
@@ -38,6 +39,17 @@ public class MqttServer : NetServer<MqttSession>
 
     /// <summary>编码器。决定对象存储序列化格式，默认json</summary>
     public IPacketEncoder Encoder { get; set; } = null!;
+
+    /// <summary>QUIC 监听端口。设置为非 0 值（如 14567）时启动 QUIC 监听。需要 .NET 7+ 和操作系统 QUIC 支持。QUIC 强制 TLS，需同时设置 <see cref="QuicCertificate"/></summary>
+    public Int32 QuicPort { get; set; }
+
+    /// <summary>QUIC TLS 证书。QUIC 强制 TLS，启动 QUIC 监听必须指定证书。可使用 pfx 或 pem 证书文件</summary>
+    public System.Security.Cryptography.X509Certificates.X509Certificate2? QuicCertificate { get; set; }
+
+#if NET7_0_OR_GREATER
+    /// <summary>QUIC 监听器</summary>
+    private MqttQuicListener? _quicListener;
+#endif
 
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer()
@@ -93,6 +105,11 @@ public class MqttServer : NetServer<MqttSession>
 
         // 创建管理服务
         CreateManagement();
+
+#if NET7_0_OR_GREATER
+        // 启动 QUIC 监听器
+        CreateQuicListener();
+#endif
     }
 
     /// <summary>创建集群</summary>
@@ -158,12 +175,76 @@ public class MqttServer : NetServer<MqttSession>
         Management = mgmt;
     }
 
+#if NET7_0_OR_GREATER
+    /// <summary>创建 QUIC 监听器</summary>
+    protected virtual void CreateQuicListener()
+    {
+        if (QuicPort <= 0) return;
+
+        if (QuicCertificate == null) throw new InvalidOperationException("启动 QUIC 监听必须指定 QuicCertificate，QUIC 强制 TLS");
+
+        WriteLog("创建 QUIC 监听器，端口 {0}", QuicPort);
+
+        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
+        var exchange = Exchange ?? throw new NotSupportedException("未配置消息交换机Exchange");
+
+        var listener = new MqttQuicListener
+        {
+            Port = QuicPort,
+            Certificate = QuicCertificate,
+            Log = Log,
+            Tracer = Tracer,
+        };
+
+        listener.ConnectionReceived += (sender, e) =>
+        {
+            WriteLog("QUIC 新连接: {0}", e.Connection.RemoteEndPoint);
+
+            var handler = provider.GetService<IMqttHandler>();
+            if (handler == null) return;
+
+            if (handler is MqttHandler mqttHandler)
+            {
+                mqttHandler.Encoder = Encoder;
+                mqttHandler.Authenticator = Authenticator;
+            }
+
+            var session = new MqttQuicSession(e.Connection, e.Stream)
+            {
+                Handler = handler,
+                Log = Log,
+                Tracer = Tracer,
+            };
+
+            session.Closed += (s, _) =>
+            {
+                if (s is MqttQuicSession qs && qs.Handler is IMqttHandler h)
+                    h.Close("QUIC 连接已关闭");
+            };
+
+            session.Start();
+        };
+
+        _ = listener.StartAsync().ConfigureAwait(false);
+        _quicListener = listener;
+    }
+#endif
+
     /// <summary>停止</summary>
     /// <param name="reason"></param>
     protected override void OnStop(String? reason)
     {
         Management.TryDispose();
         Cluster.TryDispose();
+
+#if NET7_0_OR_GREATER
+        if (_quicListener != null)
+        {
+            _quicListener.StopAsync().Wait(5000);
+            _quicListener.TryDispose();
+            _quicListener = null;
+        }
+#endif
 
         base.OnStop(reason);
     }

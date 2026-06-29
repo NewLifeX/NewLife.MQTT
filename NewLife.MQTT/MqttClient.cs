@@ -6,6 +6,7 @@ using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
+using NewLife.MQTT.Quic;
 using NewLife.Net;
 using NewLife.Net.Handlers;
 using NewLife.Serialization;
@@ -103,12 +104,24 @@ public class MqttClient : DisposeBase
     /// <summary>
     /// 是否处于连接状态
     /// </summary>
-    public Boolean IsConnected => _isConnected == true && _Client != null && _Client.Active && !_Client.Disposed;
+    public Boolean IsConnected
+    {
+        get
+        {
+            if (_isConnected != true || _Client == null) return false;
+
+#if NET7_0_OR_GREATER
+            if (_Client is QuicClient quic) return quic.Active;
+#endif
+            if (_Client is ISocketClient socket) return socket.Active && !socket.Disposed;
+            return false;
+        }
+    }
 
     /// <summary>性能跟踪</summary>
     public ITracer? Tracer { get; set; }
 
-    private ISocketClient? _Client;
+    private Object? _Client;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
 
     private Int32 _taskCanceledCount;
@@ -117,6 +130,36 @@ public class MqttClient : DisposeBase
 
     /// <summary>Inflight 消息管理器（客户端消息重发）</summary>
     private InflightManager? _inflightManager;
+
+#if NET7_0_OR_GREATER
+    /// <summary>检查客户端是否处于活动状态</summary>
+    private static Boolean IsClientActive(Object? client)
+    {
+        if (client is ISocketClient socket) return socket.Active && !socket.Disposed;
+        if (client is QuicClient quic) return quic.Active;
+        return false;
+    }
+
+    /// <summary>安全释放客户端连接</summary>
+    private static void TryDisposeClient(Object? client)
+    {
+        if (client is ISocketClient socket) socket.TryDispose();
+        else if (client is QuicClient quic) quic.TryDispose();
+    }
+#else
+    /// <summary>检查客户端是否处于活动状态</summary>
+    private static Boolean IsClientActive(Object? client)
+    {
+        if (client is ISocketClient socket) return socket.Active && !socket.Disposed;
+        return false;
+    }
+
+    /// <summary>安全释放客户端连接</summary>
+    private static void TryDisposeClient(Object? client)
+    {
+        if (client is ISocketClient socket) socket.TryDispose();
+    }
+#endif
     #endregion
 
     #region 构造
@@ -145,7 +188,10 @@ public class MqttClient : DisposeBase
 
         _inflightManager.TryDispose();
         _timerPing.TryDispose();
-        _Client.TryDispose();
+
+        var disposeClient = _Client;
+        TryDisposeClient(disposeClient);
+        _Client = null;
         
         // 最后释放连接锁,确保没有线程在使用
         _connectLock?.Dispose();
@@ -179,8 +225,8 @@ public class MqttClient : DisposeBase
     private async Task InitAsync(CancellationToken cancellationToken)
     {
         // 第一次检查（无锁，快速路径）
-        var client = _Client;
-        if (client != null && client.Active && !client.Disposed) return;
+        var existing = _Client;
+        if (IsClientActive(existing)) return;
 
         // 尝试获取异步锁
         if (!await _connectLock.WaitAsync(Timeout, cancellationToken).ConfigureAwait(false)) return;
@@ -188,17 +234,64 @@ public class MqttClient : DisposeBase
         try
         {
             // 第二次检查（持锁）
-            client = _Client;
-            if (client != null && client.Active && !client.Disposed) return;
+            existing = _Client;
+            if (IsClientActive(existing)) return;
 
             _Client = null;
 
             if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
 
+            // 检查是否为 QUIC 连接
+            var isQuic = Server.StartsWithIgnoreCase("quic://", "quics://");
+
+#if NET7_0_OR_GREATER
+            if (isQuic)
+            {
+                if (!QuicClient.IsSupported)
+                    throw new NotSupportedException("当前平台不支持 QUIC，需要 Windows 11 或安装 msquic 的 Linux");
+
+                // quic://host:port 解析（NetUri 不支持 quic 方案，使用 System.Uri 解析）
+                var quicUri = new Uri(Server);
+                var quicHost = quicUri.Host;
+                var quicPort = quicUri.Port > 0 ? quicUri.Port : 14567;
+                WriteLog("正在连接[{0}:{1}](QUIC)", quicHost, quicPort);
+
+                var quic = new QuicClient
+                {
+                    Server = quicHost,
+                    Port = quicPort,
+                    Timeout = Timeout,
+                    Log = Log,
+                    Tracer = Tracer,
+                };
+
+                // 证书配置
+                if (Certificate != null)
+                    quic.Certificate = Certificate;
+
+                quic.Received += QuicClient_Received;
+                quic.Closed += Client_Closed;
+                quic.Error += QuicClient_Error;
+                await quic.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+                _Client = quic;
+
+                // 打开心跳定时器
+                var p2 = KeepAlive * 1000 / 2;
+                if (p2 > 0)
+                {
+                    _timerPing ??= new TimerX(DoPing, null, 5_000, p2) { Async = true };
+                }
+
+                return;
+            }
+#endif
+
             // 检查是否为 WebSocket 连接
             var isWebSocket = Server.StartsWithIgnoreCase("ws://", "wss://");
             var isWss = Server.StartsWithIgnoreCase("wss://");
 
+            ISocketClient client;
             if (isWebSocket)
             {
                 // 使用 Core 的 WebSocketClient，自带握手和帧编解码
@@ -305,19 +398,32 @@ public class MqttClient : DisposeBase
             // 断开消息没有响应
             if (!waitForResponse)
             {
-                client.SendMessage(msg);
+                if (client is ISocketClient socket)
+                    socket.SendMessage(msg);
+#if NET7_0_OR_GREATER
+                else if (client is QuicClient quic)
+                    quic.SendMessage(msg);
+#endif
                 //return await Task.FromResult((MqttMessage)null);
                 return null;
             }
 
-            var rs = await client.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false);
+            MqttMessage? rs;
+            if (client is ISocketClient socket2)
+                rs = await socket2.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false) as MqttMessage;
+#if NET7_0_OR_GREATER
+            else if (client is QuicClient quic2)
+                rs = await quic2.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false);
+#endif
+            else
+                throw new InvalidOperationException($"不支持的客户端类型: {client.GetType().FullName}");
 
             // 重置
             _taskCanceledCount = 0;
 
             if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs as MqttMessage);
 
-            return rs as MqttMessage;
+            return rs;
         }
         catch (TaskCanceledException ex)
         {
@@ -331,7 +437,7 @@ public class MqttClient : DisposeBase
                 if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("发送超时超过三次，销毁，下次使用另一个地址");
 
                 // 销毁，下次使用另一个地址
-                client.TryDispose();
+                TryDisposeClient(client);
             }
 
             throw;
@@ -343,7 +449,7 @@ public class MqttClient : DisposeBase
             if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("销毁，下次使用另一个地址");
 
             // 销毁，下次使用另一个地址
-            client.TryDispose();
+            TryDisposeClient(client);
 
             throw;
         }
@@ -372,11 +478,14 @@ public class MqttClient : DisposeBase
             var rs = OnReceive(msg);
             if (rs != null)
             {
-                var ss = sender as ISocketRemote;
-
                 if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", rs);
 
-                ss!.SendMessage(rs);
+                if (sender is ISocketRemote ss)
+                    ss.SendMessage(rs);
+#if NET7_0_OR_GREATER
+                else if (sender is QuicClient quic)
+                    quic.SendMessage(rs);
+#endif
             }
         }
         catch (Exception ex)
@@ -387,7 +496,47 @@ public class MqttClient : DisposeBase
         }
     }
 
-    /// <summary>收到命令时</summary>
+#if NET7_0_OR_GREATER
+    /// <summary>QUIC 客户端收到消息时</summary>
+    private void QuicClient_Received(Object? sender, MqttMessage msg)
+    {
+        if (msg == null || msg.Reply) return;
+
+        if (Log != null && Log.Level <= LogLevel.Debug)
+        {
+            if (msg is PublishMessage pm)
+                WriteLog("<= {0} {1}", msg, pm.Payload?.ToStr());
+            else
+                WriteLog("<= {0}", msg);
+        }
+
+        // 性能埋点
+        using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
+        try
+        {
+            var rs = OnReceive(msg);
+            if (rs != null)
+            {
+                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", rs);
+
+                if (sender is QuicClient quic)
+                    quic.SendMessage(rs);
+            }
+        }
+        catch (Exception ex)
+        {
+            span?.SetError(ex, null);
+
+            throw;
+        }
+    }
+
+    /// <summary>QUIC 客户端发生错误时</summary>
+    private void QuicClient_Error(Object? sender, Exception e)
+    {
+        WriteLog("QUIC 客户端错误: {0}", e.Message);
+    }
+#endif
     public event EventHandler<EventArgs<PublishMessage>>? Received;
 
     /// <summary>收到命令</summary>
@@ -504,9 +653,13 @@ public class MqttClient : DisposeBase
         _inflightManager.TryDispose();
         _inflightManager = new InflightManager(msg =>
         {
-            var client = _Client;
-            if (client != null && client.Active && !client.Disposed)
-                client.SendMessage(msg);
+            var innerClient = _Client;
+            if (innerClient is ISocketClient s && s.Active && !s.Disposed)
+                s.SendMessage(msg);
+#if NET7_0_OR_GREATER
+            else if (innerClient is QuicClient q && q.Active)
+                q.SendMessage(msg);
+#endif
             return Task.FromResult(0);
         });
 
@@ -543,13 +696,23 @@ public class MqttClient : DisposeBase
         catch { }
 
         // 主动关闭底层连接，确保后续重连时可以创建新连接
-        var client = _Client;
+        var disconnectClient = _Client;
         _Client = null;
-        if (client != null && !client.Disposed)
+        if (disconnectClient != null)
         {
-            // 先取消事件订阅，避免 Close 触发 Client_Closed 二次触发 Disconnected
-            client.Closed -= Client_Closed;
-            client.TryDispose();
+            if (disconnectClient is ISocketClient sock && !sock.Disposed)
+            {
+                // 先取消事件订阅，避免 Close 触发 Client_Closed 二次触发 Disconnected
+                sock.Closed -= Client_Closed;
+                sock.TryDispose();
+            }
+#if NET7_0_OR_GREATER
+            else if (disconnectClient is QuicClient qc && qc.Active)
+            {
+                qc.Closed -= Client_Closed;
+                qc.TryDispose();
+            }
+#endif
         }
 
         var e = new EventArgs();
