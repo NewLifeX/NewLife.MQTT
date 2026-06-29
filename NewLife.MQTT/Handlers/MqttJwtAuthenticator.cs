@@ -106,7 +106,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
             {
                 var trimmed = pattern.Trim();
                 if (trimmed == "#") return true;
-                if (MqttTopicFilter.IsMatch(trimmed, topic))
+                if (MatchTopic(topic, trimmed))
                     return true;
             }
             return false;
@@ -132,20 +132,20 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
             {
                 var trimmed = pattern.Trim();
                 if (trimmed == "#") return true;
-                if (MqttTopicFilter.IsMatch(trimmed, topicFilter))
+                if (MatchTopic(topicFilter, trimmed))
                     return true;
             }
             return false;
         }
 
-        // 也检查 sub claim（JWT 标准 claim，本实现同时用作主题匹配）
+        // 也检查 sub_pattern claim（订阅主题模式授权）
         if (claims.TryGetValue("sub_pattern", out var subPatPatterns))
         {
             foreach (var pattern in subPatPatterns.Split(','))
             {
                 var trimmed = pattern.Trim();
                 if (trimmed == "#") return true;
-                if (MqttTopicFilter.IsMatch(trimmed, topicFilter))
+                if (MatchTopic(topicFilter, trimmed))
                     return true;
             }
             return false;
@@ -318,6 +318,19 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
     {
         var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         return epoch.AddSeconds(unixTimeSeconds);
+    }
+
+    /// <summary>安全匹配主题（IsMatch 参数顺序: topicName, topicFilter）</summary>
+    private static Boolean MatchTopic(String topicName, String topicFilter)
+    {
+        try
+        {
+            return MqttTopicFilter.IsMatch(topicName, topicFilter);
+        }
+        catch
+        {
+            return false;
+        }
     }
     #endregion
 }

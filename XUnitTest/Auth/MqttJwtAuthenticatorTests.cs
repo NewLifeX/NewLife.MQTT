@@ -86,7 +86,7 @@ public class MqttJwtAuthenticatorTests
         Assert.Contains("格式无效", error);
 
         result = auth.TryParseAndValidate("invalid", out _, out var error2);
-        Assert.False(result2);
+        Assert.False(result);
         Assert.Contains("格式无效", error2);
     }
 

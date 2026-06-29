@@ -279,7 +279,7 @@ public class MqttSession : NetSession<MqttServer>
             if (!ip.IsNullOrEmpty() && !host.ConnectionRateLimiter.IsConnectionAllowed(ip))
             {
                 WriteLog("IP[{0}] 连接速率超限，拒绝连接", ip);
-                Disconnect("连接速率超限");
+                Close("连接速率超限");
                 return;
             }
         }
