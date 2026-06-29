@@ -1,5 +1,6 @@
 #if NET7_0_OR_GREATER
 using System;
+using System.Linq;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.Quic;
@@ -7,38 +8,17 @@ using Xunit;
 
 namespace XUnitTest.Transports;
 
-/// <summary>MqttQuicSession QUIC 服务端会话单元测试</summary>
+/// <summary>MqttQuicSession 服务端会话单元测试</summary>
 /// <remarks>
-/// 注意: MqttQuicSession 需要 QuicConnection + QuicStream 作为构造参数，
-/// 这两个对象只能通过实际 QUIC 连接获取。因此本测试类主要覆盖属性初始化和 Dispose 行为，
-/// 实际消息收发由集成测试覆盖。
+/// MqttQuicSession 需要 QuicConnection + QuicStream 构造，
+/// 这两个对象只能通过实际 QUIC 连接获取，无法在单元测试中构造。
+/// 因此本测试类主要做编译期和反射期的类型验证。
 /// </remarks>
 public class MqttQuicSessionTests
 {
-    [Fact(DisplayName = "MqttQuicSession_默认属性初始化为null")]
-    public void DefaultProperties_Null()
+    [Fact(DisplayName = "MqttQuicSession_类型包含全部必要公共属性")]
+    public void Type_HasAllRequiredProperties()
     {
-        // MqttQuicSession 需要 QuicConnection + QuicStream 构造，
-        // 这些只能通过真实 QUIC 连接获取。
-        // 验证类型定义正确（编译通过即可）
-        Assert.True(true);
-    }
-
-    [Fact(DisplayName = "MqttQuicSession_Handler属性可设置")]
-    public void Handler_Property_CanBeSet()
-    {
-        // 验证 MqttHandler 可以赋给 IMqttHandler 类型的 Handler 属性
-        MqttHandler handler = new MqttHandler();
-        Assert.NotNull(handler);
-
-        // 验证 handler 实现了 IMqttHandler 接口
-        Assert.True(handler is IMqttHandler);
-    }
-
-    [Fact(DisplayName = "MqttQuicSession_类型编译验证")]
-    public void Type_CompileCheck()
-    {
-        // 验证 MqttQuicSession 包含必要的公共属性
         var type = typeof(MqttQuicSession);
 
         Assert.NotNull(type.GetProperty("ClientId"));
@@ -49,10 +29,44 @@ public class MqttQuicSessionTests
         Assert.NotNull(type.GetProperty("Tracer"));
         Assert.NotNull(type.GetProperty("Connection"));
         Assert.NotNull(type.GetProperty("Stream"));
+    }
 
-        // 验证方法存在
+    [Fact(DisplayName = "MqttQuicSession_类型包含必要公共方法")]
+    public void Type_HasRequiredMethods()
+    {
+        var type = typeof(MqttQuicSession);
+
         Assert.NotNull(type.GetMethod("Start"));
-        Assert.NotNull(type.GetMethod("SendMessage"));
+        Assert.NotNull(type.GetMethod("SendMessage", [typeof(MqttMessage)]));
+    }
+
+    [Fact(DisplayName = "MqttQuicSession_类型有Closed事件")]
+    public void Type_HasClosedEvent()
+    {
+        var type = typeof(MqttQuicSession);
+        Assert.NotNull(type.GetEvent("Closed"));
+    }
+
+    [Fact(DisplayName = "MqttQuicSession_Handler属性兼容IMqttHandler")]
+    public void Handler_Property_CompatibleWithIMqttHandler()
+    {
+        var handler = new MqttHandler();
+        Assert.NotNull(handler);
+        Assert.True(handler is IMqttHandler);
+
+        // 验证 Handler 属性类型为 IMqttHandler
+        var prop = typeof(MqttQuicSession).GetProperty("Handler");
+        Assert.NotNull(prop);
+        Assert.Equal(typeof(IMqttHandler), prop.PropertyType);
+    }
+
+    [Fact(DisplayName = "MqttQuicSession_ProtocolVersion默认值为V311")]
+    public void ProtocolVersion_DefaultValue()
+    {
+        // 通过反射获取 ProtocolVersion 属性的类型
+        var prop = typeof(MqttQuicSession).GetProperty("ProtocolVersion");
+        Assert.NotNull(prop);
+        Assert.Equal(typeof(MqttVersion), prop.PropertyType);
     }
 }
 #endif
