@@ -21,6 +21,12 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>认证器。可插拔的 ACL 权限控制</summary>
     public IMqttAuthenticator? Authenticator { get; set; }
 
+    /// <summary>连接速率限制器。基于 IP 的滑动窗口限流，防止单 IP 短时间大量连接</summary>
+    public MqttConnectionRateLimiter? ConnectionRateLimiter { get; set; }
+
+    /// <summary>消息速率限制器。基于令牌桶算法，按客户端控制消息发布速率</summary>
+    public MqttMessageRateLimiter? MessageRateLimiter { get; set; }
+
     /// <summary>集群端口。指定后将自动创建集群</summary>
     public Int32 ClusterPort { get; set; }
 
@@ -207,6 +213,8 @@ public class MqttServer : NetServer<MqttSession>
             {
                 mqttHandler.Encoder = Encoder;
                 mqttHandler.Authenticator = Authenticator;
+                mqttHandler.ConnectionRateLimiter = ConnectionRateLimiter;
+                mqttHandler.MessageRateLimiter = MessageRateLimiter;
             }
 
             var session = new MqttQuicSession(e.Connection, e.Stream)
@@ -263,6 +271,19 @@ public class MqttSession : NetSession<MqttServer>
     /// <exception cref="NotSupportedException"></exception>
     protected override void OnConnected()
     {
+        // 连接速率限制检查
+        var host = Host;
+        if (host?.ConnectionRateLimiter != null)
+        {
+            var ip = Remote?.Address?.ToString();
+            if (!ip.IsNullOrEmpty() && !host.ConnectionRateLimiter.IsConnectionAllowed(ip))
+            {
+                WriteLog("IP[{0}] 连接速率超限，拒绝连接", ip);
+                Disconnect("连接速率超限");
+                return;
+            }
+        }
+
         var handler = MqttHandler;
         handler ??= ServiceProvider?.GetService<IMqttHandler>();
         handler ??= new MqttHandler();
@@ -271,10 +292,12 @@ public class MqttSession : NetSession<MqttServer>
         if (handler is MqttHandler mqttHandler)
         {
             mqttHandler.Session = this;
-            mqttHandler.Exchange = Host.Exchange;
-            mqttHandler.ClusterExchange = Host.Cluster?.ClusterExchange;
-            mqttHandler.Encoder = Host.Encoder;
-            mqttHandler.Authenticator = Host.Authenticator;
+            mqttHandler.Exchange = host?.Exchange;
+            mqttHandler.ClusterExchange = host?.Cluster?.ClusterExchange;
+            mqttHandler.Encoder = host?.Encoder;
+            mqttHandler.Authenticator = host?.Authenticator;
+            mqttHandler.ConnectionRateLimiter = host?.ConnectionRateLimiter;
+            mqttHandler.MessageRateLimiter = host?.MessageRateLimiter;
         }
 
         Remote = base.Remote;

@@ -62,6 +62,12 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>认证器。可插拔的 ACL 权限控制</summary>
     public IMqttAuthenticator? Authenticator { get; set; }
 
+    /// <summary>连接速率限制器。从 MqttServer 继承，基于 IP 的滑动窗口限流</summary>
+    public MqttConnectionRateLimiter? ConnectionRateLimiter { get; set; }
+
+    /// <summary>消息速率限制器。从 MqttServer 继承，基于令牌桶按客户端控制</summary>
+    public MqttMessageRateLimiter? MessageRateLimiter { get; set; }
+
     /// <summary>SASL 凭证存储。设置后将支持 MQTT 5.0 增强认证（如 SCRAM-SHA-256）</summary>
     public IMqttSaslCredentialStore? SaslCredentialStore { get; set; }
 
@@ -434,6 +440,14 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual MqttIdMessage? OnPublish(PublishMessage message)
     {
+        // 消息速率限制检查
+        if (MessageRateLimiter != null && !_clientId.IsNullOrEmpty() && !MessageRateLimiter.IsMessageAllowed(_clientId))
+        {
+            WriteLog("客户端[{0}] 消息速率超限，丢弃消息 Topic={1}", _clientId, message.Topic);
+            // 静默丢弃：不返回 ACK，触发客户端重发，进一步降低速率
+            return null;
+        }
+
         // ACL 发布权限检查
         if (Authenticator != null && !Authenticator.AuthorizePublish(_clientId, message.Topic))
             return message.QoS == QualityOfService.AtLeastOnce ? new PubAck { Id = message.Id, ReasonCode = 0x87 } : null;
