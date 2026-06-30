@@ -100,9 +100,8 @@ public class ClusterController : IApi, IActionFilter
     public String Subscribe(SubscriptionInfo[] infos)
     {
         var node = Session["Node"] as ClusterNode;
-        //info.Node = node;
 
-        _cluster.WriteLog("节点[{0}]订阅：{1}", node, infos.Join(",", e => e.Topic));
+        _cluster.WriteLog("节点[{0}]订阅：{1}", node, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群订阅3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
@@ -123,9 +122,8 @@ public class ClusterController : IApi, IActionFilter
     public String Unsubscribe(SubscriptionInfo[] infos)
     {
         var node = Session["Node"] as ClusterNode;
-        //info.Node = node;
 
-        _cluster.WriteLog("节点[{0}]退订：{1}", node, infos.Join(",", e => e.Topic));
+        _cluster.WriteLog("节点[{0}]退订：{1}", node, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群退订3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;

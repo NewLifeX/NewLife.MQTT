@@ -26,5 +26,11 @@ public class SubscriptionInfo
 
     //[XmlIgnore, IgnoreDataMember]
     //public ClusterNode? Node { get; set; }
+
+    /// <summary>客户端标识</summary>
+    public String? ClientId { get; set; }
+
+    /// <summary>会话标识</summary>
+    public Int32 SessionId { get; set; }
     #endregion
 }
