@@ -546,7 +546,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         // 集群订阅1，接收订阅请求
         var exchange2 = ClusterExchange;
-        exchange2?.Subscribe(Session, message);
+        exchange2?.Subscribe(Session, message, _clientId);
 
         return new()
         {
@@ -572,7 +572,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         // 集群退订1
         var exchange2 = ClusterExchange;
-        exchange2?.Unsubscribe(Session, message);
+        exchange2?.Unsubscribe(Session, message, _clientId);
 
         return message.CreateAck();
     }

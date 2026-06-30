@@ -25,7 +25,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <summary>订阅主题</summary>
     /// <param name="session"></param>
     /// <param name="message"></param>
-    public virtual void Subscribe(MqttSession session, SubscribeMessage message)
+    public virtual void Subscribe(MqttSession session, SubscribeMessage message, String? clientId = null)
     {
         var myEndpoint = Cluster.GetNodeInfo().EndPoint;
         var infos = message.Requests.Select(e => new SubscriptionInfo
@@ -33,6 +33,8 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             Topic = e.TopicFilter,
             Endpoint = myEndpoint,
             RemoteEndpoint = session.Remote + "",
+            ClientId = clientId,
+            SessionId = session.ID,
         }).ToArray();
 
         // 集群订阅2，向其它节点广播订阅关系
@@ -53,7 +55,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <summary>取消主题订阅</summary>
     /// <param name="session"></param>
     /// <param name="message"></param>
-    public virtual void Unsubscribe(MqttSession session, UnsubscribeMessage message)
+    public virtual void Unsubscribe(MqttSession session, UnsubscribeMessage message, String? clientId = null)
     {
         var myEndpoint = Cluster.GetNodeInfo().EndPoint;
         var infos = message.TopicFilters.Select(e => new SubscriptionInfo
@@ -61,6 +63,8 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             Topic = e,
             Endpoint = myEndpoint,
             RemoteEndpoint = session.Remote + "",
+            ClientId = clientId,
+            SessionId = session.ID,
         }).ToArray();
 
         // 集群退订2，向其它节点广播取消订阅关系

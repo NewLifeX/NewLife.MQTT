@@ -118,14 +118,14 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <returns></returns>
     public Boolean Remove(Int32 sessionId)
     {
-        _clientIdMap.TryRemove(sessionId, out _);
-
         if (!_sessions.TryRemove(sessionId, out var session)) return false;
 
-        Interlocked.Decrement(ref Stats.ConnectedClients);
-
-        // 清理该会话的所有本地和集群订阅
+        // 在清理 _clientIdMap 之前清理订阅，使 RemoveSessionSubscriptions 能取到 clientId
         RemoveSessionSubscriptions(sessionId);
+
+        _clientIdMap.TryRemove(sessionId, out _);
+
+        Interlocked.Decrement(ref Stats.ConnectedClients);
 
         session.TryDispose();
 
@@ -171,6 +171,8 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     {
         if (ClusterExchange == null) return;
 
+        _clientIdMap.TryGetValue(sessionId, out var clientId);
+
         var myEndpoint = ClusterExchange.Cluster.GetNodeInfo().EndPoint;
         var infos = new List<SubscriptionInfo>();
 
@@ -180,7 +182,13 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             {
                 var count = kv.Value.RemoveAll(e => e.Id == sessionId);
                 if (count > 0)
-                    infos.Add(new SubscriptionInfo { Topic = kv.Key, Endpoint = myEndpoint });
+                    infos.Add(new SubscriptionInfo
+                    {
+                        Topic = kv.Key,
+                        Endpoint = myEndpoint,
+                        ClientId = clientId,
+                        SessionId = sessionId,
+                    });
             }
 
             if (kv.Value.Count == 0) _topics.TryRemove(kv.Key, out _);
@@ -319,11 +327,14 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             }
             else
             {
-                // 普通订阅：发送给所有匹配的订阅者
+                // 普通订阅：发送给所有匹配的订阅者，同一会话只投递一次
+                var delivered = new HashSet<Int32>();
                 foreach (var sub in subs.ToArray())
                 {
                     // MQTT 5.0 NoLocal：不转发给发布者自身
                     if (sub.NoLocal && sub.Id == publisherSessionId) continue;
+
+                    if (!delivered.Add(sub.Id)) continue;
 
                     if (_sessions.TryGetValue(sub.Id, out var session))
                     {
