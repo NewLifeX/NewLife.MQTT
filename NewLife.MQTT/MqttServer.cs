@@ -159,6 +159,10 @@ public class MqttServer : NetServer<MqttSession>
 
             cluster.Exchange = exchange;
             cluster.ClusterExchange = exchange2;
+
+            // 设置 MqttExchange 的集群交换机引用，使会话清理时能广播退订
+            if (exchange is MqttExchange mqttExchange)
+                mqttExchange.ClusterExchange = exchange2;
         }
     }
 

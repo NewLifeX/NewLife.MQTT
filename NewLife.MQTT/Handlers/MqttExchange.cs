@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using NewLife.Data;
 using NewLife.Log;
+using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Threading;
@@ -34,6 +35,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
     /// <summary>规则引擎。设置后将在消息发布时调用规则处理</summary>
     public MqttRuleEngine? RuleEngine { get; set; }
+
+    /// <summary>集群交换机。设置后，会话清理时自动广播退订通知</summary>
+    public ClusterExchange? ClusterExchange { get; set; }
 
     /// <summary>本地缓存，保存设备的对象引用，具备定时清理能力</summary>
     private readonly ConcurrentDictionary<Int32, IMqttHandler> _sessions = new();
@@ -120,6 +124,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
         Interlocked.Decrement(ref Stats.ConnectedClients);
 
+        // 清理该会话的所有本地和集群订阅
+        RemoveSessionSubscriptions(sessionId);
+
         session.TryDispose();
 
         return true;
@@ -149,11 +156,51 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         {
             _sessions.TryRemove(item.Key, out _);
 
+            // 清理该会话的所有集群订阅，避免残留订阅导致重复下发
+            RemoveSessionSubscriptions(item.Key);
+
             // 销毁过期会话，促使断开连接
             var handler = item.Value;
             handler.Close(nameof(RemoveNotAlive));
             handler.TryDispose();
         }
+    }
+
+    /// <summary>清理指定会话的所有订阅（本地 _topics + 集群广播退订）</summary>
+    private void RemoveSessionSubscriptions(Int32 sessionId)
+    {
+        if (ClusterExchange == null) return;
+
+        var myEndpoint = ClusterExchange.Cluster.GetNodeInfo().EndPoint;
+        var infos = new List<SubscriptionInfo>();
+
+        foreach (var kv in _topics)
+        {
+            lock (kv.Value)
+            {
+                var count = kv.Value.RemoveAll(e => e.Id == sessionId);
+                if (count > 0)
+                    infos.Add(new SubscriptionInfo { Topic = kv.Key, Endpoint = myEndpoint });
+            }
+
+            if (kv.Value.Count == 0) _topics.TryRemove(kv.Key, out _);
+        }
+
+        if (infos.Count == 0) return;
+
+        // 向集群其他节点广播取消订阅，清理残留的 ClusterExchange._topics 条目
+        var arr = infos.ToArray();
+        Parallel.ForEach(ClusterExchange.Cluster.Nodes, item =>
+        {
+            try
+            {
+                item.Value.Unsubscribe(arr);
+            }
+            catch (Exception ex)
+            {
+                XTrace.WriteException(ex);
+            }
+        });
     }
     #endregion
 
