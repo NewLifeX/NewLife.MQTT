@@ -37,7 +37,11 @@ public class MqttSnClient : DisposeBase
         var cts = new CancellationTokenSource(timeoutMs);
         try
         {
+#if NET6_0_OR_GREATER
             var result = await searchClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
+#else
+            var result = await searchClient.ReceiveAsync().ConfigureAwait(false);
+#endif
             var msg = MqttSnCodec.Decode(result.Buffer, 0, result.Buffer.Length);
             if (msg is GwInfoMessage gwInfo)
             {
@@ -47,6 +51,7 @@ public class MqttSnClient : DisposeBase
             }
         }
         catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
         return null;
     }
 
@@ -63,9 +68,19 @@ public class MqttSnClient : DisposeBase
         await SendAsync(connectMsg).ConfigureAwait(false);
 
         var ackResult = await ReceiveAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-        if (ackResult is not MqttSnConnAckMessage connAck || connAck.ReturnCode != MqttSnReturnCode.Accepted)
+        if (ackResult == null)
         {
-            WriteLog("Connection failed: {0}", (ackResult as MqttSnConnAckMessage)?.ReturnCode);
+            WriteLog("ConnectAsync: timeout waiting CONNACK (no response within 5s)");
+            return false;
+        }
+        if (ackResult is not MqttSnConnAckMessage connAck)
+        {
+            WriteLog("ConnectAsync: unexpected message type {0} instead of CONNACK", ackResult.MessageType);
+            return false;
+        }
+        if (connAck.ReturnCode != MqttSnReturnCode.Accepted)
+        {
+            WriteLog("ConnectAsync: CONNACK rejected with {0}", connAck.ReturnCode);
             return false;
         }
 
@@ -180,16 +195,26 @@ public class MqttSnClient : DisposeBase
         var cts = new CancellationTokenSource(timeout);
         try
         {
+#if NET6_0_OR_GREATER
             var result = await _udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
+#else
+            var result = await _udpClient.ReceiveAsync().ConfigureAwait(false);
+#endif
             return MqttSnCodec.Decode(result.Buffer, 0, result.Buffer.Length);
         }
         catch (OperationCanceledException) { return null; }
+        catch (ObjectDisposedException) { return null; }
     }
 
     private async Task SendAsync(MqttSnMessage message)
     {
-        if (_udpClient == null || Gateway == null) return;
+        if (_udpClient == null || Gateway == null)
+        {
+            WriteLog("SendAsync skipped: udp={0}, gw={1}", _udpClient != null, Gateway != null);
+            return;
+        }
         var data = message.Encode();
+        WriteLog("SendAsync: type={0}, len={1}, to={2}", message.MessageType, data.Length, Gateway);
         await _udpClient.SendAsync(data, data.Length, Gateway).ConfigureAwait(false);
     }
 
@@ -208,6 +233,7 @@ public class MqttSnClient : DisposeBase
         base.Dispose(disposing);
         if (Connected) DisconnectAsync().Wait(3000);
         _cts?.Dispose();
-        _udpClient?.Dispose();
+        _udpClient?.Close();
+        _udpClient = null;
     }
 }

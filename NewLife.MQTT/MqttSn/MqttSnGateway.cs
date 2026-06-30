@@ -81,7 +81,14 @@ public class MqttSnGateway : DisposeBase
             try
             {
                 var result = await _udpServer.ReceiveAsync().ConfigureAwait(false);
-                _ = ProcessMessageAsync(result.Buffer, result.RemoteEndPoint);
+                try
+                {
+                    await ProcessMessageAsync(result.Buffer, result.RemoteEndPoint).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    WriteLog("ProcessMessage error: {0}", ex);
+                }
             }
             catch (ObjectDisposedException) { break; }
             catch (Exception ex) { WriteLog("UDP recv error: {0}", ex.Message); }
@@ -90,8 +97,16 @@ public class MqttSnGateway : DisposeBase
 
     private async Task ProcessMessageAsync(Byte[] data, IPEndPoint remote)
     {
+        WriteLog("UDP recv {0} bytes from {1}, firstByte=0x{2:X2}", data.Length, remote, data.Length > 0 ? data[0] : 0);
+
         var msg = MqttSnCodec.Decode(data, 0, data.Length);
-        if (msg == null) return;
+        if (msg == null)
+        {
+            WriteLog("UDP decode failed: {0} bytes, hex={1}", data.Length, BitConverter.ToString(data));
+            return;
+        }
+
+        WriteLog("UDP decoded: {0}", msg.MessageType);
 
         using var span = Tracer?.NewSpan("mqttsn:gateway", msg.MessageType.ToString());
 
@@ -121,10 +136,11 @@ public class MqttSnGateway : DisposeBase
 
     private async Task HandleConnectAsync(MqttSnConnectMessage msg, IPEndPoint remote)
     {
-        WriteLog("MQTT-SN client {0} connecting, ClientId={1}", remote, msg.ClientId);
+        WriteLog("HandleConnect: clientId={0}, IsConnected={1}", msg.ClientId, MqttClient?.IsConnected);
 
         if (MqttClient == null || !MqttClient.IsConnected)
         {
+            WriteLog("HandleConnect: rejecting - MqttClient not connected");
             await SendAsync(new MqttSnConnAckMessage { ReturnCode = MqttSnReturnCode.RejectedCongestion }, remote).ConfigureAwait(false);
             return;
         }
