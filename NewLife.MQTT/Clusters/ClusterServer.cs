@@ -29,6 +29,12 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>集群交换机</summary>
     public ClusterExchange? ClusterExchange { get; set; }
 
+    /// <summary>布隆过滤器交换机。用于跨节点转发预检加速</summary>
+    public BloomFilterExchange? BloomFilter { get; set; }
+
+    /// <summary>批量合并转发管道。将发往同一节点的多条小消息合并为批量RPC</summary>
+    public BatchForwardPipe? BatchPipe { get; set; }
+
     /// <summary>Raft共识引擎。节点数≥3时自动启用</summary>
     public RaftCluster? RaftCluster { get; set; }
 
@@ -121,6 +127,20 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         // 启动Raft共识引擎（如已注入）
         RaftCluster?.Start();
 
+        // 启动布隆过滤器交换（如已注入）
+        if (BloomFilter != null)
+        {
+            BloomFilter.Cluster = this;
+            BloomFilter.Start();
+        }
+
+        // 启动批量合并转发管道（如已注入）
+        if (BatchPipe != null)
+        {
+            BatchPipe.Cluster = this;
+            BatchPipe.Start();
+        }
+
         // 启动集群指标定时发布
         _metricsTimer = new TimerX(PublishMetrics, null, 10_000, 60_000) { Async = true };
     }
@@ -147,6 +167,10 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         _metricsTimer = null;
 
         RaftCluster?.Stop();
+
+        BloomFilter?.Stop();
+
+        BatchPipe?.Stop();
 
         Discovery?.Stop();
         Discovery = null;

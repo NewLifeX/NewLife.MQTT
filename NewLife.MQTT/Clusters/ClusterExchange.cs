@@ -17,11 +17,16 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <summary>主题订阅集合</summary>
     private ConcurrentDictionary<String, List<SubscriptionInfo>> _topics = new();
 
+    /// <summary>布隆过滤器交换机。用于跨节点转发预检，减少无效RPC调用</summary>
+    public BloomFilterExchange? BloomFilter { get; set; }
+
     /// <summary>链路追踪</summary>
     public ITracer? Tracer { get; set; }
     #endregion
 
     #region 订阅关系
+    /// <summary>获取所有订阅关系（用于布隆过滤器重建等场景）</summary>
+    public ConcurrentDictionary<String, List<SubscriptionInfo>> GetAllSubscriptions() => _topics;
     /// <summary>订阅主题</summary>
     /// <param name="session"></param>
     /// <param name="message"></param>
@@ -92,6 +97,9 @@ public class ClusterExchange : DisposeBase, ITracerFeature
         {
             if (!subs.Any(e => e.Endpoint == info.Endpoint)) subs.Add(info);
         }
+
+        // 增量更新布隆过滤器：远程节点 info.Endpoint 现在有订阅 info.Topic
+        BloomFilter?.OnSubscriptionChanged(info.Topic, info.Endpoint, true);
     }
 
     /// <summary>移除远程订阅关系</summary>
@@ -145,7 +153,9 @@ public class ClusterExchange : DisposeBase, ITracerFeature
         PublishInfo? info = null;
 
         // 集群发布2，查找其它节点订阅关系，然后转发消息
-        // 遍历所有Topic，找到匹配的订阅者
+        // 先通过布隆过滤器快速跳过无匹配的节点，再遍历所有Topic精确匹配
+        var bloomFilter = BloomFilter;
+
         foreach (var item in _topics)
         {
             if (!MqttTopicFilter.IsMatch(message.Topic, item.Key)) continue;
@@ -159,6 +169,9 @@ public class ClusterExchange : DisposeBase, ITracerFeature
                     // 环路检测：如果目标节点已在转发路径中，跳过
                     if (nodePath.Contains(sub.Endpoint)) continue;
 
+                    // 布隆过滤器预检：快速跳过确定无匹配订阅的节点
+                    if (bloomFilter != null && !bloomFilter.MightContain(message.Topic, sub.Endpoint)) continue;
+
                     info ??= new PublishInfo
                     {
                         Message = message,
@@ -167,7 +180,12 @@ public class ClusterExchange : DisposeBase, ITracerFeature
                         NodePath = [.. nodePath],
                     };
 
-                    _ = node.Publish(info);
+                    // 优先使用批量合并转发管道，小消息合并为大请求
+                    var batchPipe = Cluster.BatchPipe;
+                    if (batchPipe != null)
+                        batchPipe.Enqueue(node, info);
+                    else
+                        _ = node.Publish(info);
 
                     // 记录转发统计
                     Cluster.IncrementMessageCount(message.Payload?.Length ?? 0);

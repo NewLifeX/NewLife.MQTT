@@ -160,6 +160,23 @@ public class ClusterController : IApi, IActionFilter
 
         return "OK";
     }
+
+    /// <summary>批量发布。收到其它节点合并转发的批量消息</summary>
+    /// <param name="info">批量发布信息</param>
+    public String PublishBatch(PublishInfo info)
+    {
+        if (info.Messages == null || info.Messages.Count == 0) return "OK";
+
+        var exchange = _cluster.Exchange;
+        if (exchange == null) return "OK";
+
+        foreach (var msg in info.Messages)
+        {
+            exchange.Publish(msg);
+        }
+
+        return "OK";
+    }
     #endregion
 
     #region Raft共识

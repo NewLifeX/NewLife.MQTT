@@ -152,6 +152,15 @@ public class ClusterNode : DisposeBase
         return Client.InvokeAsync<String>("Cluster/Publish", info);
     }
 
+    /// <summary>批量发布。将多条消息合并为一个RPC请求</summary>
+    /// <param name="info">批量发布信息，使用 Messages 字段携带多条消息</param>
+    public Task<String?> PublishBatch(PublishInfo info)
+    {
+        Init();
+
+        return Client.InvokeAsync<String>("Cluster/PublishBatch", info);
+    }
+
     /// <summary>从远程节点查询客户端持久会话（集群会话漂移）</summary>
     /// <param name="clientId">客户端标识</param>
     public Task<SessionInfo?> GetSession(String clientId)
