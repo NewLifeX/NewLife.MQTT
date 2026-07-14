@@ -27,8 +27,14 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>集群交换机</summary>
     public ClusterExchange? ClusterExchange { get; set; }
 
+    /// <summary>Raft共识引擎。节点数≥3时自动启用</summary>
+    public RaftCluster? RaftCluster { get; set; }
+
     /// <summary>是否启用 UDP 广播自动发现。启用后在局域网内无需手动配置节点地址。默认 false</summary>
     public Boolean EnableDiscovery { get; set; }
+
+    /// <summary>集群共享密钥。设置后集群端口(2883)需相同密钥才允许加入。同网段UDP发现的节点自动信任。默认 null 表示不校验</summary>
+    public String? ClusterSecret { get; set; }
 
     /// <summary>自动发现服务实例</summary>
     public ClusterDiscovery? Discovery { get; private set; }
@@ -102,6 +108,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
             discovery.Start();
             Discovery = discovery;
         }
+
+        // 启动Raft共识引擎（如已注入）
+        RaftCluster?.Start();
     }
 
     /// <summary>停止服务</summary>
@@ -122,6 +131,8 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         _timer.TryDispose();
         _timer = null;
 
+        RaftCluster?.Stop();
+
         Discovery?.Stop();
         Discovery = null;
 
@@ -130,7 +141,7 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     }
 
     /// <summary>获取节点信息</summary>
-    public NodeInfo GetNodeInfo() => new() { EndPoint = $"{NetHelper.MyIP()}:{Port}" };
+    public NodeInfo GetNodeInfo() => new() { EndPoint = $"{NetHelper.MyIP()}:{Port}", ClusterSecret = ClusterSecret };
 
     private void DoPing(Object state)
     {
@@ -190,6 +201,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         return true;
     }
+
+    /// <summary>获取Raft共识引擎（供ClusterController等使用）</summary>
+    public RaftCluster? GetRaft() => RaftCluster;
     #endregion
 
     #region 日志

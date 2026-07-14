@@ -115,12 +115,24 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     #region 转发消息
     /// <summary>发布消息</summary>
     /// <remarks>
-    /// 找到匹配该主题的订阅者，然后发送消息
+    /// 找到匹配该主题的订阅者，然后发送消息。
+    /// 增加环路检测：TTL（默认3）耗尽丢弃，NodePath 包含本节点则跳过。
     /// </remarks>
     /// <param name="session"></param>
     /// <param name="message"></param>
-    public virtual void Publish(MqttSession session, PublishMessage message)
+    /// <param name="ttl">生存跳数，每转发一次减1。默认3</param>
+    /// <param name="nodePath">已访问节点路径</param>
+    public virtual void Publish(MqttSession session, PublishMessage message, Int32 ttl = 3, List<String>? nodePath = null)
     {
+        // TTL 耗尽，丢弃消息防止无限循环
+        if (ttl <= 0) return;
+
+        var myEndpoint = Cluster.GetNodeInfo().EndPoint;
+
+        // 初始化或追加本节点到路径中
+        nodePath ??= [];
+        nodePath.Add(myEndpoint);
+
         PublishInfo? info = null;
 
         // 集群发布2，查找其它节点订阅关系，然后转发消息
@@ -135,10 +147,15 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             {
                 if (Cluster.Nodes.TryGetValue(sub.Endpoint, out var node))
                 {
+                    // 环路检测：如果目标节点已在转发路径中，跳过
+                    if (nodePath.Contains(sub.Endpoint)) continue;
+
                     info ??= new PublishInfo
                     {
                         Message = message,
                         RemoteEndpoint = session.Remote + "",
+                        TTL = ttl - 1,
+                        NodePath = [.. nodePath],
                     };
 
                     _ = node.Publish(info);

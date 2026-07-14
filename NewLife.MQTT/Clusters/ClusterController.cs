@@ -1,5 +1,6 @@
 ﻿using NewLife.Data;
 using NewLife.MQTT.Handlers;
+using NewLife.Net;
 using NewLife.Remoting;
 
 namespace NewLife.MQTT.Clusters;
@@ -45,6 +46,13 @@ public class ClusterController : IApi, IActionFilter
     /// <returns></returns>
     public NodeInfo Join(NodeInfo info)
     {
+        // 共享密钥验证
+        if (!ValidateClusterSecret(info, out var msg))
+        {
+            _cluster.WriteLog("节点加入被拒绝[{0}]：{1}", info.EndPoint, msg);
+            throw new InvalidOperationException($"集群加入被拒绝：{msg}");
+        }
+
         var endpoint = info.EndPoint;
 
         var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k });
@@ -153,6 +161,30 @@ public class ClusterController : IApi, IActionFilter
     }
     #endregion
 
+    #region Raft共识
+    /// <summary>Raft投票请求</summary>
+    public RaftVoteResponse RequestVote(RaftVoteRequest request)
+    {
+        var raft = _cluster.GetRaft();
+        return raft?.HandleRequestVote(request) ?? new RaftVoteResponse { Term = 0, VoteGranted = false };
+    }
+
+    /// <summary>Raft AppendEntries请求</summary>
+    public RaftAppendEntriesResponse AppendEntries(RaftAppendEntriesRequest request)
+    {
+        var raft = _cluster.GetRaft();
+        return raft?.HandleAppendEntries(request) ?? new RaftAppendEntriesResponse { Term = 0, Success = false };
+    }
+
+    /// <summary>Raft提交Log（非Leader转发）</summary>
+    public String SubmitRaftLog(RaftLogEntry entry)
+    {
+        var raft = _cluster.GetRaft();
+        raft?.Submit(entry);
+        return "OK";
+    }
+    #endregion
+
     #region 会话漂移
     /// <summary>从本节点查询客户端的持久会话（供重连到其他节点的客户端使用）</summary>
     /// <param name="clientId">客户端标识</param>
@@ -180,6 +212,49 @@ public class ClusterController : IApi, IActionFilter
             exchange.DeletePersistentSession(clientId);
 
         return "OK";
+    }
+    #endregion
+
+    #region 辅助
+    /// <summary>验证集群共享密钥。同一网段自动信任，跨网段必须校验</summary>
+    private Boolean ValidateClusterSecret(NodeInfo info, out String message)
+    {
+        message = String.Empty;
+
+        var secret = _cluster.ClusterSecret;
+        if (secret.IsNullOrEmpty())
+        {
+            // 未配置密钥，全放行
+            return true;
+        }
+
+        // 同网段自动信任：从请求节点地址提取IP，判断是否与本机同网段
+        var endpoint = info.EndPoint;
+        if (!endpoint.IsNullOrEmpty())
+        {
+            var portIdx = endpoint.LastIndexOf(':');
+            var remoteIpStr = portIdx > 0 ? endpoint[..portIdx] : endpoint;
+            if (System.Net.IPAddress.TryParse(remoteIpStr, out var remoteIp))
+            {
+                var localIp = NetHelper.MyIP();
+                var remoteBytes = remoteIp.GetAddressBytes();
+                var localBytes = localIp.GetAddressBytes();
+                // 简单同网段判断：前3段相同（/24子网）
+                if (remoteBytes.Length >= 3 && localBytes.Length >= 3 &&
+                    remoteBytes[0] == localBytes[0] &&
+                    remoteBytes[1] == localBytes[1] &&
+                    remoteBytes[2] == localBytes[2])
+                {
+                    return true;
+                }
+            }
+        }
+
+        // 跨网段：必须校验密钥
+        if (info.ClusterSecret == secret) return true;
+
+        message = "ClusterSecret 不匹配";
+        return false;
     }
     #endregion
 }
