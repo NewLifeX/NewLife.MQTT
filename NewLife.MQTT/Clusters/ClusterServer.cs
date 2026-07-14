@@ -175,6 +175,7 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         foreach (var item in dels)
         {
             WriteLog("节点超时退出：{0}", item);
+            LogEvent("NodeTimeout", "节点 {0} 超时退出，LastActive={1}", item, DateTime.Now.AddMinutes(-5));
 
             if (Nodes.TryRemove(item, out var node))
             {
@@ -226,7 +227,15 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         Interlocked.Increment(ref _messageCount);
         Interlocked.Add(ref _byteCount, byteSize);
     }
-
+    /// <summary>记录集群事件</summary>
+    /// <param name="eventType">事件类型</param>
+    /// <param name="format">消息格式</param>
+    /// <param name="args">参数</param>
+    public void LogEvent(String eventType, String format, params Object?[] args)
+    {
+        var msg = $"[{eventType}] {String.Format(format, args)}";
+        WriteLog(msg);
+    }
     private void PublishMetrics(Object? state)
     {
         var exchange = Exchange;

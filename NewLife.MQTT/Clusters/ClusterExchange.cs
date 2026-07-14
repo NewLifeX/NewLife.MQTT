@@ -37,7 +37,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             SessionId = session.ID,
         }).ToArray();
 
-        // 集群订阅2，向其它节点广播订阅关系。顺序发送避免并发撑爆RPC队列
+        // 集群订阅2，向其它节点广播订阅增量（仅发送本次变化的订阅，非全量）
         foreach (var item in Cluster.Nodes)
         {
             try
