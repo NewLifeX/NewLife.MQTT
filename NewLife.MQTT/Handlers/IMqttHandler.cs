@@ -359,6 +359,16 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                     _subscriptions[kv.Key] = qos;
                 }
 
+                // 注入待投递的离线消息
+                if (info.PendingMessages != null && info.PendingMessages.Count > 0)
+                {
+                    WriteLog("从集群节点[{0}]迁移离线消息：{1} 条", item.Key, info.PendingMessages.Count);
+                    foreach (var msg in info.PendingMessages)
+                    {
+                        exchange.Publish(msg);
+                    }
+                }
+
                 // 通知源节点删除旧会话（避免重复）
                 _ = item.Value.DeleteSession(clientId);
 

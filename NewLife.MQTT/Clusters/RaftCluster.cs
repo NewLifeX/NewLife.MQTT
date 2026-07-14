@@ -59,6 +59,12 @@ public class RaftCluster : DisposeBase
     private TimerX? _heartbeatTimer;
     private readonly Object _lock = new();
     private Int32 _electionTimeout;
+    /// <summary>快照最大Log索引（超过此值的Log可被压缩）</summary>
+    public Int32 SnapshotInterval { get; set; } = 10000;
+
+    /// <summary>上次快照的Log索引</summary>
+    private Int32 _lastSnapshotIndex;
+    private RaftSnapshot? _lastSnapshot;
     #endregion
 
     #region 构造
@@ -448,6 +454,12 @@ public class RaftCluster : DisposeBase
             // 应用到状态机（更新ClusterExchange的_topics字典）
             ApplyEntry(entry);
         }
+
+        // 定期创建快照
+        if (_commitIndex - _lastSnapshotIndex >= SnapshotInterval && State == RaftState.Leader)
+        {
+            CreateSnapshot();
+        }
     }
 
     private void ApplyEntry(RaftLogEntry entry)
@@ -477,6 +489,87 @@ public class RaftCluster : DisposeBase
             };
             exchange.RemoveSubscription(info);
         }
+    }
+
+    /// <summary>创建订阅快照</summary>
+    public void CreateSnapshot()
+    {
+        var exchange = ClusterExchange;
+        if (exchange == null) return;
+
+        var topics = exchange.GetAllTopics();
+        var snapshot = new RaftSnapshot
+        {
+            LastIncludedIndex = _commitIndex,
+            LastIncludedTerm = _log[_commitIndex].Term,
+            Topics = topics.ToDictionary(kv => kv.Key, kv => kv.Value.Select(s => new SnapshotSubscription
+            {
+                Topic = s.Topic,
+                Endpoint = s.Endpoint,
+                ClientId = s.ClientId,
+                SessionId = s.SessionId,
+            }).ToArray()),
+        };
+
+        _lastSnapshot = snapshot;
+        _lastSnapshotIndex = _commitIndex;
+
+        // 清理旧Log（保留Snapshot之后的Log）
+        var keepFrom = _commitIndex + 1;
+        if (keepFrom < _log.Count)
+        {
+            _log.RemoveRange(0, keepFrom);
+            _commitIndex = 0;
+            _lastApplied = 0;
+            _lastSnapshotIndex = 0;
+        }
+        else
+        {
+            _log.Clear();
+            _commitIndex = 0;
+            _lastApplied = 0;
+            _lastSnapshotIndex = 0;
+        }
+
+        WriteLog("快照创建完成 Index={0} Topics={1}", snapshot.LastIncludedIndex, snapshot.Topics.Count);
+    }
+
+    /// <summary>安装快照（落后节点从Leader拉取）</summary>
+    public void InstallSnapshot(RaftSnapshot snapshot)
+    {
+        lock (_lock)
+        {
+            _log.Clear();
+            _commitIndex = snapshot.LastIncludedIndex;
+            _lastApplied = snapshot.LastIncludedIndex;
+            _lastSnapshot = snapshot;
+            _lastSnapshotIndex = snapshot.LastIncludedIndex;
+        }
+
+        // 应用快照中的订阅关系
+        var exchange = ClusterExchange;
+        if (exchange != null)
+        {
+            exchange.ReplaceAllTopics(snapshot.Topics.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.Select(s => new SubscriptionInfo
+                {
+                    Topic = s.Topic,
+                    Endpoint = s.Endpoint,
+                    ClientId = s.ClientId,
+                    SessionId = s.SessionId,
+                }).ToList()
+            ));
+        }
+
+        WriteLog("快照安装完成 Index={0} Topics={1}", snapshot.LastIncludedIndex, snapshot.Topics.Count);
+    }
+
+    /// <summary>处理RPC InstallSnapshot请求</summary>
+    public RaftAppendEntriesResponse HandleInstallSnapshot(RaftSnapshot snapshot)
+    {
+        InstallSnapshot(snapshot);
+        return new RaftAppendEntriesResponse { Term = CurrentTerm, Success = true };
     }
     #endregion
 
@@ -604,5 +697,34 @@ public class RaftAppendEntriesResponse
 
     /// <summary>是否成功</summary>
     public Boolean Success { get; set; }
+}
+
+/// <summary>Raft快照</summary>
+public class RaftSnapshot
+{
+    /// <summary>快照包含的最后Log索引</summary>
+    public Int32 LastIncludedIndex { get; set; }
+
+    /// <summary>快照包含的最后Log任期</summary>
+    public Int32 LastIncludedTerm { get; set; }
+
+    /// <summary>所有主题订阅关系</summary>
+    public Dictionary<String, SnapshotSubscription[]> Topics { get; set; } = [];
+}
+
+/// <summary>快照中的订阅条目</summary>
+public class SnapshotSubscription
+{
+    /// <summary>主题</summary>
+    public String Topic { get; set; } = null!;
+
+    /// <summary>节点地址</summary>
+    public String Endpoint { get; set; } = null!;
+
+    /// <summary>客户端标识</summary>
+    public String? ClientId { get; set; }
+
+    /// <summary>会话标识</summary>
+    public Int32 SessionId { get; set; }
 }
 #endregion

@@ -1,5 +1,6 @@
 ﻿using NewLife.Data;
 using NewLife.MQTT.Handlers;
+using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Remoting;
 
@@ -183,6 +184,13 @@ public class ClusterController : IApi, IActionFilter
         raft?.Submit(entry);
         return "OK";
     }
+
+    /// <summary>Raft InstallSnapshot（落后节点拉取快照）</summary>
+    public RaftAppendEntriesResponse InstallSnapshot(RaftSnapshot snapshot)
+    {
+        var raft = _cluster.GetRaft();
+        return raft?.HandleInstallSnapshot(snapshot) ?? new RaftAppendEntriesResponse { Term = 0, Success = false };
+    }
     #endregion
 
     #region 会话漂移
@@ -196,10 +204,18 @@ public class ClusterController : IApi, IActionFilter
         var session = exchange.GetPersistentSessionInfo(clientId);
         if (session == null) return null;
 
+        // 提取离线消息（从队列中取出，随会话迁移到新节点）
+        var pendingMessages = new List<PublishMessage>();
+        while (session.OfflineMessages.TryDequeue(out var msg))
+        {
+            pendingMessages.Add(msg);
+        }
+
         return new SessionInfo
         {
             ClientId = clientId,
             Subscriptions = session.Subscriptions.ToDictionary(kv => kv.Key, kv => (Int32)kv.Value),
+            PendingMessages = pendingMessages.Count > 0 ? pendingMessages : null,
         };
     }
 

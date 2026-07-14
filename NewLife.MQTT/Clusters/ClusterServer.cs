@@ -1,7 +1,9 @@
 ﻿using System.Collections.Concurrent;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT.Handlers;
+using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Remoting;
 using NewLife.Threading;
@@ -44,6 +46,13 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
     private ApiServer? _server;
     private TimerX? _timer;
+    private TimerX? _metricsTimer;
+
+    /// <summary>集群转发消息计数</summary>
+    private Int64 _messageCount;
+
+    /// <summary>集群转发字节计数</summary>
+    private Int64 _byteCount;
     #endregion
 
     #region 构造
@@ -111,6 +120,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         // 启动Raft共识引擎（如已注入）
         RaftCluster?.Start();
+
+        // 启动集群指标定时发布
+        _metricsTimer = new TimerX(PublishMetrics, null, 10_000, 60_000) { Async = true };
     }
 
     /// <summary>停止服务</summary>
@@ -130,6 +142,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         _timer.TryDispose();
         _timer = null;
+
+        _metricsTimer.TryDispose();
+        _metricsTimer = null;
 
         RaftCluster?.Stop();
 
@@ -204,6 +219,42 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
     /// <summary>获取Raft共识引擎（供ClusterController等使用）</summary>
     public RaftCluster? GetRaft() => RaftCluster;
+
+    /// <summary>记录集群转发的消息</summary>
+    public void IncrementMessageCount(Int32 byteSize)
+    {
+        Interlocked.Increment(ref _messageCount);
+        Interlocked.Add(ref _byteCount, byteSize);
+    }
+
+    private void PublishMetrics(Object? state)
+    {
+        var exchange = Exchange;
+        if (exchange == null) return;
+
+        var nodeCount = Nodes.Count + 1;
+        var raftState = RaftCluster != null ? RaftCluster.State.ToString() : "Disabled";
+
+        // 发布集群指标到 $SYS 主题
+        var msgs = new (String topic, String payload)[]
+        {
+            ("$SYS/cluster/nodes/count", nodeCount.ToString()),
+            ("$SYS/cluster/nodes/active", Nodes.Count(e => e.Value.LastActive > DateTime.Now.AddSeconds(-30)).ToString()),
+            ("$SYS/cluster/messages/forwarded", Interlocked.Read(ref _messageCount).ToString()),
+            ("$SYS/cluster/bytes/forwarded", Interlocked.Read(ref _byteCount).ToString()),
+            ("$SYS/cluster/raft/state", raftState),
+        };
+
+        foreach (var (topic, payload) in msgs)
+        {
+            var pm = new PublishMessage();
+            pm.Topic = topic;
+            pm.QoS = QualityOfService.AtMostOnce;
+            pm.Retain = false;
+            pm.Payload = new Packet(payload.GetBytes());
+            exchange.Publish(pm);
+        }
+    }
     #endregion
 
     #region 日志

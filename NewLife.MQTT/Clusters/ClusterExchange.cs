@@ -110,6 +110,15 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             if (subs.Count == 0) _topics.TryRemove(info.Topic, out _);
         }
     }
+
+    /// <summary>获取所有主题订阅（供Raft快照使用）</summary>
+    public ConcurrentDictionary<String, List<SubscriptionInfo>> GetAllTopics() => _topics;
+
+    /// <summary>替换所有主题订阅（供Raft快照恢复使用）</summary>
+    public void ReplaceAllTopics(Dictionary<String, List<SubscriptionInfo>> topics)
+    {
+        _topics = new ConcurrentDictionary<String, List<SubscriptionInfo>>(topics);
+    }
     #endregion
 
     #region 转发消息
@@ -159,6 +168,9 @@ public class ClusterExchange : DisposeBase, ITracerFeature
                     };
 
                     _ = node.Publish(info);
+
+                    // 记录转发统计
+                    Cluster.IncrementMessageCount(message.Payload?.Length ?? 0);
                 }
                 else
                 {
