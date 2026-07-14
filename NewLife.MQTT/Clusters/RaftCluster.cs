@@ -57,6 +57,7 @@ public class RaftCluster : DisposeBase
 
     private TimerX? _electionTimer;
     private TimerX? _heartbeatTimer;
+    private TimerX? _fallbackTimer;
     private readonly Object _lock = new();
     private Int32 _electionTimeout;
     /// <summary>快照最大Log索引（超过此值的Log可被压缩）</summary>
@@ -95,14 +96,33 @@ public class RaftCluster : DisposeBase
 
         if (nodeCount < 3)
         {
-            Cluster.WriteLog("Raft: 节点数 {0} < 3，降级为RPC广播模式", nodeCount);
+            Cluster.WriteLog("Raft: 节点数 {0} < 3，降级为RPC广播模式（每30s检测是否有新节点加入以自动升级）", nodeCount);
+            // 定期检测是否有新节点加入，达到3节点后自动升级
+            _fallbackTimer = new TimerX(TryUpgradeFromFallback, null, 30_000, 30_000) { Async = true };
+            State = RaftState.Follower;
             return;
         }
+
+        _fallbackTimer.TryDispose();
+        _fallbackTimer = null;
 
         // 启动为Follower，等待选举超时
         BecomeFollower(CurrentTerm);
 
         Cluster.WriteLog("Raft: 启动完成 NodeId={0} State={1} Term={2}", NodeId, State, CurrentTerm);
+    }
+
+    /// <summary>从降级模式升级到Raft模式（新节点加入后触发）</summary>
+    private void TryUpgradeFromFallback(Object? state)
+    {
+        var nodeCount = Cluster.Nodes.Count + 1;
+        if (nodeCount >= 3)
+        {
+            Cluster.WriteLog("Raft: 节点数达到 {0}，从RPC广播模式升级为Raft共识模式", nodeCount);
+            _fallbackTimer.TryDispose();
+            _fallbackTimer = null;
+            BecomeFollower(CurrentTerm);
+        }
     }
 
     /// <summary>停止Raft引擎</summary>
@@ -113,6 +133,9 @@ public class RaftCluster : DisposeBase
 
         _heartbeatTimer.TryDispose();
         _heartbeatTimer = null;
+
+        _fallbackTimer.TryDispose();
+        _fallbackTimer = null;
     }
     #endregion
 

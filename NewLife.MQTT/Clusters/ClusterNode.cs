@@ -169,5 +169,14 @@ public class ClusterNode : DisposeBase
 
         return Client.InvokeAsync<String>("Cluster/DeleteSession", new { clientId });
     }
+
+    /// <summary>原子化获取并删除远程节点的持久会话（会话迁移）</summary>
+    /// <param name="clientId">客户端标识</param>
+    public Task<SessionInfo?> TransferSession(String clientId)
+    {
+        Init();
+
+        return Client.InvokeAsync<SessionInfo>("Cluster/TransferSession", new { clientId });
+    }
     #endregion
 }

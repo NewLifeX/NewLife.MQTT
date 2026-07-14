@@ -193,6 +193,19 @@ public class ClusterController : IApi, IActionFilter
     }
     #endregion
 
+    #region 系统管理
+    /// <summary>集群健康检查</summary>
+    public Object Health() => new
+    {
+        NodeId = _cluster.GetNodeInfo().EndPoint,
+        Nodes = _cluster.Nodes.Count,
+        ActiveNodes = _cluster.Nodes.Count(e => e.Value.LastActive > DateTime.Now.AddSeconds(-30)),
+        RaftState = _cluster.RaftCluster?.State.ToString() ?? "Disabled",
+        RaftLeader = _cluster.RaftCluster?.LeaderId,
+        ClusterSecret = !_cluster.ClusterSecret.IsNullOrEmpty() ? "configured" : null,
+    };
+    #endregion
+
     #region 会话漂移
     /// <summary>从本节点查询客户端的持久会话（供重连到其他节点的客户端使用）</summary>
     /// <param name="clientId">客户端标识</param>
@@ -228,6 +241,15 @@ public class ClusterController : IApi, IActionFilter
             exchange.DeletePersistentSession(clientId);
 
         return "OK";
+    }
+
+    /// <summary>原子化获取并删除持久会话。避免会话迁移期间被误恢复造成竞争</summary>
+    public SessionInfo? TransferSession(String clientId)
+    {
+        var info = GetSession(clientId);
+        if (info != null)
+            DeleteSession(clientId);
+        return info;
     }
     #endregion
 
