@@ -1,10 +1,13 @@
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using NewLife;
 using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT;
+using NewLife.MQTT.Messaging;
 using NewLife.MQTT.MqttSn;
 using Xunit;
 
@@ -31,5 +34,58 @@ public class MqttSnE2ETests
         Assert.NotNull(msg);
         Assert.IsType<MqttSnConnAckMessage>(msg);
         Assert.Equal(MqttSnReturnCode.Accepted, ((MqttSnConnAckMessage)msg).ReturnCode);
+    }
+
+    [System.ComponentModel.DisplayName("MQTT-SN: MqttSnClient.ConnectAsync E2E through gateway")]
+    [Fact]
+    public async Task SnClientConnectThroughGateway()
+    {
+        using var server = new MqttServer { Port = 0, ServiceProvider = new ObjectContainer().BuildServiceProvider(), Log = XTrace.Log, SessionLog = XTrace.Log };
+        server.Start();
+        using var gateway = new MqttSnGateway { Port = 0, GatewayId = 1, MqttBroker = $"tcp://127.0.0.1:{server.Port}", AdvertiseInterval = 120, Log = XTrace.Log };
+        gateway.Start();
+
+        using var client = new MqttSnClient
+        {
+            ClientId = "sn-e2e-01",
+            LocalPort = 0,
+            Gateway = new IPEndPoint(IPAddress.Loopback, gateway.ActualPort),
+            KeepAliveSeconds = 120,
+            CleanSession = true,
+            Log = XTrace.Log,
+        };
+
+        var connected = await client.ConnectAsync();
+        Assert.True(connected, "MqttSnClient should successfully connect to gateway");
+    }
+
+    [System.ComponentModel.DisplayName("MQTT-SN: MqttSnClient RegisterTopic + Publish E2E")]
+    [Fact]
+    public async Task SnClientRegisterAndPublishE2E()
+    {
+        using var server = new MqttServer { Port = 0, ServiceProvider = new ObjectContainer().BuildServiceProvider(), Log = XTrace.Log, SessionLog = XTrace.Log };
+        server.Start();
+
+        using var gateway = new MqttSnGateway { Port = 0, GatewayId = 1, MqttBroker = $"tcp://127.0.0.1:{server.Port}", AdvertiseInterval = 120, Log = XTrace.Log };
+        gateway.Start();
+
+        using var client = new MqttSnClient
+        {
+            ClientId = "sn-pub-e2e",
+            LocalPort = 0,
+            Gateway = new IPEndPoint(IPAddress.Loopback, gateway.ActualPort),
+            KeepAliveSeconds = 120,
+            CleanSession = true,
+            Log = XTrace.Log,
+        };
+        var connected = await client.ConnectAsync();
+        Assert.True(connected, "Should connect");
+
+        // Register a topic - this uses REGISTER/REGACK through the receive loop
+        var topicId = await client.RegisterTopicAsync("/test/sn-e2e-register");
+        Assert.True(topicId > 0, $"Should get a valid topic ID, got {topicId}");
+
+        // Publish using the registered topic ID
+        await client.PublishAsync(topicId, "hello-e2e"u8.ToArray(), QualityOfService.AtMostOnce);
     }
 }

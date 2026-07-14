@@ -10,7 +10,7 @@ public class DbExchange : IStorageProvider
     public String Name => "Database";
 
     /// <summary>初始化存储</summary>
-    public Task InitAsync() => Task.CompletedTask;
+    public Task InitAsync() => Task.FromResult(false);
 
     /// <summary>保存持久会话</summary>
     public Task SavePersistentSessionAsync(String clientId, Int32 sessionId, IDictionary<String, QualityOfService>? subscriptions)
@@ -23,7 +23,7 @@ public class DbExchange : IStorageProvider
             ExpireTime = DateTime.Now.AddDays(7),
         };
         entity.Save();
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     /// <summary>恢复持久会话</summary>
@@ -47,7 +47,7 @@ public class DbExchange : IStorageProvider
     {
         MqttSessionEntity.FindByClientId(clientId)?.Delete();
         MqttOfflineMessageEntity.DeleteByClientId(clientId);
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     /// <summary>入队离线消息</summary>
@@ -61,7 +61,7 @@ public class DbExchange : IStorageProvider
             QoS = (Int32)message.QoS,
             Retain = message.Retain,
         }.Save();
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     /// <summary>获取并清空离线消息</summary>

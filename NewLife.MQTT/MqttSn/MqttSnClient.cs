@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
 using NewLife.Threading;
@@ -25,6 +27,8 @@ public class MqttSnClient : DisposeBase
     private UdpClient? _udpClient;
     private TimerX? _keepAliveTimer;
     private CancellationTokenSource? _cts;
+    private readonly ConcurrentQueue<MqttSnMessage> _pendingResponses = new();
+    private readonly SemaphoreSlim _recvSemaphore = new(1, 1);
     #endregion
 
     #region Connection
@@ -177,11 +181,17 @@ public class MqttSnClient : DisposeBase
         {
             try
             {
-                var msg = await ReceiveAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                var msg = await RawReceiveAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                if (msg == null) continue;
+
                 if (msg is MqttSnPublishMessage pub)
                 {
                     foreach (var sub in _subscriptions.Values)
                         sub.Invoke("sn/" + pub.TopicId, pub.Data);
+                }
+                else
+                {
+                    _pendingResponses.Enqueue(msg);
                 }
             }
             catch (OperationCanceledException) { break; }
@@ -189,21 +199,46 @@ public class MqttSnClient : DisposeBase
         }
     }
 
-    private async Task<MqttSnMessage?> ReceiveAsync(TimeSpan timeout)
+    private async Task<MqttSnMessage?> RawReceiveAsync(TimeSpan timeout)
     {
         if (_udpClient == null) return null;
-        var cts = new CancellationTokenSource(timeout);
+
+        await _recvSemaphore.WaitAsync().ConfigureAwait(false);
         try
         {
+            var cts = new CancellationTokenSource(timeout);
+            try
+            {
 #if NET6_0_OR_GREATER
-            var result = await _udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                var result = await _udpClient.ReceiveAsync(cts.Token).ConfigureAwait(false);
 #else
-            var result = await _udpClient.ReceiveAsync().ConfigureAwait(false);
+                var result = await _udpClient.ReceiveAsync().ConfigureAwait(false);
 #endif
-            return MqttSnCodec.Decode(result.Buffer, 0, result.Buffer.Length);
+                return MqttSnCodec.Decode(result.Buffer, 0, result.Buffer.Length);
+            }
+            catch (OperationCanceledException) { return null; }
+            catch (ObjectDisposedException) { return null; }
         }
-        catch (OperationCanceledException) { return null; }
-        catch (ObjectDisposedException) { return null; }
+        finally
+        {
+            _recvSemaphore.Release();
+        }
+    }
+
+    private async Task<MqttSnMessage?> ReceiveAsync(TimeSpan timeout)
+    {
+        // 优先检查已缓冲的响应队列
+        if (_pendingResponses.TryDequeue(out var cached))
+            return cached;
+
+        var result = await RawReceiveAsync(timeout).ConfigureAwait(false);
+        if (result != null) return result;
+
+        // 超时后重新检查队列——接收循环可能已取到并放入
+        if (_pendingResponses.TryDequeue(out cached))
+            return cached;
+
+        return null;
     }
 
     private async Task SendAsync(MqttSnMessage message)

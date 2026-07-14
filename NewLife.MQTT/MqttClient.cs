@@ -84,6 +84,15 @@ public class MqttClient : DisposeBase
     /// <summary>启用ProxyProtocol。仿造MQTT报文通过nginx/haproxy时的封包,仅用于测试,实际应用没有意义,默认false</summary>
     public Boolean EnableProxyProtocol { get; set; }
 
+    /// <summary>SOCKS5 代理地址。设置后 TCP/WS 连接将通过 SOCKS5 代理转发，格式 host:port</summary>
+    public String? Socks5Server { get; set; }
+
+    /// <summary>SOCKS5 代理用户名（可选）</summary>
+    public String? Socks5UserName { get; set; }
+
+    /// <summary>SOCKS5 代理密码（可选）</summary>
+    public String? Socks5Password { get; set; }
+
     /// <summary>遗嘱主题。设置后异常断开时服务端将发布遗嘱消息</summary>
     public String? WillTopic { get; set; }
 
@@ -316,8 +325,23 @@ public class MqttClient : DisposeBase
                 if (uri.Port == 0) uri.Port = 1883;
                 WriteLog("正在连接[{0}]", uri);
 
-                client = uri.CreateRemote();
-                if (EnableProxyProtocol) client.Add(new ProxyCodec { Client = true });
+                // SOCKS5 代理：先连接到代理，通过代理转发到目标服务器
+                if (!Socks5Server.IsNullOrEmpty())
+                {
+                    var proxyUri = new NetUri($"tcp://{Socks5Server}");
+                    WriteLog("通过SOCKS5代理[{0}]连接[{1}]", proxyUri, uri);
+                    client = await ConnectViaSocks5(proxyUri, uri, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    client = uri.CreateRemote();
+                }
+
+                if (EnableProxyProtocol)
+                {
+                    if (client is ISocketClient sc)
+                        sc.Add(new ProxyCodec { Client = true });
+                }
                 client.Add(new MqttCodec());
             }
 
@@ -973,6 +997,81 @@ public class MqttClient : DisposeBase
 
     private TimerX? _timerPing;
     private async Task DoPing(Object state) => await PingAsync().ConfigureAwait(false);
+    #endregion
+
+    #region SOCKS5 代理
+    /// <summary>通过 SOCKS5 代理连接到目标服务器</summary>
+    private async Task<ISocketClient> ConnectViaSocks5(NetUri proxyUri, NetUri targetUri, CancellationToken cancellationToken)
+    {
+        // 创建到 SOCKS5 代理的 TCP 连接
+        var proxySession = proxyUri.CreateRemote();
+        proxySession.Log = Log;
+        proxySession.Timeout = Timeout;
+
+        await proxySession.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        // SOCKS5 握手：认证方法协商
+        Byte[] authMethods;
+        if (!Socks5UserName.IsNullOrEmpty())
+            authMethods = new Byte[] { 0x05, 2, 0x00, 0x02 }; // SOCKS5, 2 methods, NoAuth, UserPass
+        else
+            authMethods = new Byte[] { 0x05, 1, 0x00 }; // SOCKS5, 1 method, NoAuth
+        proxySession.Send(authMethods);
+
+        var pk = await proxySession.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+        if (pk == null || pk.Length < 2 || pk[0] != 0x05) throw new InvalidOperationException("SOCKS5 proxy negotiation failed");
+
+        var chosen = pk[1];
+        // 用户名密码认证（如需）
+        if (chosen == 0x02)
+        {
+            if (Socks5UserName.IsNullOrEmpty()) throw new InvalidOperationException("SOCKS5 proxy requires authentication");
+
+            var userBytes = Socks5UserName.GetBytes();
+            var passBytes = (Socks5Password ?? "").GetBytes();
+            var authData = new Byte[3 + userBytes.Length + passBytes.Length];
+            authData[0] = 0x01; // VER
+            authData[1] = (Byte)userBytes.Length;
+            Array.Copy(userBytes, 0, authData, 2, userBytes.Length);
+            authData[2 + userBytes.Length] = (Byte)passBytes.Length;
+            Array.Copy(passBytes, 0, authData, 3 + userBytes.Length, passBytes.Length);
+            proxySession.Send(authData);
+
+            pk = await proxySession.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+            if (pk == null || pk.Length < 2 || pk[1] != 0x00) throw new InvalidOperationException("SOCKS5 proxy authentication failed");
+        }
+        else if (chosen != 0x00 && chosen != 0x02)
+        {
+            throw new InvalidOperationException($"SOCKS5 proxy requires auth method 0x{chosen:X2}");
+        }
+
+        // 发出连接请求：CMD_CONNECT，端口转网络字节序
+        var hostBytes = targetUri.Host.GetBytes();
+        var port = (UInt16)targetUri.Port;
+        var portBytes = new Byte[2];
+        portBytes[0] = (Byte)(port >> 8);
+        portBytes[1] = (Byte)(port);
+        var req = new Byte[4 + 1 + hostBytes.Length + 2];
+        req[0] = 0x05; // VER
+        req[1] = 0x01; // CMD connect
+        req[2] = 0x00; // RSV
+        req[3] = 0x03; // ATYP domain name
+        req[4] = (Byte)hostBytes.Length;
+        Array.Copy(hostBytes, 0, req, 5, hostBytes.Length);
+        Array.Copy(portBytes, 0, req, 5 + hostBytes.Length, 2);
+        proxySession.Send(req);
+
+        // 读取响应
+        pk = await proxySession.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+        if (pk == null || pk.Length < 2 || pk[0] != 0x05 || pk[1] != 0x00)
+        {
+            var repCode = pk != null && pk.Length > 1 ? pk[1] : -1;
+            throw new InvalidOperationException($"SOCKS5 proxy connect failed: rep={repCode}");
+        }
+
+        WriteLog("SOCKS5 proxy connected to [{0}]", targetUri);
+        return proxySession;
+    }
     #endregion
 
     #region 日志

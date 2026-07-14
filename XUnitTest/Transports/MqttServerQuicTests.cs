@@ -42,6 +42,7 @@ public class MqttServerQuicTests
         {
             using var server = new MqttServer
             {
+                Port = 0,
                 QuicPort = 14568,
                 ServiceProvider = new ObjectContainer().BuildServiceProvider(),
                 Log = XTrace.Log,

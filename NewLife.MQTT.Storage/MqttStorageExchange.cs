@@ -31,5 +31,5 @@ public class MqttStorageExchange : MqttExchange
     }
 
     /// <summary>初始化存储</summary>
-    public async Task InitAsync() => await (Provider?.InitAsync() ?? Task.CompletedTask);
+    public async Task InitAsync() => await (Provider?.InitAsync() ?? Task.FromResult(false));
 }
