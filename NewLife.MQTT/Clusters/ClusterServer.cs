@@ -35,6 +35,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>批量合并转发管道。将发往同一节点的多条小消息合并为批量RPC</summary>
     public BatchForwardPipe? BatchPipe { get; set; }
 
+    /// <summary>分片路由表。基于一致哈希将主题映射到分片→节点</summary>
+    public TopicRouter? TopicRouter { get; set; }
+
     /// <summary>Raft共识引擎。节点数≥3时自动启用</summary>
     public RaftCluster? RaftCluster { get; set; }
 
@@ -141,6 +144,18 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
             BatchPipe.Start();
         }
 
+        // 启动分片路由表（如已注入），关联到 ClusterExchange
+        if (TopicRouter != null)
+        {
+            TopicRouter.Cluster = this;
+            if (ClusterExchange != null) ClusterExchange.TopicRouter = TopicRouter;
+            // 同步当前已知节点
+            foreach (var node in Nodes)
+            {
+                TopicRouter.OnNodeJoined(node.Key);
+            }
+        }
+
         // 启动集群指标定时发布
         _metricsTimer = new TimerX(PublishMetrics, null, 10_000, 60_000) { Async = true };
     }
@@ -205,6 +220,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
             {
                 node.TryDispose();
             }
+
+            // 通知分片路由表节点离开
+            TopicRouter?.OnNodeLeft(item);
         }
 
         var myNode = GetNodeInfo();
@@ -236,6 +254,9 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         // 马上开始连接并心跳
         _timer?.SetNext(200);
+
+        // 通知分片路由表新节点加入
+        TopicRouter?.OnNodeJoined(endpoint);
 
         //_ = node.Join(GetNodeInfo());
 

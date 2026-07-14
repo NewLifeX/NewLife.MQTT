@@ -20,6 +20,12 @@ public class ClusterExchange : DisposeBase, ITracerFeature
     /// <summary>布隆过滤器交换机。用于跨节点转发预检，减少无效RPC调用</summary>
     public BloomFilterExchange? BloomFilter { get; set; }
 
+    /// <summary>分片路由表。基于一致哈希将主题映射到分片→节点，提供定向转发路由</summary>
+    public TopicRouter? TopicRouter { get; set; }
+
+    /// <summary>分片索引订阅存储。按分片索引维护订阅关系，供分片感知路由使用</summary>
+    private ConcurrentDictionary<Int32, ConcurrentDictionary<String, List<SubscriptionInfo>>> _shardTopics = new();
+
     /// <summary>链路追踪</summary>
     public ITracer? Tracer { get; set; }
     #endregion
@@ -98,6 +104,19 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             if (!subs.Any(e => e.Endpoint == info.Endpoint)) subs.Add(info);
         }
 
+        // 维护分片索引：将订阅按分片分组，供分片感知路由查询
+        var router = TopicRouter;
+        if (router != null)
+        {
+            var shardIndex = router.GetShardIndex(info.Topic);
+            var shardDict = _shardTopics.GetOrAdd(shardIndex, _ => new ConcurrentDictionary<String, List<SubscriptionInfo>>());
+            var shardSubs = shardDict.GetOrAdd(info.Topic, _ => []);
+            lock (shardSubs)
+            {
+                if (!shardSubs.Any(e => e.Endpoint == info.Endpoint)) shardSubs.Add(info);
+            }
+        }
+
         // 增量更新布隆过滤器：远程节点 info.Endpoint 现在有订阅 info.Topic
         BloomFilter?.OnSubscriptionChanged(info.Topic, info.Endpoint, true);
     }
@@ -153,6 +172,12 @@ public class ClusterExchange : DisposeBase, ITracerFeature
         PublishInfo? info = null;
 
         // 集群发布2，查找其它节点订阅关系，然后转发消息
+        // 分片路由预检：获取该主题的分片优先节点，用于路由诊断和未来定向转发
+        var topicRouter = TopicRouter;
+        List<String>? shardNodes = null;
+        if (topicRouter != null && topicRouter.Enable)
+            shardNodes = topicRouter.GetTargetNodes(message.Topic);
+
         // 先通过布隆过滤器快速跳过无匹配的节点，再遍历所有Topic精确匹配
         var bloomFilter = BloomFilter;
 
