@@ -167,6 +167,11 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     }
 
     /// <summary>清理指定会话的所有订阅（本地 _topics + 集群广播退订）</summary>
+    /// <remarks>
+    /// 仅在该主题无本地其他订阅者时才向集群广播退订，避免误删其他客户端在同一节点的订阅记录。
+    /// 例如：客户端 A 和 B 都订阅了 "test/#"，A 断开时若立即广播退订，
+    /// 集群节点会删除整个节点的订阅记录，导致 B 后续收不到跨节点消息。
+    /// </remarks>
     private void RemoveSessionSubscriptions(Int32 sessionId)
     {
         if (ClusterExchange == null) return;
@@ -181,7 +186,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             lock (kv.Value)
             {
                 var count = kv.Value.RemoveAll(e => e.Id == sessionId);
-                if (count > 0)
+
+                // 只有该主题已无本地订阅者时，才通知集群节点删除订阅记录
+                if (count > 0 && kv.Value.Count == 0)
                     infos.Add(new SubscriptionInfo
                     {
                         Topic = kv.Key,
@@ -198,7 +205,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
         // 向集群其他节点广播取消订阅，清理残留的 ClusterExchange._topics 条目
         var arr = infos.ToArray();
-        Parallel.ForEach(ClusterExchange.Cluster.Nodes, item =>
+        foreach (var item in ClusterExchange.Cluster.Nodes)
         {
             try
             {
@@ -208,7 +215,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             {
                 XTrace.WriteException(ex);
             }
-        });
+        }
     }
     #endregion
 

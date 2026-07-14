@@ -15,12 +15,12 @@ public class MqttSetting : Config<MqttSetting>
     [Description("端口。默认 1883")]
     public Int32 Port { get; set; } = 1883;
 
-    /// <summary>集群端口。默认 0</summary>
-    [Description("集群端口。默认 0")]
+    /// <summary>集群端口。默认 0，当前节点用于接收其他集群节点连接的端口，建议2883</summary>
+    [Description("集群端口。默认 0，当前节点用于接收其他集群节点连接的端口，建议2883")]
     public Int32 ClusterPort { get; set; }
 
-    /// <summary>集群节点。其它节点地址，逗号分隔</summary>
-    [Description("集群节点。其它节点地址，逗号分隔")]
+    /// <summary>集群节点。节点地址，逗号分隔，格式：ip1:port1,ip2:port2。这里的端口应对应节点的ClusterPort，可以包含自己</summary>
+    [Description("集群节点。节点地址，逗号分隔，格式：ip1:port1,ip2:port2。这里的端口应对应节点的ClusterPort，可以包含自己")]
     public String ClusterNodes { get; set; } = "";
 
     /// <summary>是否启用WebSocket。默认 true</summary>

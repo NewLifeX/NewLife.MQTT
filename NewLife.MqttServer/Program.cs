@@ -73,4 +73,4 @@ if (star.Service != null)
 Host.RegisterExit((s, e) => svr.Stop(s + ""));
 
 // 异步阻塞，友好退出
-await host.RunAsync();
+await host.RunAsync().ConfigureAwait(false);

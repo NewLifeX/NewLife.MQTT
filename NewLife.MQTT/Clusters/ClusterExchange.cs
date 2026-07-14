@@ -37,8 +37,8 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             SessionId = session.ID,
         }).ToArray();
 
-        // 集群订阅2，向其它节点广播订阅关系
-        Parallel.ForEach(Cluster.Nodes, item =>
+        // 集群订阅2，向其它节点广播订阅关系。顺序发送避免并发撑爆RPC队列
+        foreach (var item in Cluster.Nodes)
         {
             try
             {
@@ -49,7 +49,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             {
                 XTrace.WriteException(ex);
             }
-        });
+        }
     }
 
     /// <summary>取消主题订阅</summary>
@@ -67,8 +67,8 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             SessionId = session.ID,
         }).ToArray();
 
-        // 集群退订2，向其它节点广播取消订阅关系
-        Parallel.ForEach(Cluster.Nodes, item =>
+        // 集群退订2，向其它节点广播取消订阅关系。顺序发送避免并发撑爆RPC队列
+        foreach (var item in Cluster.Nodes)
         {
             try
             {
@@ -79,7 +79,7 @@ public class ClusterExchange : DisposeBase, ITracerFeature
             {
                 XTrace.WriteException(ex);
             }
-        });
+        }
     }
 
     /// <summary>添加远程订阅关系</summary>
