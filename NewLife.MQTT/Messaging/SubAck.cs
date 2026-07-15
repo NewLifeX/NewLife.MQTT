@@ -54,9 +54,12 @@ public sealed class SubAck : MqttIdMessage
     {
         if (!base.OnWrite(ref writer, context)) return false;
 
-        // MQTT 5.0：在 GrantedQos 之前写入 Properties
-        if (context is MqttVersion ver && ver >= MqttVersion.V500 && Properties != null)
+        // MQTT 5.0：在 GrantedQos 之前写入 Properties（即使为空也需要写入空长度）
+        if (context is MqttVersion ver && ver >= MqttVersion.V500)
+        {
+            Properties ??= new MqttProperties();
             Properties.Write(ref writer);
+        }
 
         foreach (var item in GrantedQos)
         {
@@ -71,7 +74,11 @@ public sealed class SubAck : MqttIdMessage
     protected override Int32 GetEstimatedBodySize()
     {
         var size = 2 + GrantedQos.Count;
-        if (Properties != null) size += Properties.GetEstimatedSize();
+        // MQTT 5.0 必须写入 Properties 长度字段（至少 1 字节表示空属性）
+        if (Properties != null)
+            size += Properties.GetEstimatedSize();
+        else
+            size += 1; // 空属性段：1 字节 0x00
         return size;
     }
 
