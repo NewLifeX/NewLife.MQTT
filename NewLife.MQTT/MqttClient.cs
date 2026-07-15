@@ -745,7 +745,7 @@ public class MqttClient : DisposeBase
 
     private void Client_Error(Object sender, ExceptionEventArgs e)
     {
-        //throw new NotImplementedException();
+        WriteLog("传输层异常: {0}", e.Exception?.Message);
     }
 
     private void Client_Closed(Object sender, EventArgs e)
