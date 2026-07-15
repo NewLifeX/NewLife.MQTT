@@ -17,10 +17,11 @@
 | **协议完整** | MQTT 3.1 / 3.1.1 / 5.0，14 种基础报文 + AUTH 报文，30 种 5.0 属性 |
 | **零依赖** | 仅依赖 NewLife.Core，NuGet 依赖链中无任何第三方包，无供应链安全风险 |
 | **客户端+服务端一体** | 单一 `NewLife.MQTT` NuGet 包，无需区分客户端/服务端版本 |
-| **六种传输** | TCP / TLS / WebSocket / WSS / QUIC（.NET 7+）/ 可靠 UDP（全平台独创）|
+| **七种传输** | TCP / TLS / WebSocket / WSS / QUIC（.NET 7+）/ 可靠 UDP（全平台独创）/ ProxyProtocol v1/v2 |
 | **高性能** | 基于 NewLife.Net，单机百万级连接（400 万验证），千万级消息吞吐（2266 万 tps 验证）|
 | **企业功能免费** | 集群 / 桥接 / 规则引擎 / WebHook / $SYS / ACL 全部免费内置 |
 | **自动重订阅** | 断线重连后自动重新订阅全部主题，无需用户代码干预 |
+| **SOCKS5 代理** | 内置 SOCKS5 代理支持（用户名密码认证），TCP/WS 连接均可通过代理转发 |
 | **全版本覆盖** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 ~ net10 |
 | **信创合规** | 完全自主研发，MIT 开源，无 Copyleft / 专利条款，无境外供应链风险 |
 
@@ -308,7 +309,7 @@ await client.PublishPropertyAsync(new { temperature = 25.6 });
 | 🔒 **零依赖** | 仅依赖 NewLife.Core 基础库，无供应链安全风险，无许可证冲突 |
 | ⚖️ **MIT 开源** | 最宽松的开源协议，可自由修改商用，无 copyleft 限制，无专利条款，无法律风险 |
 | 🎯 **客户端+服务端一体** | 单一 `NewLife.MQTT` NuGet 包同时提供客户端和服务端，极简集成 |
-| 🌐 **六种传输协议** | TCP / TLS / WebSocket / WSS / QUIC(.NET 7+) / 可靠UDP，业界覆盖面最广 |
+| 🌐 **七种传输协议** | TCP / TLS / WebSocket / WSS / QUIC(.NET 7+) / 可靠UDP / ProxyProtocol v1/v2，业界覆盖面最广 |
 | 🏢 **企业功能免费** | 集群/桥接/规则引擎/WebHook/统计/$SYS，竞品需企业版或付费插件 |
 | 🇨🇳 **纯国产自主** | 完全自主知识产权，无外部依赖法律风险，信创合规 |
 | 🔧 **全版本覆盖** | .NET Framework 4.5 / 4.6.1 / .NET Standard 2.0/2.1 / .NET 7/8/9/10 |
