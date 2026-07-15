@@ -1,4 +1,5 @@
 using NewLife.Data;
+using NewLife.MQTT.Messaging;
 using NewLife.Remoting;
 
 namespace NewLife.MQTT.Handlers;
@@ -72,5 +73,60 @@ public class MqttManagementController : IApi, IActionFilter
 
     /// <summary>获取保留消息主题列表</summary>
     public IReadOnlyList<String> Retained() => Exchange.GetRetainedTopics();
+
+    /// <summary>断开指定客户端连接</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <param name="reason">断开原因（可选）</param>
+    /// <returns>是否成功断开</returns>
+    public Boolean DisconnectClient(String clientId, String? reason = null)
+    {
+        if (clientId.IsNullOrEmpty()) return false;
+
+        return Exchange.DisconnectClient(clientId, reason ?? "管理 API 断开");
+    }
+
+    /// <summary>清除指定主题的保留消息</summary>
+    /// <param name="topic">主题名。为空时清除全部保留消息</param>
+    /// <returns>被清除的保留消息数</returns>
+    public Int32 ClearRetained(String? topic = null)
+    {
+        var exchange = Exchange;
+        if (topic.IsNullOrEmpty())
+        {
+            var count = exchange.GetRetainedTopics().Count;
+            foreach (var t in exchange.GetRetainedTopics().ToList())
+            {
+                exchange.Publish(new PublishMessage { Topic = t, Retain = true, Payload = ArrayPacket.Empty });
+            }
+            return count;
+        }
+        else
+        {
+            exchange.Publish(new PublishMessage { Topic = topic, Retain = true, Payload = ArrayPacket.Empty });
+            return 1;
+        }
+    }
+
+    /// <summary>通过管理 API 发布消息</summary>
+    /// <param name="topic">主题</param>
+    /// <param name="payload">消息内容（Base64 编码）</param>
+    /// <param name="qos">QoS，默认 0</param>
+    /// <param name="retain">是否保留，默认 false</param>
+    /// <returns>是否成功发布</returns>
+    public Boolean PublishMessage(String topic, String? payload = null, Int32 qos = 0, Boolean retain = false)
+    {
+        if (topic.IsNullOrEmpty()) return false;
+
+        var msg = new PublishMessage
+        {
+            Topic = topic,
+            Payload = payload != null ? new ArrayPacket(Convert.FromBase64String(payload)) : ArrayPacket.Empty,
+            QoS = (QualityOfService)qos,
+            Retain = retain,
+        };
+
+        Exchange.Publish(msg);
+        return true;
+    }
     #endregion
 }

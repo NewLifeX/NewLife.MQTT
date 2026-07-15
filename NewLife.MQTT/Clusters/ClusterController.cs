@@ -42,6 +42,19 @@ public class ClusterController : IApi, IActionFilter
     /// <returns></returns>
     public String Echo(String msg) => msg;
 
+    /// <summary>更新集群密钥。远程节点调用此方法将新密钥同步到本节点</summary>
+    /// <param name="info">节点信息（含新密钥）</param>
+    /// <returns>确认消息</returns>
+    public String UpdateSecret(NodeInfo info)
+    {
+        if (info.ClusterSecret == null) return "OK";
+
+        _cluster.WriteLog("收到节点密钥更新[{0}]，同步新密钥", info.EndPoint);
+        _cluster.UpdateClusterSecret(info.ClusterSecret);
+
+        return "OK";
+    }
+
     /// <summary>加入集群</summary>
     /// <param name="info"></param>
     /// <returns></returns>

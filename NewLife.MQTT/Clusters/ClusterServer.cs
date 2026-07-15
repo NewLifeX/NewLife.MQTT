@@ -45,7 +45,27 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     public Boolean EnableDiscovery { get; set; }
 
     /// <summary>集群共享密钥。设置后集群端口(2883)需相同密钥才允许加入。同网段UDP发现的节点自动信任。默认 null 表示不校验</summary>
-    public String? ClusterSecret { get; set; }
+    public String? ClusterSecret { get => _clusterSecret; set => UpdateClusterSecret(value); }
+
+    private String? _clusterSecret;
+
+    /// <summary>集群密钥变更事件。参数：(oldSecret, newSecret)。订阅方可在此事件中通知其他节点或重新验证连接</summary>
+    public event Action<String?, String?>? OnClusterSecretChanged;
+
+    /// <summary>更新集群共享密钥（热更新）。更新后广播通知所有已连接节点，不影响已有已验证连接</summary>
+    /// <param name="newSecret">新密钥。null 表示关闭密钥校验</param>
+    public void UpdateClusterSecret(String? newSecret)
+    {
+        var oldSecret = _clusterSecret;
+        if (oldSecret == newSecret) return;
+
+        _clusterSecret = newSecret;
+
+        WriteLog("集群共享密钥已更新：{0} -> {1}", oldSecret ?? "(null)", newSecret ?? "(null)");
+
+        // 触发变更事件，允许外部监听方（如 ClusterNode 连接管理器）处理
+        OnClusterSecretChanged?.Invoke(oldSecret, newSecret);
+    }
 
     /// <summary>自动发现服务实例</summary>
     public ClusterDiscovery? Discovery { get; private set; }

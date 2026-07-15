@@ -748,5 +748,28 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
     /// <summary>获取保留消息的主题列表</summary>
     public IReadOnlyList<String> GetRetainedTopics() => _retainMessages.Keys.ToArray();
+
+    /// <summary>断开指定客户端连接。由管理 API 或集群调用</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <param name="reason">断开原因</param>
+    /// <returns>是否找到并断开了该客户端</returns>
+    public Boolean DisconnectClient(String clientId, String? reason = null)
+    {
+        if (clientId.IsNullOrEmpty()) return false;
+
+        foreach (var kv in _clientIdMap)
+        {
+            if (kv.Value == clientId)
+            {
+                if (_sessions.TryGetValue(kv.Key, out var handler))
+                {
+                    handler.Close(reason ?? "管理 API 断开");
+                    Remove(kv.Key);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     #endregion
 }

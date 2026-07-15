@@ -74,11 +74,9 @@ public class HotTopicDetectorTests
         };
 
         var changed = false;
-        String? changedTopic = null;
         detector.OnLevelChanged += (topic, oldLevel, newLevel, replicas) =>
         {
             changed = true;
-            changedTopic = topic;
         };
 
         // 验证事件注册和 RecordPublish 不抛异常
@@ -101,10 +99,9 @@ public class HotTopicDetectorTests
     public void HotTopicDetectedEvent_DoesNotThrow()
     {
         using var detector = new HotTopicDetector();
-        var detected = false;
         detector.OnHotTopicDetected += (topic, level, rate, subscribers) =>
         {
-            detected = true;
+            // 仅验证事件注册不抛异常
         };
 
         detector.RecordPublish("test/hot-topic");
