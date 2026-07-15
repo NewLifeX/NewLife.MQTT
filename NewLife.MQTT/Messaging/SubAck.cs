@@ -30,6 +30,13 @@ public sealed class SubAck : MqttIdMessage
     {
         if (!base.OnRead(ref reader, context)) return false;
 
+        // MQTT 5.0：SUBACK 载荷为 PacketId + Properties(变长) + ReturnCodes
+        if (context is MqttVersion ver && ver >= MqttVersion.V500)
+        {
+            Properties = new MqttProperties();
+            Properties.Read(ref reader);
+        }
+
         var list = new List<QualityOfService>();
         while (reader.Available > 0)
         {
@@ -47,6 +54,10 @@ public sealed class SubAck : MqttIdMessage
     {
         if (!base.OnWrite(ref writer, context)) return false;
 
+        // MQTT 5.0：在 GrantedQos 之前写入 Properties
+        if (context is MqttVersion ver && ver >= MqttVersion.V500 && Properties != null)
+            Properties.Write(ref writer);
+
         foreach (var item in GrantedQos)
         {
             writer.WriteByte((Byte)item);
@@ -57,7 +68,12 @@ public sealed class SubAck : MqttIdMessage
 
     /// <summary>获取子消息体估算大小</summary>
     /// <returns></returns>
-    protected override Int32 GetEstimatedBodySize() => 2 + GrantedQos.Count;
+    protected override Int32 GetEstimatedBodySize()
+    {
+        var size = 2 + GrantedQos.Count;
+        if (Properties != null) size += Properties.GetEstimatedSize();
+        return size;
+    }
 
     /// <summary>获取计算的标识位。不同消息的有效标记位不同</summary>
     /// <returns></returns>

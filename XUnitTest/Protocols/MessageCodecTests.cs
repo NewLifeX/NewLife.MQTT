@@ -672,4 +672,260 @@ public class MessageCodecTests
         }
     }
     #endregion
+
+    #region MQTT 5.0 消息属性往返 (V500 上下文)
+    /// <summary>V5.0 序列化/反序列化辅助方法</summary>
+    private static T RoundTripV500<T>(T msg) where T : MqttMessage
+    {
+        using var pk = msg.ToPacket(MqttVersion.V500);
+        Assert.True(pk.Total > 0);
+
+        var result = _factory.ReadMessage(pk, MqttVersion.V500);
+        Assert.NotNull(result);
+        Assert.IsType<T>(result);
+
+        return (T)result;
+    }
+
+    [Fact]
+    public void PubRec_V500_RoundTrip_WithReasonCodeAndProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "test-reason");
+
+        var msg = new PubRec
+        {
+            Id = 123,
+            ReasonCode = 0x10, // No matching subscribers
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.PubRec, result.Type);
+        Assert.Equal((UInt16)123, result.Id);
+        Assert.Equal((Byte)0x10, result.ReasonCode);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("test-reason", result.Properties.GetString(MqttPropertyId.ReasonString));
+    }
+
+    [Fact]
+    public void PubRel_V500_RoundTrip_WithReasonCodeAndProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "test-reason");
+
+        var msg = new PubRel
+        {
+            Id = 456,
+            ReasonCode = 0x00, // Success
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.PubRel, result.Type);
+        Assert.Equal((UInt16)456, result.Id);
+        Assert.Equal((Byte)0x00, result.ReasonCode);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("test-reason", result.Properties.GetString(MqttPropertyId.ReasonString));
+    }
+
+    [Fact]
+    public void PubComp_V500_RoundTrip_WithReasonCodeAndProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "test-reason");
+
+        var msg = new PubComp
+        {
+            Id = 789,
+            ReasonCode = 0x00, // Success
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.PubComp, result.Type);
+        Assert.Equal((UInt16)789, result.Id);
+        Assert.Equal((Byte)0x00, result.ReasonCode);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("test-reason", result.Properties.GetString(MqttPropertyId.ReasonString));
+    }
+
+    [Fact]
+    public void SubAck_V500_RoundTrip_WithProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "suback-test");
+
+        var msg = new SubAck
+        {
+            Id = 10,
+            GrantedQos = [QualityOfService.AtMostOnce, QualityOfService.AtLeastOnce, QualityOfService.ExactlyOnce],
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.SubAck, result.Type);
+        Assert.Equal((UInt16)10, result.Id);
+        Assert.Equal(3, result.GrantedQos.Count);
+        Assert.Equal(QualityOfService.AtMostOnce, result.GrantedQos[0]);
+        Assert.Equal(QualityOfService.ExactlyOnce, result.GrantedQos[2]);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("suback-test", result.Properties.GetString(MqttPropertyId.ReasonString));
+    }
+
+    [Fact]
+    public void SubAck_V500_RoundTrip_MultipleProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "suback-test");
+        props.UserProperties.Add(new KeyValuePair<String, String>("key1", "value1"));
+
+        var msg = new SubAck
+        {
+            Id = 20,
+            GrantedQos = [QualityOfService.AtLeastOnce],
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal((UInt16)20, result.Id);
+        Assert.Single(result.GrantedQos);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("suback-test", result.Properties.GetString(MqttPropertyId.ReasonString));
+        Assert.Single(result.Properties.UserProperties);
+        Assert.Equal("key1", result.Properties.UserProperties[0].Key);
+    }
+
+    [Fact]
+    public void UnsubAck_V500_RoundTrip_WithReasonCodesAndProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "unsuback-test");
+
+        var msg = new UnsubAck
+        {
+            Id = 30,
+            ReasonCodes = [0x00, 0x11], // Success, No subscription existed
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.UnSubAck, result.Type);
+        Assert.Equal((UInt16)30, result.Id);
+        Assert.NotNull(result.ReasonCodes);
+        Assert.Equal(2, result.ReasonCodes.Count);
+        Assert.Equal((Byte)0x00, result.ReasonCodes[0]);
+        Assert.Equal((Byte)0x11, result.ReasonCodes[1]);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("unsuback-test", result.Properties.GetString(MqttPropertyId.ReasonString));
+    }
+
+    [Fact]
+    public void UnsubAck_V500_RoundTrip_EmptyReasonCodes()
+    {
+        var props = new MqttProperties();
+        props.UserProperties.Add(new KeyValuePair<String, String>("app", "test"));
+
+        var msg = new UnsubAck
+        {
+            Id = 40,
+            ReasonCodes = [],
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal((UInt16)40, result.Id);
+        Assert.NotNull(result.ReasonCodes);
+        Assert.Empty(result.ReasonCodes);
+        Assert.NotNull(result.Properties);
+        Assert.Single(result.Properties.UserProperties);
+    }
+
+    [Fact]
+    public void DisconnectMessage_V500_RoundTrip_WithReasonCodeAndProperties()
+    {
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "server-shutdown");
+        props.UserProperties.Add(new KeyValuePair<String, String>("info", "maintenance"));
+
+        var msg = new DisconnectMessage
+        {
+            ReasonCode = 0x8D, // Server shutting down
+            Properties = props,
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.Disconnect, result.Type);
+        Assert.Equal((Byte)0x8D, result.ReasonCode);
+        Assert.NotNull(result.Properties);
+        Assert.Equal("server-shutdown", result.Properties.GetString(MqttPropertyId.ReasonString));
+        Assert.Single(result.Properties.UserProperties);
+        Assert.Equal("info", result.Properties.UserProperties[0].Key);
+    }
+
+    [Fact]
+    public void DisconnectMessage_V500_RoundTrip_NoProperties()
+    {
+        // V5.0 DISCONNECT 仅有 ReasonCode 无 Properties
+        var msg = new DisconnectMessage
+        {
+            ReasonCode = 0x8E, // Keep Alive timeout
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal(MqttType.Disconnect, result.Type);
+        Assert.Equal((Byte)0x8E, result.ReasonCode);
+        Assert.Null(result.Properties);
+    }
+
+    [Fact]
+    public void PubRec_V500_RoundTrip_NoProperties()
+    {
+        // V5.0 PUBREC 仅有 ReasonCode 无 Properties
+        var msg = new PubRec
+        {
+            Id = 555,
+            ReasonCode = 0x00, // Success
+        };
+
+        var result = RoundTripV500(msg);
+
+        Assert.Equal((UInt16)555, result.Id);
+        Assert.Equal((Byte)0x00, result.ReasonCode);
+        Assert.Null(result.Properties);
+    }
+
+    [Fact]
+    public void V500_RoundTrip_BackwardCompatible_V311()
+    {
+        // 验证 V5.0 消息在 V3.1.1 上下文中仍能正确回退（仅序列化 PacketId）
+        var props = new MqttProperties();
+        props.SetString(MqttPropertyId.ReasonString, "test");
+
+        var msg = new PubRec
+        {
+            Id = 777,
+            ReasonCode = 0x10,
+            Properties = props,
+        };
+
+        // 使用 V3.1.1 序列化（context=null），Properties 应被忽略
+        using var pk = msg.ToPacket(); // context=null
+        var result = (PubRec)_factory.ReadMessage(pk, MqttVersion.V311);
+
+        Assert.Equal((UInt16)777, result.Id);
+        // V3.1.1 下不读写 ReasonCode 和 Properties
+        Assert.Equal((Byte)0, result.ReasonCode);
+        Assert.Null(result.Properties);
+    }
+    #endregion
 }

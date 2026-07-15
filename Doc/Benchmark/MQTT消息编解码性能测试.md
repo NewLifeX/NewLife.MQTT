@@ -251,19 +251,23 @@ QoS1 相比 QoS0 额外写入/读取一个 2 字节 Id 字段。实测 QoS 差�
 
 4KB 载荷的 Publish 序列化比 0B 多出 74 ns（V3.1.1）和 74 ns（V5.0），是纯粹的 `Span.CopyTo` 开销。等效拷贝速率约 55 GB/s，接近硬件极限，优化空间有限。但对于 64KB+ 的超大载荷场景，可考虑引用传递而非拷贝。
 
-### 4. 部分 V5.0 消息类型未实现属性序列化/反序列化（设计缺陷）
+### 4. ~~部分 V5.0 消息类型未实现属性序列化/反序列化（设计缺陷）~~ ✅ 已修复
 
-以下消息类型声明了 `Properties` 字段但未覆盖 `OnRead`/`OnWrite`：
-- PubAck、PubRec、PubRel、PubComp
-- SubAck（有 OnRead/OnWrite 但未处理 Properties）
-- UnsubAck
-- DisconnectMessage
+~~以下消息类型声明了 `Properties` 字段但未覆盖 `OnRead`/`OnWrite`：~~
+~~- PubAck、PubRec、PubRel、PubComp~~
+~~- SubAck（有 OnRead/OnWrite 但未处理 Properties）~~
+~~- UnsubAck~~
+~~- DisconnectMessage~~
 
-这些消息在 V5.0 协议下无法正确读写 ReasonCode 和 Properties，属于功能缺陷。
+~~这些消息在 V5.0 协议下无法正确读写 ReasonCode 和 Properties，属于功能缺陷。~~
 
-### 5. ToPacket() 不支持传入协议版本（设计缺陷）
+> **修复**：`PubRec`、`PubRel`、`PubComp`、`SubAck`、`UnsubAck`、`DisconnectMessage` 均已实现 V5.0 的 `OnRead`/`OnWrite`。`SubAck` 在 GrantedQos 之前正确解析 Properties。2026-07-15。
 
-`ToPacket()` 始终传 `null` 作为 context，导致 `OnWrite` 中依赖 `context is MqttVersion` 的分支永远不会执行。目前依赖 Properties 是否为 null 来决定是否写入属性，但需要写入空属性长度（0）的场景无法覆盖。
+### 5. ~~ToPacket() 不支持传入协议版本（设计缺陷）~~ ✅ 已修复
+
+~~`ToPacket()` 始终传 `null` 作为 context，导致 `OnWrite` 中依赖 `context is MqttVersion` 的分支永远不会执行。目前依赖 Properties 是否为 null 来决定是否写入属性，但需要写入空属性长度（0）的场景无法覆盖。~~
+
+> **修复**：新增 `ToPacket(MqttVersion version)` 重载，调用方传入版本号即可正确触发 V5.0 序列化。原 `ToPacket()` 行为不变（向后兼容 V3.x）。2026-07-15。
 
 ---
 

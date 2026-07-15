@@ -174,13 +174,26 @@ public abstract class MqttMessage : ISpanSerializable
         return (bodySize <= 127 ? 2 : 5) + bodySize;
     }
 
-    /// <summary>转数据包</summary>
+    /// <summary>转数据包（MQTT 3.x 格式，context=null）</summary>
     /// <returns></returns>
     public virtual IOwnerPacket ToPacket()
     {
         var pk = new OwnerPacket(GetEstimatedSize());
         var writer = new SpanWriter(pk) { IsLittleEndian = false };
         Write(ref writer, null);
+        pk.Resize(writer.WrittenCount);
+        return pk;
+    }
+
+    /// <summary>转数据包（指定协议版本，用于 MQTT 5.0 属性写入）</summary>
+    /// <param name="version">MQTT 协议版本</param>
+    /// <returns></returns>
+    public IOwnerPacket ToPacket(MqttVersion version)
+    {
+        var pk = new OwnerPacket(GetEstimatedSize());
+        var writer = new SpanWriter(pk) { IsLittleEndian = false };
+        Object? ctx = version >= MqttVersion.V500 ? (Object)version : null;
+        Write(ref writer, ctx);
         pk.Resize(writer.WrittenCount);
         return pk;
     }
