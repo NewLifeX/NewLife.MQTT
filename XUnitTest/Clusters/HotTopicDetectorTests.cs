@@ -65,13 +65,12 @@ public class HotTopicDetectorTests
         Assert.Contains("TotalTopics=2", stats); // RecordPublish 立即更新计数
     }
 
-    [Fact(DisplayName = "HotTopicDetector 级别变更事件测试")]
+    [Fact(DisplayName = "HotTopicDetector 级别变更事件注册测试")]
     public void LevelChangedEvent()
     {
         using var detector = new HotTopicDetector
         {
             WindowSeconds = 1,
-            CheckInterval = 100, // 快速检测
         };
 
         var changed = false;
@@ -82,13 +81,40 @@ public class HotTopicDetectorTests
             changedTopic = topic;
         };
 
+        // 验证事件注册和 RecordPublish 不抛异常
         detector.RecordPublish("test/event-topic");
         detector.Start();
-        System.Threading.Thread.Sleep(500);
-        detector.Stop();
+        Assert.True(detector.Active);
 
-        // 事件在生产环境会被触发，单元测试中可能需要调整
-        // 此处仅验证事件注册不抛异常
+        // RecordPublish 后 GetLevel 返回当前记录级别
+        var level = detector.GetLevel("test/event-topic");
+        Assert.Equal(HotTopicLevel.Cold, level);
+
+        detector.Stop();
+        Assert.False(detector.Active);
+
+        // 事件注册不抛异常
+        Assert.False(changed); // 未触发 CheckHotTopics，级别未变更
+    }
+
+    [Fact(DisplayName = "HotTopicDetector 热点检测事件注册不抛异常")]
+    public void HotTopicDetectedEvent_DoesNotThrow()
+    {
+        using var detector = new HotTopicDetector();
+        var detected = false;
+        detector.OnHotTopicDetected += (topic, level, rate, subscribers) =>
+        {
+            detected = true;
+        };
+
+        detector.RecordPublish("test/hot-topic");
+        detector.Start();
+
+        // 验证事件注册不抛异常
+        var ex = Record.Exception(() => detector.RecordPublish("test/hot-topic-2"));
+        Assert.Null(ex);
+
+        detector.Stop();
     }
 
     [Fact(DisplayName = "HotTopicDetector 多主题隔离测试")]

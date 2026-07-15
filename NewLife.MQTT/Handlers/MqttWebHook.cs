@@ -150,6 +150,35 @@ public class MqttWebHook : DisposeBase
         });
     }
 
+    /// <summary>触发退订事件</summary>
+    /// <param name="clientId">客户端标识</param>
+    /// <param name="topic">主题过滤器</param>
+    public void OnClientUnsubscribe(String? clientId, String topic)
+    {
+        Fire(new WebHookEventData
+        {
+            Event = WebHookEvent.ClientUnsubscribe,
+            ClientId = clientId,
+            Topic = topic,
+        });
+    }
+
+    /// <summary>触发消息投递事件</summary>
+    /// <param name="clientId">目标客户端标识</param>
+    /// <param name="message">投递的消息</param>
+    public void OnMessageDelivered(String? clientId, PublishMessage message)
+    {
+        Fire(new WebHookEventData
+        {
+            Event = WebHookEvent.MessageDelivered,
+            ClientId = clientId,
+            Topic = message.Topic,
+            Payload = message.Payload is Packet pk ? Convert.ToBase64String(pk.ToArray()) : null,
+            QoS = (Int32)message.QoS,
+            Retain = message.Retain,
+        });
+    }
+
     /// <summary>异步发送 WebHook</summary>
     private async Task SendAsync(WebHookEndpoint endpoint, WebHookEventData data)
     {
