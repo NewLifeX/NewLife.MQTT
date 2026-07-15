@@ -71,7 +71,11 @@ public sealed class UnsubAck : MqttIdMessage
     {
         var size = 2;
         if (ReasonCodes != null) size += ReasonCodes.Count;
-        if (Properties != null) size += Properties.GetEstimatedSize();
+        // MQTT 5.0 必须写入 Properties 长度字段（至少 1 字节表示空属性）
+        if (Properties != null)
+            size += Properties.GetEstimatedSize();
+        else
+            size += 1; // 空属性段：1 字节 0x00
         return size;
     }
     #endregion
