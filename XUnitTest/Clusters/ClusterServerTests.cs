@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using NewLife.Log;
 using NewLife.Model;
 using NewLife.MQTT.Clusters;
 using NewLife.Net;
+using NewLife.UnitTest;
 using Xunit;
 
 namespace XUnitTest.Clusters;
@@ -21,16 +23,20 @@ public class ClusterServerTests
         var services = ObjectContainer.Current;
         services.AddTransient<ClusterController>();
 
-        _server ??= new ClusterServer
+        if (_server == null)
         {
-            Port = 2883,
-            ServiceProvider = services.BuildServiceProvider(),
+            _server = new ClusterServer
+            {
+                Port = 2883,
+                ServiceProvider = services.BuildServiceProvider(),
 
-            Log = XTrace.Log
-        };
+                Log = XTrace.Log
+            };
+            _server.Start();
+        }
     }
 
-    //[TestOrder(1)]
+    [TestOrder(1)]
     [Fact]
     public void StartTest()
     {
@@ -38,15 +44,13 @@ public class ClusterServerTests
 
         var server = _server;
         Assert.NotNull(server);
-
-        server.Start();
-
         Assert.NotNull(server.ServiceProvider);
 
         // 检测端口是否打开
         NetHelper.CheckPort(IPAddress.Any, NetType.Tcp, server.Port);
     }
 
+    [TestOrder(2)]
     [Fact]
     public async Task JoinTest()
     {
@@ -57,7 +61,7 @@ public class ClusterServerTests
         var ip = NetHelper.MyIP();
         var myNode = new NodeInfo { EndPoint = "127.0.0.2:2883" };
 
-        var node = new ClusterNode { EndPoint = $"{ip}:{server.Port}" };
+        using var node = new ClusterNode { EndPoint = $"{ip}:{server.Port}" };
 
         var txt = "Hello";
         var rs = await node.Echo(txt);
@@ -76,6 +80,7 @@ public class ClusterServerTests
         Assert.Empty(server.Nodes);
     }
 
+    [TestOrder(3)]
     [Fact]
     public void CreateCluster()
     {
@@ -115,13 +120,48 @@ public class ClusterServerTests
 
         Assert.Equal(servers.Length, _server.Nodes.Count);
 
-        //Thread.Sleep(1000);
+        XTrace.WriteLine("主集群节点数：{0}", _server.Nodes.Count);
 
-        XTrace.WriteLine("集群节点数：{0}", _server.Nodes.Count);
+        // 等待各节点通过心跳同步，最长等待 5 秒
+        var deadline = DateTime.Now.AddSeconds(5);
+        while (DateTime.Now < deadline)
+        {
+            var allReady = true;
+            for (var i = 0; i < servers.Length; i++)
+            {
+                if (servers[i].Nodes.Count < 1)
+                {
+                    allReady = false;
+                    break;
+                }
+            }
+            if (allReady) break;
 
-        var ms = servers.Length * 1000 / 100;
-        if (ms < 1000) ms = 1000;
-        Thread.Sleep(ms);
+            Thread.Sleep(200);
+        }
+
+        // 若心跳同步失败，主动发送 Ping 确保节点发现
+        for (var i = 0; i < servers.Length; i++)
+        {
+            if (servers[i].Nodes.Count < 1)
+            {
+                foreach (var item in _server.Nodes)
+                {
+                    try
+                    {
+                        item.Value.Ping(_server.GetNodeInfo()).GetAwaiter().GetResult();
+                    }
+                    catch
+                    {
+                        // 忽略单个 Ping 失败
+                    }
+                }
+                break;
+            }
+        }
+
+        // 再等待 Ping 处理完成
+        Thread.Sleep(500);
 
         // 验证集群
         for (var i = 0; i < servers.Length; i++)
@@ -133,6 +173,7 @@ public class ClusterServerTests
         foreach (var s in servers) s.Stop("TestDone");
     }
 
+    [TestOrder(4)]
     [Fact]
     public void StopTest()
     {

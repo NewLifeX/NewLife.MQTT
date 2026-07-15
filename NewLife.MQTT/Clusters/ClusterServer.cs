@@ -231,7 +231,11 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
         foreach (var item in Nodes)
         {
             var node = item.Value;
-            _ = node.Ping(myNode);
+            _ = node.Ping(myNode).ContinueWith(t =>
+            {
+                if (t.Exception != null)
+                    WriteLog("Ping节点[{0}]失败：{1}", item.Key, t.Exception.GetBaseException().Message);
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
     #endregion

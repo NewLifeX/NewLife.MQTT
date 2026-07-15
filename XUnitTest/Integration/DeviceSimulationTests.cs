@@ -124,10 +124,17 @@ public class DeviceSimulationTests : IDisposable
             var cmd = e.Arg.Payload?.ToStr() ?? "";
             commandTcs.TrySetResult(cmd);
 
-            // 模拟执行命令并回传响应
-            await device.PublishAsync("devices/actuator_relay_001/response",
-                $"{{\"status\":\"ok\",\"cmd\":{cmd}}}",
-                QualityOfService.AtLeastOnce);
+            try
+            {
+                // 模拟执行命令并回传响应
+                await device.PublishAsync("devices/actuator_relay_001/response",
+                    $"{{\"status\":\"ok\",\"cmd\":{cmd}}}",
+                    QualityOfService.AtLeastOnce);
+            }
+            catch (Exception ex)
+            {
+                XTrace.WriteLine($"设备回传响应时异常: {ex.Message}");
+            }
         };
         await device.SubscribeAsync(new[] { "devices/actuator_relay_001/cmd" }, QualityOfService.AtLeastOnce);
 
