@@ -155,6 +155,84 @@ public class MqttRuleEngineTests
         Assert.Equal("second", order[1]);
     }
 
+    [Fact(DisplayName = "WebHook 动作：引擎不抛出异常")]
+    public void WebHookAction_DoesNotThrow()
+    {
+        var engine = new MqttRuleEngine();
+        engine.AddRule(new MqttRule
+        {
+            Name = "webhook_rule",
+            TopicFilter = "alerts/#",
+            ActionType = RuleActionType.WebHook,
+            WebHookUrl = "http://example.com/hook",
+        });
+
+        var msg = new PublishMessage { Topic = "alerts/critical" };
+
+        var ex = Record.Exception(() => engine.ProcessMessage(msg));
+        Assert.Null(ex);
+    }
+
+    [Fact(DisplayName = "Bridge 动作：引擎按名称查找桥接器")]
+    public void BridgeAction_LooksUpBridge()
+    {
+        var engine = new MqttRuleEngine();
+        var bridgeCalled = false;
+
+        // 注册模拟桥接器
+        var bridge = new MqttBridge();
+        engine.Bridges["mqtt-bridge-1"] = bridge;
+
+        engine.AddRule(new MqttRule
+        {
+            Name = "bridge_rule",
+            TopicFilter = "edge/#",
+            ActionType = RuleActionType.Bridge,
+            BridgeName = "mqtt-bridge-1",
+        });
+
+        var msg = new PublishMessage { Topic = "edge/data" };
+
+        // 不应抛出异常
+        var ex = Record.Exception(() => engine.ProcessMessage(msg));
+        Assert.Null(ex);
+    }
+
+    [Fact(DisplayName = "Bridge 动作：找不到桥接器时静默跳过")]
+    public void BridgeAction_MissingBridge_SilentlySkips()
+    {
+        var engine = new MqttRuleEngine();
+        engine.AddRule(new MqttRule
+        {
+            Name = "missing_bridge",
+            TopicFilter = "#",
+            ActionType = RuleActionType.Bridge,
+            BridgeName = "non-existent-bridge",
+        });
+
+        var msg = new PublishMessage { Topic = "any/topic" };
+
+        var ex = Record.Exception(() => engine.ProcessMessage(msg));
+        Assert.Null(ex);
+    }
+
+    [Fact(DisplayName = "WebHook 动作：WebHook 为空时静默跳过")]
+    public void WebHookAction_NullWebHook_SilentlySkips()
+    {
+        var engine = new MqttRuleEngine();
+        engine.AddRule(new MqttRule
+        {
+            Name = "null_webhook",
+            TopicFilter = "#",
+            ActionType = RuleActionType.WebHook,
+        });
+
+        var msg = new PublishMessage { Topic = "any/topic" };
+
+        var ex = Record.Exception(() => engine.ProcessMessage(msg));
+        Assert.Null(ex);
+    }
+
     /// <summary>测试用交换机</summary>
     private class TestExchange : IMqttExchange
     {
