@@ -1,11 +1,11 @@
-# M4 服务端架构
+# SRV 服务端架构
 
-> 版本：v5.0 | 日期：2026-07-15
-> 需求对应：[需求文档](需求文档.md) §3.4 | 功能清单：[功能清单](功能清单.md) M4 | 返回：[架构设计](架构设计.md)
+> 版本：v5.0 | 日期：2026-07-20
+> 需求对应：[需求文档](需求文档.md) §3.4 | 功能清单：[功能清单](功能清单.md) SRV | 返回：[架构设计](架构设计.md)
 
 ## 1. 模块职责
 
-M4 服务端实现高性能 MQTT Broker，面向平台运维工程师提供全版本兼容、会话管理、消息路由、安全认证和可扩展架构。
+SRV 服务端实现高性能 MQTT Broker，面向平台运维工程师提供全版本兼容、会话管理、消息路由、安全认证和可扩展架构。
 
 | 职责 | 核心类型 | 说明 |
 |------|---------|------|
@@ -134,7 +134,7 @@ PUBLISH  → AuthorizePublish(clientId, topic)  → 失败 ReasonCode 0x87（未
 SUBSCRIBE → AuthorizeSubscribe(clientId, topic) → 失败 QoS 0x80（失败）
 ```
 
-### 3.3 SASL 认证（M4-3 MQTT 5.0）
+### 3.3 SASL 认证（SRV-3 MQTT 5.0）
 
 `ISaslMechanism` 可插拔接口，内置 `ScramSha256Mechanism` 标准实现。`MqttHandler.SaslCredentialStore` 属性注入凭据存储。
 
@@ -183,7 +183,7 @@ SUBSCRIBE → AuthorizeSubscribe(clientId, topic) → 失败 QoS 0x80（失败�
 
 ---
 
-## 5. HTTP 管理 API（M4-8）
+## 5. HTTP 管理 API（SRV-8）
 
 `MqttManagementServer` 提供 RESTful JSON API，默认监听 `ManagementPort` 端口。
 
