@@ -71,6 +71,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>SASL 凭证存储。设置后将支持 MQTT 5.0 增强认证（如 SCRAM-SHA-256）</summary>
     public IMqttSaslCredentialStore? SaslCredentialStore { get; set; }
 
+    /// <summary>WebHook 处理器快捷访问（通过 Exchange → RuleEngine 获取）</summary>
+    private MqttWebHook? WebHook => (Exchange as MqttExchange)?.RuleEngine?.WebHook;
+
     /// <summary>客户端标识</summary>
     private String? _clientId;
 
@@ -317,6 +320,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         _saslMechanism = null;
         _pendingSaslConnect = null;
 
+        // WebHook 客户端连接事件
+        WebHook?.OnClientConnected(_clientId, message.Username);
+
         return ack;
     }
 
@@ -385,6 +391,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual MqttMessage? OnDisconnect(DisconnectMessage message)
     {
+        // WebHook 客户端断开事件
+        WebHook?.OnClientDisconnected(_clientId, "normal disconnect");
+
         // 正常断开时标记为正常，Close 时不发布遗嘱消息
         _normalDisconnect = true;
         _willMessage = null;
@@ -552,6 +561,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
             _subscriptions[item.TopicFilter] = item.QualityOfService;
             grantedQos.Add(item.QualityOfService);
+
+            // WebHook 客户端订阅事件
+            WebHook?.OnClientSubscribe(_clientId, item.TopicFilter, item.QualityOfService);
         }
 
         // 集群订阅1，接收订阅请求
@@ -577,6 +589,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             {
                 exchange.Unsubscribe(Session.ID, item);
                 _subscriptions.Remove(item);
+
+                // WebHook 客户端取消订阅事件
+                WebHook?.OnClientUnsubscribe(_clientId, item);
             }
         }
 

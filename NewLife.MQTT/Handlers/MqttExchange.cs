@@ -363,6 +363,12 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                         }
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
+                        // WebHook 消息投递事件
+                        if (RuleEngine?.WebHook is { } webHook2)
+                        {
+                            _clientIdMap.TryGetValue(sub.Id, out var subscriberClientId2);
+                            webHook2.OnMessageDelivered(subscriberClientId2, message);
+                        }
                     }
                     else
                     {
