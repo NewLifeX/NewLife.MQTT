@@ -1,3 +1,4 @@
+using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 
@@ -13,23 +14,51 @@ public class MqttStorageExchange : MqttExchange
     public override void SavePersistentSession(String clientId, Int32 sessionId, IDictionary<String, QualityOfService>? subscriptions)
     {
         base.SavePersistentSession(clientId, sessionId, subscriptions);
-        _ = Provider?.SavePersistentSessionAsync(clientId, sessionId, subscriptions);
+        FireAndForget($"保存持久会话[{clientId}]", () => Provider?.SavePersistentSessionAsync(clientId, sessionId, subscriptions));
     }
 
     /// <summary>清除持久会话（委托给存储提供者）</summary>
     public override void ClearPersistentSession(String clientId)
     {
         base.ClearPersistentSession(clientId);
-        _ = Provider?.ClearPersistentSessionAsync(clientId);
+        FireAndForget($"清除持久会话[{clientId}]", () => Provider?.ClearPersistentSessionAsync(clientId));
     }
 
     /// <summary>入队离线消息（委托给存储提供者）</summary>
     public override void EnqueueOfflineMessage(String clientId, PublishMessage message)
     {
         base.EnqueueOfflineMessage(clientId, message);
-        _ = Provider?.EnqueueOfflineMessageAsync(clientId, message);
+        FireAndForget($"入队离线消息[{clientId}]", () => Provider?.EnqueueOfflineMessageAsync(clientId, message));
     }
 
     /// <summary>初始化存储</summary>
     public async Task InitAsync() => await (Provider?.InitAsync() ?? Task.FromResult(false));
+
+    /// <summary>异步执行存储操作并记录异常，避免 fire-and-forget 静默吞掉存储失败</summary>
+    /// <param name="action">操作描述</param>
+    /// <param name="func">异步存储操作</param>
+    private void FireAndForget(String action, Func<Task?> func)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await (func() ?? Task.FromResult(0)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                WriteLog("存储失败：{0}，{1}", action, ex.Message);
+            }
+        });
+    }
+
+    #region 日志
+    /// <summary>日志</summary>
+    public ILog Log { get; set; } = Logger.Null;
+
+    /// <summary>写日志</summary>
+    /// <param name="format"></param>
+    /// <param name="args"></param>
+    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[{GetType().Name}]{format}", args);
+    #endregion
 }

@@ -1,4 +1,6 @@
-﻿using NewLife.Data;
+﻿using System.Net.Http;
+using System.Text;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Messaging;
 using NewLife.Serialization;
@@ -228,22 +230,45 @@ public class WebHookEndpoint
         var json = data.ToJson();
         var url = Url;
 
-        return Task.Run(() =>
+        // 使用 HttpClient 异步发送，避免 Task.Run 占用线程池线程
+        return PostJsonAsync(url, json, timeout, Headers);
+    }
+
+    /// <summary>静态 HttpClient。复用连接，避免每次创建导致的 socket 泄漏</summary>
+    private static readonly HttpClient _http = CreateHttpClient();
+
+    /// <summary>创建静态 HttpClient</summary>
+    /// <returns></returns>
+    private static HttpClient CreateHttpClient()
+    {
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("NewLife.MQTT-WebHook");
+        return http;
+    }
+
+    /// <summary>异步 POST JSON</summary>
+    /// <param name="url">端点地址</param>
+    /// <param name="json">JSON 内容</param>
+    /// <param name="timeout">超时毫秒</param>
+    /// <param name="headers">请求头</param>
+    /// <returns></returns>
+    private static async Task PostJsonAsync(String url, String json, Int32 timeout, IDictionary<String, String>? headers)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            var request = System.Net.WebRequest.CreateHttp(url);
-            request.Method = "POST";
-            request.ContentType = "application/json";
-            request.Timeout = timeout;
-            if (Headers != null)
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
+
+        if (headers != null)
+        {
+            foreach (var item in headers)
             {
-                foreach (var header in Headers)
-                    request.Headers[header.Key] = header.Value;
+                req.Headers.TryAddWithoutValidation(item.Key, item.Value);
             }
-            var body = json.GetBytes();
-            request.ContentLength = body.Length;
-            using var stream = request.GetRequestStream();
-            stream.Write(body, 0, body.Length);
-            using var response = request.GetResponse();
-        });
+        }
+
+        using var cts = new CancellationTokenSource(timeout);
+        using var rs = await _http.SendAsync(req, cts.Token).ConfigureAwait(false);
+        rs.EnsureSuccessStatusCode();
     }
 }

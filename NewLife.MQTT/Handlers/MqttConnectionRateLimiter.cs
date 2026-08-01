@@ -37,16 +37,20 @@ public class MqttConnectionRateLimiter
 
         var queue = _records.GetOrAdd(ip, _ => new ConcurrentQueue<DateTime>());
 
-        // 清理过期记录
-        while (queue.TryPeek(out var ts) && ts < windowStart)
-            queue.TryDequeue(out _);
+        // 每个 IP 一把锁，保证检查与记录原子性，避免并发超限
+        lock (queue)
+        {
+            // 清理过期记录
+            while (queue.TryPeek(out var ts) && ts < windowStart)
+                queue.TryDequeue(out _);
 
-        // 检查是否超限
-        if (queue.Count >= MaxConnectionsPerWindow)
-            return false;
+            // 检查是否超限
+            if (queue.Count >= MaxConnectionsPerWindow)
+                return false;
 
-        // 记录本次连接
-        queue.Enqueue(now);
+            // 记录本次连接
+            queue.Enqueue(now);
+        }
 
         // 启动清理定时器
         _cleanupTimer ??= new Timer(CleanupExpired, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
@@ -62,10 +66,13 @@ public class MqttConnectionRateLimiter
         if (!_records.TryGetValue(ip, out var queue)) return 0;
 
         var windowStart = DateTime.UtcNow - WindowDuration;
-        while (queue.TryPeek(out var ts) && ts < windowStart)
-            queue.TryDequeue(out _);
+        lock (queue)
+        {
+            while (queue.TryPeek(out var ts) && ts < windowStart)
+                queue.TryDequeue(out _);
 
-        return queue.Count;
+            return queue.Count;
+        }
     }
 
     /// <summary>重置所有记录</summary>
@@ -78,8 +85,11 @@ public class MqttConnectionRateLimiter
         foreach (var kv in _records)
         {
             var queue = kv.Value;
-            while (queue.TryPeek(out var ts) && ts < windowStart)
-                queue.TryDequeue(out _);
+            lock (queue)
+            {
+                while (queue.TryPeek(out var ts) && ts < windowStart)
+                    queue.TryDequeue(out _);
+            }
         }
     }
     #endregion

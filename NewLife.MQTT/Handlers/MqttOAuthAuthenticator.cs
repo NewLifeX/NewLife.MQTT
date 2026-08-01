@@ -60,6 +60,18 @@ public class MqttOAuthAuthenticator : IMqttAuthenticator
     /// <summary>RS256 公钥缓存。key=kid，value=RSA</summary>
     private readonly ConcurrentDictionary<String, RSA> _rsaKeyCache = new();
 
+    /// <summary>静态 HttpClient。JWKS 拉取使用，复用连接避免 socket 泄漏</summary>
+    private static readonly HttpClient _http = CreateHttpClient();
+
+    /// <summary>创建静态 HttpClient</summary>
+    /// <returns></returns>
+    private static HttpClient CreateHttpClient()
+    {
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("NewLife.MQTT");
+        return http;
+    }
+
     private String? _lastJwksJson;
     private DateTime _lastJwksFetch = DateTime.MinValue;
     #endregion
@@ -323,9 +335,9 @@ public class MqttOAuthAuthenticator : IMqttAuthenticator
 
         try
         {
-            // 使用 SimpleHttpClient 或直接 HttpClient 获取 JWKS
-            var http = new HttpClient();
-            _lastJwksJson = http.GetStringAsync(JwksEndpoint).Result;
+            // 使用静态 HttpClient 复用连接，避免每次 new HttpClient 导致 socket 泄漏
+            // 认证路径为同步接口，此处用 GetAwaiter 安全等待（无 SynchronizationContext 场景无死锁风险）
+            _lastJwksJson = _http.GetStringAsync(JwksEndpoint).GetAwaiter().GetResult();
             _lastJwksFetch = DateTime.UtcNow;
 
             // 解析 JWKS

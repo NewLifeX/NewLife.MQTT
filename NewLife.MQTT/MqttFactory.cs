@@ -59,10 +59,11 @@ public class MqttFactory
 
             return msg;
         }
-        catch (XException)
+        catch (Exception ex)
         {
             // 解析数据异常时，把数据记录到埋点，方便分析异常指令
             DefaultSpan.Current?.SetTag(pk);
+            if (ex is not XException) DefaultSpan.Current?.SetError(ex, pk);
 
             throw;
         }

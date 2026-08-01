@@ -56,8 +56,22 @@ public class MqttStats
     /// <summary>运行时长（秒）</summary>
     public Int64 Uptime => (Int64)(DateTime.Now - StartTime).TotalSeconds;
 
-    /// <summary>Broker 版本</summary>
-    public String Version { get; set; } = "NewLife.MQTT/2.3";
+    /// <summary>Broker 版本。取程序集版本，避免与包版本不一致</summary>
+    public String Version { get; set; } = "NewLife.MQTT/" + GetVersion();
+
+    /// <summary>获取程序集版本</summary>
+    /// <returns></returns>
+    private static String GetVersion()
+    {
+        try
+        {
+            var ver = typeof(MqttStats).Assembly.GetName().Version;
+            if (ver != null) return ver.ToString(3);
+        }
+        catch { }
+
+        return "3.1";
+    }
     #endregion
 
     #region 速率计算

@@ -51,6 +51,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <summary>持久化会话存储。key=ClientId，value=会话状态</summary>
     private readonly ConcurrentDictionary<String, PersistentSession> _persistentSessions = new();
 
+    /// <summary>持久会话反向索引。key=sessionId，value=clientId。用于 Publish 热路径 O(1) 定位离线会话，避免全量扫描</summary>
+    private readonly ConcurrentDictionary<Int32, String> _persistentSessionIds = new();
+
     /// <summary>客户端标识映射。key=sessionId，value=clientId</summary>
     private readonly ConcurrentDictionary<Int32, String> _clientIdMap = new();
     #endregion
@@ -198,7 +201,12 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                     });
             }
 
-            if (kv.Value.Count == 0) _topics.TryRemove(kv.Key, out _);
+            if (kv.Value.Count == 0)
+            {
+                _topics.TryRemove(kv.Key, out _);
+                // 主题清空时清理共享订阅轮询索引，避免内存增长
+                if (kv.Key.StartsWith("$share/")) _sharedGroupIndex.TryRemove(kv.Key, out _);
+            }
         }
 
         if (infos.Count == 0) return;
@@ -259,6 +267,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     {
         // 统计接收
         Interlocked.Increment(ref Stats.MessagesReceived);
+        Interlocked.Add(ref Stats.BytesReceived, message.Payload?.Length ?? 0);
 
         // 记录服务端接收时间，用于 MessageExpiryInterval 过期检查
         if (message.ReceivedAt == default) message.ReceivedAt = DateTime.Now;
@@ -276,7 +285,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                 // 存储保留消息（覆盖同主题的旧消息）
                 _retainMessages[message.Topic] = message;
             }
-            Stats.RetainedMessages = _retainMessages.Count;
+            // $SYS 内部保留消息不计入用户保留消息统计
+            if (!message.Topic.StartsWith("$SYS/"))
+                Stats.RetainedMessages = _retainMessages.Count(e => !e.Key.StartsWith("$SYS/"));
         }
 
         // $SYS 主题不对普通通配符订阅者分发
@@ -329,6 +340,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                         }
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
+                        Interlocked.Add(ref Stats.BytesSent, msg.Payload?.Length ?? 0);
                     }
                 }
             }
@@ -363,6 +375,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                         }
                         session.PublishAsync(msg);
                         Interlocked.Increment(ref Stats.MessagesSent);
+                        Interlocked.Add(ref Stats.BytesSent, msg.Payload?.Length ?? 0);
                         // WebHook 消息投递事件
                         if (RuleEngine?.WebHook is { } webHook2)
                         {
@@ -373,7 +386,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                     else
                     {
                         // 订阅者不在线，检查是否为持久化会话，若是则暂存离线消息
-                        var offlineSession = _persistentSessions.Values.FirstOrDefault(ps => ps.SessionId == sub.Id);
+                        var offlineSession = GetPersistentSessionBySessionId(sub.Id);
                         if (offlineSession != null && sub.QoS >= QualityOfService.AtLeastOnce)
                         {
                             // 必须复制 Payload 字节，避免共享网络接收缓冲区导致内容被后续消息覆写
@@ -491,7 +504,12 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             }
 
             // 没有订阅者了，删除主题
-            if (subs.Count == 0) _topics.TryRemove(topic, out _);
+            if (subs.Count == 0)
+            {
+                _topics.TryRemove(topic, out _);
+                // 共享订阅主题清空时清理轮询索引，避免内存增长
+                if (topic.StartsWith("$share/")) _sharedGroupIndex.TryRemove(topic, out _);
+            }
         }
     }
 
@@ -500,9 +518,14 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <returns></returns>
     public IList<PublishMessage> GetRetainMessages(String topicFilter)
     {
+        // $SYS 内部主题不对外提供保留消息查询，避免污染用户数据
+        if (topicFilter.StartsWith("$SYS/")) return [];
+
         var list = new List<PublishMessage>();
         foreach (var item in _retainMessages)
         {
+            // 跳过 $SYS 内部主题
+            if (item.Key.StartsWith("$SYS/")) continue;
             if (MqttTopicFilter.IsMatch(item.Key, topicFilter))
                 list.Add(item.Value);
         }
@@ -534,6 +557,9 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         session.SessionId = sessionId;
         session.UpdateTime = DateTime.Now;
 
+        // 维护反向索引，供 Publish 热路径 O(1) 定位离线会话
+        _persistentSessionIds[sessionId] = clientId;
+
         if (subscriptions != null)
         {
             foreach (var item in subscriptions)
@@ -558,7 +584,8 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             Subscribe(sessionId, item.Key, item.Value);
         }
 
-        // 更新会话标识
+        // 更新会话标识与反向索引
+        _persistentSessionIds[sessionId] = clientId;
         session.SessionId = sessionId;
 
         // 推送离线消息
@@ -575,8 +602,10 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <param name="clientId">客户端标识</param>
     public virtual void ClearPersistentSession(String clientId)
     {
-        if (!clientId.IsNullOrEmpty())
-            _persistentSessions.TryRemove(clientId, out _);
+        if (clientId.IsNullOrEmpty()) return;
+
+        if (_persistentSessions.TryRemove(clientId, out var session))
+            _persistentSessionIds.TryRemove(session.SessionId, out _);
     }
 
     /// <summary>为离线的持久会话暂存消息</summary>
@@ -614,6 +643,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             {
                 session.PublishAsync(message);
                 Interlocked.Increment(ref Stats.MessagesSent);
+                Interlocked.Add(ref Stats.BytesSent, message.Payload?.Length ?? 0);
                 return true;
             }
         }
@@ -643,7 +673,8 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     {
         Stats.ConnectedClients = _sessions.Count;
         Stats.Topics = _topics.Count;
-        Stats.RetainedMessages = _retainMessages.Count;
+        // $SYS 内部保留消息不计入用户保留消息统计
+        Stats.RetainedMessages = _retainMessages.Count(e => !e.Key.StartsWith("$SYS/"));
 
         var subCount = 0;
         foreach (var item in _topics)
@@ -727,8 +758,20 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     /// <param name="clientId">客户端标识</param>
     public void DeletePersistentSession(String clientId)
     {
-        if (_persistentSessions.TryRemove(clientId, out _))
-            Interlocked.Decrement(ref Stats.RetainedMessages);
+        // 仅删除持久会话，不影响保留消息计数。保留消息数由 _retainMessages 字典驱动
+        if (_persistentSessions.TryRemove(clientId, out var session))
+            _persistentSessionIds.TryRemove(session.SessionId, out _);
+    }
+
+    /// <summary>按会话标识查找持久化会话。O(1) 索引查找，避免 Publish 热路径全量扫描</summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <returns>持久化会话；不存在时返回 null</returns>
+    private PersistentSession? GetPersistentSessionBySessionId(Int32 sessionId)
+    {
+        if (!_persistentSessionIds.TryGetValue(sessionId, out var clientId)) return null;
+        if (clientId.IsNullOrEmpty()) return null;
+
+        return _persistentSessions.TryGetValue(clientId, out var session) ? session : null;
     }
 
     /// <summary>获取已连接客户端 ID 列表</summary>
@@ -753,7 +796,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     }
 
     /// <summary>获取保留消息的主题列表</summary>
-    public IReadOnlyList<String> GetRetainedTopics() => _retainMessages.Keys.ToArray();
+    public IReadOnlyList<String> GetRetainedTopics() => _retainMessages.Keys.Where(e => !e.StartsWith("$SYS/")).ToArray();
 
     /// <summary>断开指定客户端连接。由管理 API 或集群调用</summary>
     /// <param name="clientId">客户端标识</param>

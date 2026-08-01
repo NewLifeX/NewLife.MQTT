@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using NewLife.Data;
@@ -481,7 +482,8 @@ public class MqttClient : DisposeBase
     #endregion
 
     #region 接收数据
-    private readonly IDictionary<String, Subscription> _subs = new Dictionary<String, Subscription>();
+    /// <summary>订阅集合。接收线程读（消息分发），订阅/重连线程写，需线程安全</summary>
+    private readonly IDictionary<String, Subscription> _subs = new ConcurrentDictionary<String, Subscription>();
 
     private void Client_Received(Object sender, ReceivedEventArgs e)
     {

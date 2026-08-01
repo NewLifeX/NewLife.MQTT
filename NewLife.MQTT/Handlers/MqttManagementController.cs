@@ -21,13 +21,21 @@ public class MqttManagementController : IApi, IActionFilter
     #endregion
 
     #region 构造
-    /// <summary>执行前：从宿主中取出管理服务器引用</summary>
+    /// <summary>执行前：从宿主中取出管理服务器引用，并校验访问令牌</summary>
     /// <param name="filterContext"></param>
     public void OnActionExecuting(ControllerContext filterContext)
     {
         Session = filterContext.Session!;
         if (Session.Host is IExtend ext)
             _server = (ext["Management"] as MqttManagementServer)!;
+
+        // 管理 API 访问令牌校验：配置了 Token 时，未携带或携带错误的请求一律拒绝。
+        // ApiHandler.Prepare 已从 HTTP 头 x-token / Authorization: Bearer 或参数 Token 填充 Session.Token
+        if (_server != null && !_server.Token.IsNullOrEmpty())
+        {
+            if (Session.Token != _server.Token)
+                throw new ApiException(ApiCode.Unauthorized, "无效的管理令牌");
+        }
     }
 
     /// <summary>执行后</summary>

@@ -17,7 +17,7 @@ public class RedisExchange : IStorageProvider
     public RedisExchange(FullRedis redis) => _redis = redis;
 
     /// <summary>初始化存储</summary>
-    public Task InitAsync() => Task.FromResult(false);
+    public Task InitAsync() => Task.FromResult(0);
 
     /// <summary>保存持久会话</summary>
     public Task SavePersistentSessionAsync(String clientId, Int32 sessionId, IDictionary<String, QualityOfService>? subscriptions)
@@ -26,7 +26,7 @@ public class RedisExchange : IStorageProvider
         _redis.Set<String>($"{key}:id", sessionId.ToString());
         _redis.Set<String>($"{key}:subs", subscriptions != null ? subscriptions.Select(kv => $"{kv.Key}:{(Int32)kv.Value}").Join(",") : "");
         _redis.SetExpire(key, TimeSpan.FromDays(7));
-        return Task.FromResult(false);
+        return Task.FromResult(0);
     }
 
     /// <summary>恢复持久会话</summary>
@@ -51,7 +51,7 @@ public class RedisExchange : IStorageProvider
     {
         var keys = new[] { $"mqtt:session:{clientId}:id", $"mqtt:session:{clientId}:subs", $"mqtt:offline:{clientId}" };
         foreach (var key in keys) _redis.Remove(key);
-        return Task.FromResult(false);
+        return Task.FromResult(0);
     }
 
     /// <summary>入队离线消息</summary>
@@ -60,7 +60,7 @@ public class RedisExchange : IStorageProvider
         var key = $"mqtt:offline:{clientId}";
         var list = _redis.GetList<String>(key);
         list.Add(message.ToJson());
-        return Task.FromResult(false);
+        return Task.FromResult(0);
     }
 
     /// <summary>获取并清空离线消息</summary>

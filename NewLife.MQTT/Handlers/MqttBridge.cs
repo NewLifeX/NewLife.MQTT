@@ -171,7 +171,12 @@ public class MqttBridge : DisposeBase
                 Retain = message.Retain,
             };
 
-            _ = _remoteClient.PublishAsync(msg);
+            _ = _remoteClient.PublishAsync(msg).ContinueWith(t =>
+            {
+                // 桥接转发失败记录日志，不影响本地消息处理
+                if (t.Exception != null)
+                    WriteLog("桥接转发失败 [{0}]: {1}", remoteTopic, t.Exception.GetBaseException().Message);
+            }, TaskContinuationOptions.OnlyOnFaulted);
             break;
         }
     }

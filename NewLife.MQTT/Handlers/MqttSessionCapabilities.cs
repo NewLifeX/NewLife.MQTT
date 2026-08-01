@@ -32,13 +32,19 @@ public class MqttSessionCapabilities
     /// <summary>会话过期间隔（秒）。MQTT 5.0</summary>
     public UInt32 SessionExpiryInterval { get; set; }
 
+    /// <summary>当前 inflight 消息数。字段用于 Interlocked 原子操作</summary>
+    private Int32 _inflightCount;
+
     /// <summary>当前 inflight 消息数</summary>
-    public Int32 InflightCount { get; set; }
+    public Int32 InflightCount { get => _inflightCount; set => _inflightCount = value; }
 
     /// <summary>服务端指定的 KeepAlive（秒）。设置后将在 CONNACK 中通知 MQTT 5.0 客户端覆盖客户端 KeepAlive。0 表示不覆盖</summary>
     public UInt16 ServerKeepAlive { get; set; }
 
     private UInt16 _nextAlias;
+
+    /// <summary>主题别名访问锁。客户端/服务端别名字典被收发线程并发访问</summary>
+    private readonly Object _aliasLock = new();
     #endregion
 
     #region 方法
@@ -73,20 +79,23 @@ public class MqttSessionCapabilities
         var alias = message.Properties?.GetUInt16(MqttPropertyId.TopicAlias);
         if (alias == null || alias.Value == 0) return true;
 
-        if (!message.Topic.IsNullOrEmpty())
+        lock (_aliasLock)
         {
-            // 有主题名 + 别名 → 建立映射
-            ClientTopicAliases[alias.Value] = message.Topic;
-        }
-        else if (ClientTopicAliases.TryGetValue(alias.Value, out var topic))
-        {
-            // 无主题名 + 已知别名 → 还原主题
-            message.Topic = topic;
-        }
-        else
-        {
-            // 无主题名 + 未知别名 → 协议错误
-            return false;
+            if (!message.Topic.IsNullOrEmpty())
+            {
+                // 有主题名 + 别名 → 建立映射
+                ClientTopicAliases[alias.Value] = message.Topic;
+            }
+            else if (ClientTopicAliases.TryGetValue(alias.Value, out var topic))
+            {
+                // 无主题名 + 已知别名 → 还原主题
+                message.Topic = topic;
+            }
+            else
+            {
+                // 无主题名 + 未知别名 → 协议错误
+                return false;
+            }
         }
 
         return true;
@@ -98,20 +107,23 @@ public class MqttSessionCapabilities
     {
         if (TopicAliasMaximum == 0) return;
 
-        if (ServerTopicAliases.TryGetValue(message.Topic, out var alias))
+        lock (_aliasLock)
         {
-            // 已有别名，使用别名发送（不发主题名可节省带宽）
-            message.Properties ??= new MqttProperties();
-            message.Properties.SetUInt16(MqttPropertyId.TopicAlias, alias);
-            // 注意：第一次发送别名时必须携带主题名，后续可以只发别名
-        }
-        else if (_nextAlias < TopicAliasMaximum)
-        {
-            // 分配新别名
-            _nextAlias++;
-            ServerTopicAliases[message.Topic] = _nextAlias;
-            message.Properties ??= new MqttProperties();
-            message.Properties.SetUInt16(MqttPropertyId.TopicAlias, _nextAlias);
+            if (ServerTopicAliases.TryGetValue(message.Topic, out var alias))
+            {
+                // 已有别名，使用别名发送（不发主题名可节省带宽）
+                message.Properties ??= new MqttProperties();
+                message.Properties.SetUInt16(MqttPropertyId.TopicAlias, alias);
+                // 注意：第一次发送别名时必须携带主题名，后续可以只发别名
+            }
+            else if (_nextAlias < TopicAliasMaximum)
+            {
+                // 分配新别名
+                _nextAlias++;
+                ServerTopicAliases[message.Topic] = _nextAlias;
+                message.Properties ??= new MqttProperties();
+                message.Properties.SetUInt16(MqttPropertyId.TopicAlias, _nextAlias);
+            }
         }
     }
 
@@ -133,6 +145,21 @@ public class MqttSessionCapabilities
 
     /// <summary>检查是否可以发送新的 QoS>0 消息（流控）</summary>
     /// <returns></returns>
-    public Boolean CanSendQosMessage() => InflightCount < ReceiveMaximum;
+    public Boolean CanSendQosMessage() => _inflightCount < ReceiveMaximum;
+
+    /// <summary>原子递增 inflight 计数。发送 QoS>0 消息前调用</summary>
+    public void IncrementInflight() => Interlocked.Increment(ref _inflightCount);
+
+    /// <summary>原子递减 inflight 计数。确认/放弃消息时调用，避免负数</summary>
+    public void DecrementInflight()
+    {
+        // 仅当计数 >0 时递减，避免并发 ACK 或重复回调导致负数
+        while (true)
+        {
+            var current = Volatile.Read(ref _inflightCount);
+            if (current <= 0) return;
+            if (Interlocked.CompareExchange(ref _inflightCount, current - 1, current) == current) return;
+        }
+    }
     #endregion
 }

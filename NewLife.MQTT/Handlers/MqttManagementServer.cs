@@ -27,6 +27,9 @@ public class MqttManagementServer : DisposeBase, IServer, ILogFeature, ITracerFe
     /// <summary>是否启用 Web 可视化看板。启用后在 <see cref="DashboardPort"/> 提供 HTML 页面。默认 false</summary>
     public Boolean EnableDashboard { get; set; }
 
+    /// <summary>管理 API 访问令牌。设置后所有管理接口（stats/clients/topics/retained/控制操作）需携带请求头 <c>Authorization: Bearer {token}</c> 或查询参数 <c>token</c>。为空表示不鉴权（默认，向后兼容）</summary>
+    public String? Token { get; set; }
+
     /// <summary>看板端口。默认 0 = Port + 1（即 18884）</summary>
     public Int32 DashboardPort { get; set; }
 

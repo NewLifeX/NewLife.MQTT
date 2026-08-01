@@ -83,12 +83,29 @@ public class MqttTopicFilter
         // 处理共享订阅格式: $share/{group}/{topic}
         // 提取实际的主题过滤器
         var actualTopicFilter = ExtractActualTopicFilter(topicFilter);
-        
-        if (!IsValidTopicName(topicName)) throw new Exception($"{topicName}:发布主题不符合规范");
-        if (!IsValidTopicFilter(actualTopicFilter)) throw new Exception($"{topicFilter}:订阅主题不符合规范");
 
+        // 先做轻量校验，避免在热路径中重复 Split
+        if (String.IsNullOrEmpty(topicName) || String.IsNullOrEmpty(actualTopicFilter)) return false;
+        if (topicName.Length > 65536) return false;
+
+        // 发布主题不能包含通配符
+        if (topicName.Contains('#') || topicName.Contains('+')) return false;
+
+        // 拆分一次即可，供后续匹配使用
         var topicFilterParts = actualTopicFilter.Split('/');
         var topicNameParts = topicName.Split('/');
+
+        // 订阅主题过滤器非法：多个 #、# 或 + 与其他字符混用、# 不在末尾
+        var hashCount = 0;
+        for (var i = 0; i < topicFilterParts.Length; i++)
+        {
+            var part = topicFilterParts[i];
+            if (part == "#") hashCount++;
+            else if (part.Contains('#')) return false;
+            else if (part.Contains('+') && part.Length > 1) return false;
+        }
+        if (hashCount > 1) return false;
+        if (hashCount == 1 && !actualTopicFilter.EndsWith("#")) return false;
 
         if (topicNameParts.Length > topicFilterParts.Length && topicFilterParts[^1] != "#")
             return false;

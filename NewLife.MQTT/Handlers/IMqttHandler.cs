@@ -1,4 +1,5 @@
-﻿using NewLife.Data;
+﻿using System.Collections.Concurrent;
+using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
@@ -98,8 +99,8 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>Inflight 消息管理器（服务端消息重发）</summary>
     private InflightManager? _inflightManager;
 
-    /// <summary>当前会话的订阅关系</summary>
-    private readonly Dictionary<String, QualityOfService> _subscriptions = [];
+    /// <summary>当前会话的订阅关系。接收线程写（订阅/退订），断开线程读（持久会话），需线程安全</summary>
+    private readonly ConcurrentDictionary<String, QualityOfService> _subscriptions = [];
 
     /// <summary>SASL 增强认证机制（握手期间有值）</summary>
     private ISaslMechanism? _saslMechanism;
@@ -247,10 +248,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             return Task.FromResult(0);
         });
         // F046: ReceiveMaximum 流控修正 - 放弃消息时同步递减 InflightCount，避免流控计数器永久占用
-        _inflightManager.OnMessageAbandoned = _ =>
-        {
-            if (_capabilities != null && _capabilities.InflightCount > 0) _capabilities.InflightCount--;
-        };
+        _inflightManager.OnMessageAbandoned = _ => _capabilities?.DecrementInflight();
 
         // MQTT 5.0 会话能力
         ConnAck ack;
@@ -511,9 +509,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual MqttMessage? OnPublishAck(PubAck message)
     {
-        // 从 Inflight 队列中移除已确认的消息
-        _inflightManager?.Acknowledge(message.Id);
-        if (_capabilities != null) _capabilities.InflightCount--;
+        // 从 Inflight 队列中移除已确认的消息。仅当消息确实在队列中时才递减流控计数，避免重复 ACK 导致负数
+        if (_inflightManager?.Acknowledge(message.Id) == true)
+            _capabilities?.DecrementInflight();
         return null;
     }
 
@@ -522,9 +520,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <returns></returns>
     protected virtual MqttMessage? OnPublishComplete(PubComp message)
     {
-        // 从 Inflight 队列中移除已确认的消息
-        _inflightManager?.Acknowledge(message.Id);
-        if (_capabilities != null) _capabilities.InflightCount--;
+        // 从 Inflight 队列中移除已确认的消息。仅当消息确实在队列中时才递减流控计数
+        if (_inflightManager?.Acknowledge(message.Id) == true)
+            _capabilities?.DecrementInflight();
         return null;
     }
 
@@ -678,7 +676,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         if (_capabilities != null && message.QoS > QualityOfService.AtMostOnce)
         {
             if (!_capabilities.CanSendQosMessage()) return null;
-            _capabilities.InflightCount++;
+            _capabilities.IncrementInflight();
         }
 
         // MQTT 5.0 主题别名分配
@@ -768,10 +766,21 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             {
                 // MQTT 5.0 WillDelayInterval：延迟指定秒数后发布遗嘱消息
                 WriteLog("遗嘱延迟发布：{0} 秒后发布 [{1}]", _willDelaySeconds, will.Topic);
-                _ = Task.Delay(TimeSpan.FromSeconds(_willDelaySeconds)).ContinueWith(_ =>
+                _ = Task.Delay(TimeSpan.FromSeconds(_willDelaySeconds)).ContinueWith(t =>
                 {
-                    exchange?.Publish(will);
-                    clusterExchange?.Publish(session, will);
+                    // 延迟期间会话可能已断开，检查后发布
+                    if (session != null && session.Disposed) return;
+
+                    try
+                    {
+                        exchange?.Publish(will);
+                        clusterExchange?.Publish(session, will);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 延迟发布失败仅记录日志，不影响主流程
+                        WriteLog("遗嘱延迟发布失败：{0}", ex.Message);
+                    }
                 });
             }
             else

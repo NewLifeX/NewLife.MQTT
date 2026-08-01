@@ -69,8 +69,12 @@ public class MqttMessageRateLimiter
 
     #region 令牌桶
     /// <summary>令牌桶</summary>
+    /// <remarks>
+    /// 使用锁保证线程安全。多个客户端并发发布消息时，同一客户端的令牌桶可能被多个线程同时访问。
+    /// </remarks>
     private class TokenBucket
     {
+        private readonly Object _lock = new();
         private readonly Double _capacity;
         private readonly Double _refillRate; // 每秒补充的令牌数
         private Double _tokens;
@@ -81,8 +85,11 @@ public class MqttMessageRateLimiter
         {
             get
             {
-                Refill();
-                return _tokens;
+                lock (_lock)
+                {
+                    Refill();
+                    return _tokens;
+                }
             }
         }
 
@@ -105,19 +112,22 @@ public class MqttMessageRateLimiter
         /// <returns>是否成功消费</returns>
         public Boolean TryConsume()
         {
-            LastAccessTime = DateTime.UtcNow;
-            Refill();
-
-            if (_tokens >= 1.0)
+            lock (_lock)
             {
-                _tokens -= 1.0;
-                return true;
-            }
+                LastAccessTime = DateTime.UtcNow;
+                Refill();
 
-            return false;
+                if (_tokens >= 1.0)
+                {
+                    _tokens -= 1.0;
+                    return true;
+                }
+
+                return false;
+            }
         }
 
-        /// <summary>根据时间流逝补充令牌</summary>
+        /// <summary>根据时间流逝补充令牌。调用方需持有 <see cref="_lock"/></summary>
         private void Refill()
         {
             var now = DateTime.UtcNow;
