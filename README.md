@@ -35,7 +35,7 @@
 | **客户端+服务端一体** | 单一 `NewLife.MQTT` NuGet 包，无需区分客户端/服务端版本 |
 | **七种传输** | TCP / TLS / WebSocket / WSS / QUIC（.NET 7+）/ 可靠 UDP（全平台独创）/ ProxyProtocol v1/v2 |
 | **高性能** | 基于 NewLife.Net，单机百万级连接（400 万验证），千万级消息吞吐（2266 万 tps 验证）|
-| **企业功能免费** | 集群 / 桥接 / 规则引擎 / WebHook / $SYS / ACL 全部免费内置 |
+| **企业功能免费** | 集群（Raft 共识 / 主题分片）/ 桥接 / 规则引擎 / WebHook / $SYS / ACL 全部免费内置 |
 | **自动重订阅** | 断线重连后自动重新订阅全部主题，无需用户代码干预 |
 | **SOCKS5 代理** | 内置 SOCKS5 代理支持（用户名密码认证），TCP/WS 连接均可通过代理转发 |
 | **全版本覆盖** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 ~ net10 |
@@ -68,8 +68,10 @@ await client.SubscribeAsync("/device/+/data", e =>
 ### 企业功能内置免费
 - **消息桥接**：In / Out / Both 三种方向，主题前缀映射，QoS 上限控制
 - **规则引擎**：5 种动作（Republish / WebHook / Bridge / Drop / Custom）
-- **WebHook**：6 种事件异步推送，失败自动重试
-- **集群**：跨节点订阅同步与消息转发，独立 RPC 端口（2883）
+- **WebHook**：6 种事件异步推送，失败自动重试，事件集成至 MqttHandler + Exchange 管线
+- **集群**：Raft 共识 + 一致哈希主题分片 + 多层拓扑路由，跨节点订阅同步与消息转发，独立 RPC 端口（2883）
+- **MQTT-SN v1.2**：受限设备（传感器）接入网关，与 MQTT 主题互通
+- **持久化存储**：可选 `NewLife.MQTT.Storage` 扩展包，Redis / 数据库双实现离线消息与会话持久化
 - **$SYS 系统主题**：14 种标准主题，实时运行统计
 - **ProxyProtocol v1/v2**：nginx/HAProxy 透传真实客户端 IP
 
