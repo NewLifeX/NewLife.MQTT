@@ -10,13 +10,14 @@
 - **已实施修复（2026-10-09）**：
   1. 控制器元数据保根：`MqttManagementServer.Start` / `ClusterServer.Start` 标注 `[DynamicDependency(PublicConstructors | PublicMethods, typeof(控制器))]`（低版本 TFM 由 Core 公共垫片提供该特性，无需条件编译）；
   2. 匿名对象载荷改字典承载：AOT 下匿名类型属性被裁剪，经运行时序列化会得到空对象 `{}`——`MqttManagementController.Stats`、`ClusterController.Health`、`ClusterNode` 六处 RPC 载荷、`AliyunMqttClient` 两处载荷均改为 `Dictionary<String, Object?>`（键名与线格式不变，JIT 行为不变）；
-  3. 对照实验确认因果：无保根的手工注册在 AOT 下 404（方法元数据被裁剪），保根后恢复。
+  3. 对照实验确认因果：无保根的手工注册在 AOT 下 404（方法元数据被裁剪），保根后恢复；
+  4. 集群 RPC 载荷 DTO 保根与订阅数组归一化：`ClusterServer.Start` 对控制器签名涉及的载荷 DTO（NodeInfo/SubscriptionInfo/PublishInfo/PublishMessage/MqttProperties/SessionInfo/Raft 系列/SnapshotSubscription）统一标注 `[DynamicDependency(PublicConstructors | PublicProperties)]`（AOT 下运行时参数绑定需反射创建/读写，修复前 `Publish` 等路径报 `No parameterless constructor defined`）；`Subscribe`/`Unsubscribe` 控制器的数组参数经 `ToSubscriptionInfos` 归一化（FIX-CLUS-1：JSON 数组经参数绑定为对象列表后无法直接强转，JIT/AOT 同错）。
 - **边界**：`NewLife.MQTT.Storage`（XCode/Redis）与 `NewLife.MqttServer` 应用（Stardust）不在本轮范围（未验证，取决于各自依赖链的 AOT 就绪度）。
-- **遗留（非 AOT 问题）**：订阅/退订 RPC 的数组参数绑定失败为 v12 迁移引入的既有缺陷（FIX-CLUS-1，JIT/AOT 行为一致），与 AOT 改造无关，另行修复。
+- **FIX-CLUS-1 已修复（2026-10-09）**：订阅/退订 RPC 数组参数绑定失败为 v12 迁移引入的既有缺陷，已随本次改造修复并补 RPC 级回归测试（`ClusterRpcSubscribeTests`）。
 
 ## 2. 实测数据
 
-### 2.1 运行期：11 场景冒烟（JIT/AOT 双跑）
+### 2.1 运行期：12 场景冒烟（JIT/AOT 双跑）
 
 | # | 场景 | JIT | AOT | 说明 |
 |---|------|:---:|:---:|------|
@@ -30,9 +31,10 @@
 | 8 | 控制器分发：`MapController<T>` 源生成静态分发 | ✅ | ✅ | 源生成器路径可用 |
 | 9 | 控制器分发：手工注册 + `[DynamicDependency]` 保根 | ✅ | ✅ | 本轮采用的最小保根路径 |
 | 10 | 对照：手工注册、无保根 | ✅ 可用 | ❌ 404 | 因果闭合：无保根即被裁剪 |
-| 11 | 集群 RPC：Echo/Join/Ping/Leave/GetSession/Health | ✅ | ✅ | 保根 + 字典载荷/返回值（NodeInfo/SessionInfo 往返） |
+| 11 | 集群 RPC：Echo/Join/Ping/Leave/GetSession/Subscribe/Unsubscribe/Health | ✅ | ✅ | 保根 + 数组归一化 + 字典载荷/返回值（NodeInfo/SessionInfo 往返） |
+| 12 | 集群发布：PublishInfo/PublishMessage 载荷保真 | ✅ | ✅ | topic/qos/payload 完整往返（记录型交换机观测） |
 
-> 注：订阅/退订 RPC（数组参数绑定）为既有缺陷 FIX-CLUS-1，JIT/AOT 行为一致（同一错误），不计入 AOT 结论。
+> 订阅/退订 RPC 的数组参数绑定曾为既有缺陷（FIX-CLUS-1），2026-10-09 已随本页方案修复并解除门禁。
 
 ### 2.2 编译期：ILC 告警
 
@@ -48,7 +50,8 @@
 | 1 | 管理 API 控制器保根 | ✅ 已完成 | `MqttManagementServer.Start` 标注 `[DynamicDependency]`；冒烟场景 3 转 ✅ |
 | 2 | 集群 RPC 控制器保根 | ✅ 已完成 | `ClusterServer.Start` 标注 `[DynamicDependency]`；冒烟场景 11 通过 |
 | 3 | 匿名对象载荷改字典承载 | ✅ 已完成 | 管理 Stats / 集群 Health / ClusterNode 六处 / Aliyun 两处（AOT 下匿名类型属性被裁剪 → 空对象） |
-| 4 | AOT 冒烟工程入库 + CI（可选） | ⏸ 未实施 | 参考 NewLife.Core 的 AotSmoke：`PublishAot` 写在工程属性内、win-x64 发布 + 运行按退出码判定；本轮冒烟为临时工程（复现方法见 §5） |
+| 4 | 集群 RPC 载荷 DTO 保根 + 订阅数组归一化 | ✅ 已完成 | `ClusterServer.Start` 保根 14 类载荷 DTO；`Subscribe`/`Unsubscribe` 数组参数归一化（FIX-CLUS-1）；冒烟场景 11/12 通过 |
+| 5 | AOT 冒烟工程入库 + CI（可选） | ⏸ 未实施 | 参考 NewLife.Core 的 AotSmoke：`PublishAot` 写在工程属性内、win-x64 发布 + 运行按退出码判定；本轮冒烟为临时工程（复现方法见 §5） |
 
 > 说明：`MapController<T>` 的静态分发由 Core 源生成器 `HttpControllerDispatchGenerator` 生成；生成器随 Core 包分发、对下游零配置（冒烟场景 6/8 已在 AOT 下证实生成器在消费方生效）。手工保根路径下控制器仍走反射分发，AOT 下功能等价、性能与 JIT 一致。
 

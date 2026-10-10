@@ -170,8 +170,25 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
     #region 启动停止
     /// <summary>启动服务</summary>
-    /// <remarks>AOT 下控制器动作经反射分发，需显式保留控制器公开构造与公开方法的元数据（见 Doc/AOT兼容性分析.md）</remarks>
+    /// <remarks>
+    /// <para>AOT 下控制器动作经反射分发，需显式保留控制器公开构造与公开方法的元数据；控制器签名涉及的载荷 DTO 还需保留公开构造与公开属性，供参数绑定与返回序列化反射创建/读写（见 Doc/AOT兼容性分析.md）</para>
+    /// <para>下方保根清单覆盖全部集群 RPC 动作（Echo/UpdateSecret/Join/Ping/Leave/Subscribe/Unsubscribe/Publish/PublishBatch/Raft/Health/会话漂移）的签名与载荷类型闭包</para>
+    /// </remarks>
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods, typeof(ClusterController))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(NodeInfo))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(SubscriptionInfo))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(PublishInfo))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(SessionInfo))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(PublishMessage))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(MqttMessage))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(MqttProperties))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(RaftLogEntry))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(RaftVoteRequest))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(RaftVoteResponse))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(RaftAppendEntriesRequest))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(RaftAppendEntriesResponse))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(RaftSnapshot))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(SnapshotSubscription))]
     public void Start()
     {
         if (Name.IsNullOrEmpty()) Name = $"Cluster{Port}";

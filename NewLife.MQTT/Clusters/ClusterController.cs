@@ -4,6 +4,7 @@ using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
 using NewLife.Remoting;
+using NewLife.Serialization;
 
 namespace NewLife.MQTT.Clusters;
 
@@ -104,17 +105,19 @@ public class ClusterController : IHttpController
 
     #region 订阅管理
     /// <summary>订阅</summary>
-    /// <param name="infos"></param>
+    /// <param name="infos">订阅信息数组。HTTP 参数绑定会把 JSON 数组解码为对象列表，此处统一归一化为强类型（FIX-CLUS-1）</param>
     /// <returns></returns>
-    public String Subscribe(SubscriptionInfo[] infos)
+    public String Subscribe(Object infos)
     {
-        _cluster.WriteLog("节点[{0}]订阅：{1}", Context?.Connection?.Remote, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        var items = ToSubscriptionInfos(infos);
+
+        _cluster.WriteLog("节点[{0}]订阅：{1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群订阅3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
         if (exchange != null)
         {
-            foreach (var item in infos)
+            foreach (var item in items)
             {
                 exchange.AddSubscription(item);
             }
@@ -124,17 +127,19 @@ public class ClusterController : IHttpController
     }
 
     /// <summary>取消订阅</summary>
-    /// <param name="infos"></param>
+    /// <param name="infos">订阅信息数组。HTTP 参数绑定会把 JSON 数组解码为对象列表，此处统一归一化为强类型（FIX-CLUS-1）</param>
     /// <returns></returns>
-    public String Unsubscribe(SubscriptionInfo[] infos)
+    public String Unsubscribe(Object infos)
     {
-        _cluster.WriteLog("节点[{0}]退订：{1}", Context?.Connection?.Remote, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        var items = ToSubscriptionInfos(infos);
+
+        _cluster.WriteLog("节点[{0}]退订：{1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群退订3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
         if (exchange != null)
         {
-            foreach (var item in infos)
+            foreach (var item in items)
             {
                 exchange.RemoveSubscription(item);
             }
@@ -142,6 +147,16 @@ public class ClusterController : IHttpController
 
         return "OK";
     }
+
+    /// <summary>把参数绑定得到的订阅信息值归一化为强类型数组。JSON 数组经参数绑定为对象列表后无法直接强转，因此按目标类型走一次 JsonHelper 转换；SubscriptionInfo 的 AOT 元数据由 ClusterServer.Start 统一保根</summary>
+    /// <param name="infos">参数绑定得到的值：RPC 路径为对象列表，直接调用为强类型数组</param>
+    /// <returns>强类型数组，空值返回空数组</returns>
+    private static SubscriptionInfo[] ToSubscriptionInfos(Object infos) => infos switch
+    {
+        SubscriptionInfo[] arr => arr,
+        null => [],
+        _ => JsonHelper.Default.Convert(infos, typeof(SubscriptionInfo[])) as SubscriptionInfo[] ?? [],
+    };
     #endregion
 
     #region 消息管理
