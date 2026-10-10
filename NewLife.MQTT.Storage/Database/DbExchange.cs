@@ -72,7 +72,7 @@ public class DbExchange : IStorageProvider
         foreach (var e in entities)
         {
             var pm = new PublishMessage { Topic = e.Topic, QoS = (QualityOfService)e.QoS, Retain = e.Retain };
-            if (e.Payload != null) pm.Payload = new Packet(e.Payload);
+            if (e.Payload != null) pm.Payload = new ArrayPacket(e.Payload);
             messages.Add(pm);
         }
         MqttOfflineMessageEntity.DeleteByClientId(clientId);

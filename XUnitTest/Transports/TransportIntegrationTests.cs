@@ -19,10 +19,12 @@ namespace XUnitTest.Transports;
 public class TransportIntegrationTests : IClassFixture<MqttServerFixture>
 {
     private readonly Int32 _port;
+    private readonly String _wsUrl;
 
     public TransportIntegrationTests(MqttServerFixture fixture)
     {
         _port = fixture.Port;
+        _wsUrl = fixture.WebSocketUrl;
     }
 
     /// <summary>创建 TCP 客户端</summary>
@@ -45,7 +47,7 @@ public class TransportIntegrationTests : IClassFixture<MqttServerFixture>
         return new MqttClient
         {
             Log = XTrace.Log,
-            Server = $"ws://127.0.0.1:{_port}",
+            Server = _wsUrl,
             ClientId = clientId ?? $"ws_{version}_{Rand.NextString(4)}",
             Timeout = 5000,
             Reconnect = false,

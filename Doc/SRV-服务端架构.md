@@ -83,18 +83,27 @@ AUTH      → OnAuth()       → 挑战/响应
 
 ### 2.3 MqttServer — 网络服务
 
-`MqttServer` 继承 `NewLife.Net.NetServer`，管理网络端口监听和编解码器链。
+`MqttServer` 继承 `NewLife.Net.NetServer`，管理网络端口监听与 MQTT 帧编解码。
 
 **编解码器链**：
 
 ```
-网络数据 → ProxyCodec → WebSocketServerCodec → HttpCodec → MqttCodec → MqttMessage
+TCP 数据 → MqttCodec（v12 消息泵 IMessageCodec，含 ProxyProtocol 头剥离）→ MqttMessage
+WebSocket → 独立 HttpServer + MqttWebSocketHandler 桥接 → 同一 MqttSession 处理链
 ```
 
-- `ProxyCodec`：解析 ProxyProtocol v1/v2，透传真实客户端 IP
-- `WebSocketServerCodec`：WebSocket 握手升级 + 帧处理
-- `HttpCodec`：HTTP 头部解析，支持 WebSocket 升级请求
-- `MqttCodec`：MQTT 报文编解码，粘包拆包
+- `MqttCodec`：v12 消息泵上的 MQTT 帧定界（固定头 + 变长剩余长度）与整帧构建；服务端可选识别并剥离前置代理写入的 ProxyProtocol v1/v2 头
+- `MqttWebSocketHandler`：WebSocket 握手后的二进制帧桥接到 MQTT 会话，见下节端口说明
+- 旧版 `ProxyCodec`/`WebSocketServerCodec`/`HttpCodec` 管线已随 NewLife.Core v12 移除（v12 不再提供管线编解码器）
+
+**端口说明（v12 起）**：
+
+| 端口 | 配置项 | 用途 |
+|------|--------|------|
+| 1883（默认） | `Port` | MQTT TCP/TLS 监听 |
+| 独立 | `EnableWebSocket` / `WebSocketPort` / `WebSocketPath`（默认 `/mqtt`） | MQTT over WebSocket；`WebSocketPort=0` 时由系统分配；配置 `WebSocketCertificate` 后启用 WSS |
+| 18883（可选） | `ManagementPort` | HTTP 管理 API（`/Api/{Action}`） |
+| 2883（可选） | `ClusterPort` | 集群 RPC（HTTP） |
 
 **会话生命周期**：
 

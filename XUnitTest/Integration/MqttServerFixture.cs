@@ -15,17 +15,25 @@ public sealed class MqttServerFixture : IDisposable
     /// <summary>服务端实际监听端口（OS 自动分配）</summary>
     public Int32 Port { get; }
 
+    /// <summary>WebSocket 桥接实际监听端口（OS 自动分配）</summary>
+    public Int32 WebSocketPort { get; }
+
+    /// <summary>WebSocket 桥接地址</summary>
+    public String WebSocketUrl => $"ws://127.0.0.1:{WebSocketPort}{Server.WebSocketPath}";
+
     public MqttServerFixture()
     {
         Server = new MqttServer
         {
             Port = 0,
+            EnableWebSocket = true,
             ServiceProvider = new ObjectContainer().BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
         };
         Server.Start();
         Port = Server.Port;
+        WebSocketPort = Server.WebSocketPort;
     }
 
     public void Dispose() => Server.TryDispose();

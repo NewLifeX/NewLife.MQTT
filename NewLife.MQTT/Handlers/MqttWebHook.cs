@@ -131,7 +131,7 @@ public class MqttWebHook : DisposeBase
             Event = WebHookEvent.MessagePublish,
             ClientId = clientId,
             Topic = message.Topic,
-            Payload = message.Payload is Packet pk ? Convert.ToBase64String(pk.ToArray()) : null,
+            Payload = message.Payload is { } pk ? Convert.ToBase64String(pk.ToArray()) : null,
             QoS = (Int32)message.QoS,
             Retain = message.Retain,
         });
@@ -175,7 +175,7 @@ public class MqttWebHook : DisposeBase
             Event = WebHookEvent.MessageDelivered,
             ClientId = clientId,
             Topic = message.Topic,
-            Payload = message.Payload is Packet pk ? Convert.ToBase64String(pk.ToArray()) : null,
+            Payload = message.Payload is { } pk ? Convert.ToBase64String(pk.ToArray()) : null,
             QoS = (Int32)message.QoS,
             Retain = message.Retain,
         });

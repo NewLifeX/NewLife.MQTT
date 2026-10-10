@@ -200,7 +200,7 @@ public class Mqtt5Phase2Tests : IDisposable
         var msgBind = new PublishMessage
         {
             Topic = topic,
-            Payload = new Packet(System.Text.Encoding.UTF8.GetBytes("first")),
+            Payload = new ArrayPacket(System.Text.Encoding.UTF8.GetBytes("first")),
             QoS = QualityOfService.AtMostOnce,
         };
         msgBind.Properties ??= new MqttProperties();
@@ -216,7 +216,7 @@ public class Mqtt5Phase2Tests : IDisposable
         var msgAlias = new PublishMessage
         {
             Topic = String.Empty,
-            Payload = new Packet(System.Text.Encoding.UTF8.GetBytes("second")),
+            Payload = new ArrayPacket(System.Text.Encoding.UTF8.GetBytes("second")),
             QoS = QualityOfService.AtMostOnce,
         };
         msgAlias.Properties ??= new MqttProperties();

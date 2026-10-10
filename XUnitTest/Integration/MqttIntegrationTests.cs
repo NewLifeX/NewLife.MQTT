@@ -322,7 +322,7 @@ public class MqttIntegrationTests : IDisposable
             Topic = "retain/test/topic",
             QoS = QualityOfService.AtMostOnce,
             Retain = true,
-            Payload = (Packet)"retain_value_123".GetBytes(),
+            Payload = (ArrayPacket)"retain_value_123".GetBytes(),
         };
         await pub.PublishAsync(retainMsg);
         await Task.Delay(100);
@@ -359,7 +359,7 @@ public class MqttIntegrationTests : IDisposable
             Topic = "retain/clear/test",
             QoS = QualityOfService.AtMostOnce,
             Retain = true,
-            Payload = (Packet)"some_value".GetBytes(),
+            Payload = (ArrayPacket)"some_value".GetBytes(),
         };
         await pub.PublishAsync(retainMsg);
         await Task.Delay(100);
@@ -473,7 +473,7 @@ public class MqttIntegrationTests : IDisposable
         {
             Topic = "sensor/temp",
             Retain = true,
-            Payload = (Packet)"25.5".GetBytes(),
+            Payload = (ArrayPacket)"25.5".GetBytes(),
         };
         exchange.Publish(msg);
 
@@ -526,8 +526,8 @@ public class MqttIntegrationTests : IDisposable
         exchange.SavePersistentSession("offline_client", 100, null);
 
         // 暂存离线消息
-        var msg1 = new PublishMessage { Topic = "t1", Payload = (Packet)"m1".GetBytes() };
-        var msg2 = new PublishMessage { Topic = "t2", Payload = (Packet)"m2".GetBytes() };
+        var msg1 = new PublishMessage { Topic = "t1", Payload = (ArrayPacket)"m1".GetBytes() };
+        var msg2 = new PublishMessage { Topic = "t2", Payload = (ArrayPacket)"m2".GetBytes() };
         exchange.EnqueueOfflineMessage("offline_client", msg1);
         exchange.EnqueueOfflineMessage("offline_client", msg2);
 

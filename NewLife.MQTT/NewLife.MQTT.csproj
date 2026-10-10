@@ -37,7 +37,7 @@
     <RepositoryUrl>https://github.com/NewLifeX/NewLife.MQTT</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>新生命团队;X组件;NewLife;$(AssemblyName);MQTT;MQTTClient;MQTTServer;MQTTBroker;IoT;物联网;MQTT5;QoS;PubSub;WebSocket;QUIC;TLS;集群;桥接;规则引擎;信创;MQTT-SN;OAuth;SOCKS5;持久化;存储;WebHook</PackageTags>
-    <PackageReleaseNotes>集群能力全面升级：Raft 共识引擎、一致哈希主题分片、分层集群路由、热点主题检测；新增 NewLife.MQTT.Storage 存储库，Redis+Database 双实现离线消息与会话持久化；新增 MQTT-SN v1.2 协议支持；新增 OAuth 认证与 SOCKS5 代理，安全增强（限速/黑白名单/JWT）；WebHook 六种事件集成至 MqttHandler+Exchange 管线；修复 6 种 MQTT 5.0 消息类型属性序列化缺陷；新增集群路由/Raft/热点检测等单元测试</PackageReleaseNotes>
+    <PackageReleaseNotes>适配 NewLife.Core v12：帧编解码迁移到 v12 消息泵（MqttFrame/MqttCodec 实现 IMessageCodec+IMessageMatcher）；WebSocket 改由独立 HttpServer + MqttWebSocketHandler 桥接（EnableWebSocket/WebSocketPort/WebSocketPath，不再与 TCP 端口共用）；管理 API 迁移到 HttpServer 控制器（地址保持 /Api/{Action}）；集群 RPC 迁移到 HTTP（ClusterPort 为 HTTP 端口，ClusterSecret 作为请求令牌）；移除 NewLife.Remoting 依赖。集群能力全面升级：Raft 共识引擎、一致哈希主题分片、分层集群路由、热点主题检测；新增 NewLife.MQTT.Storage 存储库，Redis+Database 双实现离线消息与会话持久化；新增 MQTT-SN v1.2 协议支持；新增 OAuth 认证与 SOCKS5 代理，安全增强（限速/黑白名单/JWT）；WebHook 六种事件集成至 MqttHandler+Exchange 管线；修复 6 种 MQTT 5.0 消息类型属性序列化缺陷；新增集群路由/Raft/热点检测等单元测试</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -47,11 +47,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Http\**" />
     <Compile Remove="WebSocket\**" />
-    <EmbeddedResource Remove="Http\**" />
     <EmbeddedResource Remove="WebSocket\**" />
-    <None Remove="Http\**" />
     <None Remove="WebSocket\**" />
   </ItemGroup>
 
@@ -65,7 +62,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -82,8 +79,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NewLife.Core" Version="11.18.2026.801" />
-    <PackageReference Include="NewLife.Remoting" Version="3.9.2026.801" />
+    <PackageReference Include="NewLife.Core" Version="12.0.2026.1009-beta0916" />
   </ItemGroup>
 
   <ItemGroup>

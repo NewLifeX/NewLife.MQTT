@@ -1,94 +1,107 @@
+﻿#nullable enable
 using System;
-using System.Collections.Generic;
-using System.Reflection;
+using System.Net.Http;
+using System.Threading.Tasks;
+using NewLife.MQTT;
 using NewLife.MQTT.Handlers;
-using NewLife.Remoting;
 using Xunit;
 
 namespace XUnitTest.Handlers;
 
-/// <summary>管理 API 访问令牌鉴权测试。验证修复 S1</summary>
+/// <summary>管理 API 访问令牌鉴权测试。验证管理接口在配置 Token 后的放行与拒绝行为</summary>
 public class MqttManagementAuthTests
 {
-    /// <summary>模拟 IApiSession，提供 Host 与 Token。Host 置空走控制器反射注入 _server 路径</summary>
-    private class FakeSession : IApiSession
+    /// <summary>启动管理服务。端口0由系统自动分配，避免并发冲突</summary>
+    private static MqttManagementServer StartServer(String? token)
     {
-        public IApiHost Host { get; set; } = null!;
-        public DateTime LastActive { get; set; } = DateTime.Now;
-        public IApiSession[] AllSessions => [this];
-        public String? Token { get; set; }
-        public IDictionary<String, Object?> Items { get; } = new Dictionary<String, Object?>();
-        public Object? this[String key] { get => Items.TryGetValue(key, out var v) ? v : null; set => Items[key] = value; }
-        public Int32 InvokeOneWay(String action, Object? args, Byte flag = 0) => 0;
-        public Int32 SendMessage(NewLife.Messaging.IMessage msg) => 0;
+        var server = new MqttManagementServer
+        {
+            Port = 0,
+            Exchange = new MqttExchange(),
+            Token = token,
+        };
+        server.Start();
+
+        return server;
     }
 
-    /// <summary>构造带 Host 的控制器上下文</summary>
-    private static (MqttManagementServer server, MqttManagementController ctrl, FakeSession session) Create()
+    /// <summary>请求管理接口。token 为 null 时不携带令牌</summary>
+    private static async Task<(Int32 Code, String Body)> GetAsync(MqttManagementServer server, String path, String? token)
     {
-        var server = new MqttManagementServer { Exchange = new MqttExchange(), Port = 0 };
-        var ctrl = new MqttManagementController();
-        var session = new FakeSession();
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{server.Port}{path}");
+        if (token != null) request.Headers.TryAddWithoutValidation("x-token", token);
 
-        // 反射注入 _server（与现有测试的 InjectServer 一致）
-        var field = typeof(MqttManagementController).GetField("_server", BindingFlags.NonPublic | BindingFlags.Instance);
-        field?.SetValue(ctrl, server);
+        using var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
 
-        return (server, ctrl, session);
-    }
-
-    /// <summary>构造 ControllerContext</summary>
-    private static ControllerContext BuildContext(FakeSession session)
-    {
-        var ctx = new ControllerContext { Session = session };
-        return ctx;
+        return ((Int32)response.StatusCode, body);
     }
 
     [Fact]
     [System.ComponentModel.DisplayName("鉴权：未配置 Token 时请求放行（向后兼容）")]
-    public void NoTokenConfigured_AllowsRequest()
+    public async Task NoTokenConfigured_AllowsRequest()
     {
-        var (_, ctrl, session) = Create();
+        using var server = StartServer(null);
 
-        // 不抛异常即通过
-        var ex = Record.Exception(() => ctrl.OnActionExecuting(BuildContext(session)));
-        Assert.Null(ex);
+        var (code, body) = await GetAsync(server, "/Api/Stats", null);
+
+        Assert.Equal(200, code);
+        Assert.Contains("ConnectedClients", body);
     }
 
     [Fact]
     [System.ComponentModel.DisplayName("鉴权：配置 Token 且请求携带正确 Token 时放行")]
-    public void CorrectToken_AllowsRequest()
+    public async Task CorrectToken_AllowsRequest()
     {
-        var (server, ctrl, session) = Create();
-        server.Token = "secret-123";
-        session.Token = "secret-123";
+        using var server = StartServer("secret-123");
 
-        var ex = Record.Exception(() => ctrl.OnActionExecuting(BuildContext(session)));
-        Assert.Null(ex);
+        var (code, _) = await GetAsync(server, "/Api/Stats", "secret-123");
+
+        Assert.Equal(200, code);
     }
 
     [Fact]
     [System.ComponentModel.DisplayName("鉴权：配置 Token 但请求未携带 Token 时拒绝")]
-    public void MissingToken_RejectsRequest()
+    public async Task MissingToken_RejectsRequest()
     {
-        var (server, ctrl, session) = Create();
-        server.Token = "secret-123";
+        using var server = StartServer("secret-123");
 
-        var ex = Record.Exception(() => ctrl.OnActionExecuting(BuildContext(session)));
-        Assert.NotNull(ex);
-        Assert.IsType<ApiException>(ex);
+        var (code, _) = await GetAsync(server, "/Api/Stats", null);
+
+        Assert.Equal(401, code);
     }
 
     [Fact]
     [System.ComponentModel.DisplayName("鉴权：配置 Token 但请求携带错误 Token 时拒绝")]
-    public void WrongToken_RejectsRequest()
+    public async Task WrongToken_RejectsRequest()
     {
-        var (server, ctrl, session) = Create();
-        server.Token = "secret-123";
-        session.Token = "wrong-token";
+        using var server = StartServer("secret-123");
 
-        var ex = Record.Exception(() => ctrl.OnActionExecuting(BuildContext(session)));
-        Assert.NotNull(ex);
-        Assert.IsType<ApiException>(ex);
+        var (code, _) = await GetAsync(server, "/Api/Stats", "wrong-token");
+
+        Assert.Equal(401, code);
+    }
+
+    [Fact]
+    [System.ComponentModel.DisplayName("鉴权：通过查询参数携带正确 Token 时放行")]
+    public async Task QueryToken_AllowsRequest()
+    {
+        using var server = StartServer("secret-123");
+
+        var (code, _) = await GetAsync(server, "/Api/Stats?token=secret-123", null);
+
+        Assert.Equal(200, code);
+    }
+
+    [Fact]
+    [System.ComponentModel.DisplayName("管理接口：未知动作返回404")]
+    public async Task UnknownAction_Returns404()
+    {
+        using var server = StartServer(null);
+
+        var (code, _) = await GetAsync(server, "/Api/NotExists", null);
+
+        Assert.Equal(404, code);
     }
 }

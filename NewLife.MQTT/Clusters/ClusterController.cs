@@ -1,4 +1,5 @@
 ﻿using NewLife.Data;
+using NewLife.Http;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Net;
@@ -6,12 +7,16 @@ using NewLife.Remoting;
 
 namespace NewLife.MQTT.Clusters;
 
-/// <summary>接口控制器。对外提供RPC接口</summary>
-public class ClusterController : IApi, IActionFilter
+/// <summary>接口控制器。对外提供集群RPC接口</summary>
+/// <remarks>由 <see cref="ClusterServer"/> 挂在 /Cluster 路径下（<c>POST /Cluster/Join</c> 等），共享密钥由请求令牌校验</remarks>
+public class ClusterController : IHttpController
 {
     #region 属性
-    /// <summary>连接会话</summary>
-    public IApiSession Session { get; set; } = null!;
+    /// <summary>当前Http上下文。由控制器处理器注入</summary>
+    public IHttpContext? Context { get; set; }
+
+    /// <summary>集群服务。由 <see cref="ClusterServer"/> 启动时注入</summary>
+    public ClusterServer Server { get => _cluster; set => _cluster = value; }
 
     private ClusterServer _cluster = null!;
     #endregion
@@ -22,18 +27,6 @@ public class ClusterController : IApi, IActionFilter
     {
         //_cluster = cluster;
     }
-
-    /// <summary>执行前</summary>
-    /// <param name="filterContext"></param>
-    public void OnActionExecuting(ControllerContext filterContext)
-    {
-        var ss = Session = filterContext.Session!;
-        if (ss.Host is IExtend ext)
-            _cluster = (ext["Cluster"] as ClusterServer)!;
-    }
-
-    /// <summary>执行后</summary>
-    public void OnActionExecuted(ControllerContext filterContext) { }
     #endregion
 
     #region 集群管理
@@ -50,7 +43,7 @@ public class ClusterController : IApi, IActionFilter
         if (info.ClusterSecret == null) return "OK";
 
         _cluster.WriteLog("收到节点密钥更新[{0}]，同步新密钥", info.EndPoint);
-        _cluster.UpdateClusterSecret(info.ClusterSecret);
+        _cluster.UpdateClusterSecret(info.ClusterSecret, info.EndPoint);
 
         return "OK";
     }
@@ -69,15 +62,11 @@ public class ClusterController : IApi, IActionFilter
 
         var endpoint = info.EndPoint;
 
-        var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k });
-        node.Session = Session;
+        var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k, Secret = _cluster.ClusterSecret });
         node.Times = 1;
         node.LastActive = DateTime.Now;
 
-        if (Session != null) Session["Node"] = node;
-
-        //if (node.Times == 1)
-        _cluster.WriteLog("节点[{0}]加入集群，来自：{1}", node, Session);
+        _cluster.WriteLog("节点[{0}]加入集群，来自：{1}", node, Context?.Connection?.Remote);
 
         return _cluster.GetNodeInfo();
     }
@@ -88,9 +77,7 @@ public class ClusterController : IApi, IActionFilter
     public NodeInfo Ping(NodeInfo info)
     {
         var endpoint = info.EndPoint;
-
-        var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k });
-        node.Session = Session;
+        var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k, Secret = _cluster.ClusterSecret });
         node.Times++;
         node.LastActive = DateTime.Now;
 
@@ -106,7 +93,7 @@ public class ClusterController : IApi, IActionFilter
 
         if (_cluster.Nodes.TryRemove(endpoint, out var node))
         {
-            _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Session);
+            _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Context?.Connection?.Remote);
             // 延迟销毁，避免在 RPC 响应返回前关闭 Session 导致客户端超时
             _ = Task.Run(() => { try { node.TryDispose(); } catch (Exception ex) { _cluster?.WriteLog("节点[{0}]延迟销毁异常: {1}", node, ex.Message); } });
         }
@@ -121,9 +108,7 @@ public class ClusterController : IApi, IActionFilter
     /// <returns></returns>
     public String Subscribe(SubscriptionInfo[] infos)
     {
-        var node = Session["Node"] as ClusterNode;
-
-        _cluster.WriteLog("节点[{0}]订阅：{1}", node, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        _cluster.WriteLog("节点[{0}]订阅：{1}", Context?.Connection?.Remote, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群订阅3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
@@ -143,9 +128,7 @@ public class ClusterController : IApi, IActionFilter
     /// <returns></returns>
     public String Unsubscribe(SubscriptionInfo[] infos)
     {
-        var node = Session["Node"] as ClusterNode;
-
-        _cluster.WriteLog("节点[{0}]退订：{1}", node, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        _cluster.WriteLog("节点[{0}]退订：{1}", Context?.Connection?.Remote, infos.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群退订3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;

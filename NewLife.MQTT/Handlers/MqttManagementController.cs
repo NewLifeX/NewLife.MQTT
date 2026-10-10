@@ -1,45 +1,23 @@
-using NewLife.Data;
+﻿using NewLife.Data;
 using NewLife.MQTT.Messaging;
-using NewLife.Remoting;
 
 namespace NewLife.MQTT.Handlers;
 
-/// <summary>HTTP 管理 API 控制器。对外提供 Broker 状态查询接口</summary>
+/// <summary>HTTP 管理 API 控制器。对外提供 Broker 状态查询与运维接口</summary>
 /// <remarks>
 /// 通过 <see cref="MqttManagementServer"/> 挂载到指定端口（默认18883）。
 /// 所有接口以 JSON 格式返回，可配合 Dashboard 或运维脚本使用。
+/// <para>地址形如 <c>GET http://127.0.0.1:18883/Api/Stats</c>，参数从路由参数、查询串或JSON请求体绑定。</para>
 /// </remarks>
-public class MqttManagementController : IApi, IActionFilter
+public class MqttManagementController
 {
     #region 属性
-    /// <summary>连接会话</summary>
-    public IApiSession Session { get; set; } = null!;
-
     private MqttManagementServer _server = null!;
 
+    /// <summary>管理服务。由 <see cref="MqttManagementServer"/> 启动时注入</summary>
+    public MqttManagementServer Server { get => _server; set => _server = value; }
+
     private MqttExchange Exchange => _server.Exchange;
-    #endregion
-
-    #region 构造
-    /// <summary>执行前：从宿主中取出管理服务器引用，并校验访问令牌</summary>
-    /// <param name="filterContext"></param>
-    public void OnActionExecuting(ControllerContext filterContext)
-    {
-        Session = filterContext.Session!;
-        if (Session.Host is IExtend ext)
-            _server = (ext["Management"] as MqttManagementServer)!;
-
-        // 管理 API 访问令牌校验：配置了 Token 时，未携带或携带错误的请求一律拒绝。
-        // ApiHandler.Prepare 已从 HTTP 头 x-token / Authorization: Bearer 或参数 Token 填充 Session.Token
-        if (_server != null && !_server.Token.IsNullOrEmpty())
-        {
-            if (Session.Token != _server.Token)
-                throw new ApiException(ApiCode.Unauthorized, "无效的管理令牌");
-        }
-    }
-
-    /// <summary>执行后</summary>
-    public void OnActionExecuted(ControllerContext filterContext) { }
     #endregion
 
     #region 接口

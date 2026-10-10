@@ -84,31 +84,20 @@ public class ClusterServerTests
     [Fact]
     public void CreateCluster()
     {
-#if DEBUG
+        // 小规模随机端口：Port=0 由系统分配空闲端口，避免固定端口段在 Release/CI 下必然端口冲突
         var servers = new ClusterServer[4];
         for (var i = 0; i < servers.Length; i++)
         {
             servers[i] = new ClusterServer
             {
-                Port = 2883 + ((i + 2) * 10000),
+                Name = $"TestCluster{i}",
+                Port = 0,
                 ServiceProvider = _server.ServiceProvider,
 
                 Log = XTrace.Log
             };
             servers[i].Start();
         }
-#else
-        var servers = new ClusterServer[1000];
-        for (var i = 0; i < servers.Length; i++)
-        {
-            servers[i] = new ClusterServer
-            {
-                Port = 20000 + i + 1,
-                ServiceProvider = _server.ServiceProvider,
-            };
-            servers[i].Start();
-        }
-#endif
 
         _server.Nodes.Clear();
 

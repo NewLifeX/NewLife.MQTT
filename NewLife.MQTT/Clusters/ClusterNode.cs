@@ -10,12 +10,12 @@ namespace NewLife.MQTT.Clusters;
 public class ClusterNode : DisposeBase
 {
     #region 属性
-    /// <summary>结点地址。唯一标识</summary>
+    /// <summary>结点地址。唯一标识，形如 host:port 或 http://host:port</summary>
     public String EndPoint { get; set; } = null!;
 
-    /// <summary>会话连接</summary>
+    /// <summary>集群共享密钥。作为请求令牌携带</summary>
     [IgnoreDataMember]
-    public IApiSession? Session { get; set; }
+    public String? Secret { get; set; }
 
     /// <summary>客户端</summary>
     [IgnoreDataMember]
@@ -48,7 +48,6 @@ public class ClusterNode : DisposeBase
         }
         catch { }
 
-        Session.TryDispose();
         Client.TryDispose();
     }
     #endregion
@@ -58,20 +57,36 @@ public class ClusterNode : DisposeBase
     {
         if (Client != null) return;
 
-        var uri = new NetUri(EndPoint);
-        if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
+        // 集群 RPC 走 HTTP：EndPoint 为 host:port 时补全协议前缀
+        var url = EndPoint.StartsWithIgnoreCase("http://", "https://") ? EndPoint : $"http://{EndPoint}";
 
-        var client = new ApiClient(uri.ToString())
+        var client = new ApiHttpClient(url)
         {
-            Log = XTrace.Log
+            Log = XTrace.Log,
+            Token = Secret,
+            CodeName = "code",
+            DataName = "data",
         };
-#if DEBUG
-        //client.Log = XTrace.Log;
-        //client.EncoderLog = client.Log;
-#endif
-        client.Open();
 
         Client = client;
+    }
+
+    /// <summary>更新集群密钥。更新后新建的连接携带新令牌</summary>
+    /// <param name="secret">新密钥</param>
+    public void UpdateSecret(String? secret)
+    {
+        Secret = secret;
+        if (Client != null) Client.Token = secret;
+    }
+
+    /// <summary>通知远程节点同步新密钥</summary>
+    /// <param name="info">节点信息（含新密钥）</param>
+    /// <returns></returns>
+    public Task<String?> UpdateRemoteSecret(NodeInfo info)
+    {
+        Init();
+
+        return Client.InvokeAsync<String>("Cluster/UpdateSecret", info);
     }
 
     /// <summary>回响</summary>
@@ -81,7 +96,8 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<String>("Cluster/Echo", msg);
+        // Http 参数按名称绑定，单参数需以具名对象传递
+        return Client.InvokeAsync<String>("Cluster/Echo", new { msg });
     }
 
     /// <summary>加入集群</summary>
@@ -122,7 +138,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<String>("Cluster/Subscribe", infos);
+        return Client.InvokeAsync<String>("Cluster/Subscribe", new { infos });
     }
 
     /// <summary>退订</summary>
@@ -132,7 +148,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<String>("Cluster/Unsubscribe", infos);
+        return Client.InvokeAsync<String>("Cluster/Unsubscribe", new { infos });
     }
 
     /// <summary>心跳</summary>

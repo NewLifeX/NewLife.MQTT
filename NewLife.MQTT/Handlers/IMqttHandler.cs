@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using NewLife.Data;
 using NewLife.Log;
+using NewLife.Messaging;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Messaging;
 using NewLife.Security;
@@ -91,7 +92,10 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     private Boolean _cleanSession = true;
 
     /// <summary>MQTT 协议版本</summary>
-    private MqttVersion _protocolLevel;
+    private MqttVersion _protocolLevel = MqttVersion.V311;
+
+    /// <summary>协商后的协议版本。CONNECT 到达后确定，供帧解码使用</summary>
+    public MqttVersion ProtocolLevel { get => _protocolLevel; set => _protocolLevel = value; }
 
     /// <summary>MQTT 5.0 会话能力</summary>
     private MqttSessionCapabilities? _capabilities;
@@ -212,11 +216,11 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     private ConnAck? CompleteConnect(ConnectMessage message, Byte[]? authenticationData)
     {
         var exchange = Exchange;
-        exchange?.Add(Session.ID, this);
+        exchange?.Add(Session.SessionId, this);
 
         // 注册客户端标识映射（用于统计查询）
         if (exchange is MqttExchange mqttEx && !_clientId.IsNullOrEmpty())
-            mqttEx.RegisterClientId(Session.ID, _clientId);
+            mqttEx.RegisterClientId(Session.SessionId, _clientId);
 
         // 保存遗嘱消息，用于异常断开时发布
         if (message.HasWill && !message.WillTopicName.IsNullOrEmpty())
@@ -224,7 +228,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             _willMessage = new PublishMessage
             {
                 Topic = message.WillTopicName,
-                Payload = message.WillMessage != null ? (NewLife.Data.Packet)message.WillMessage : null,
+                Payload = message.WillMessage != null ? (IPacket)new ArrayPacket(message.WillMessage) : null,
                 QoS = message.WillQualityOfService,
                 Retain = message.WillRetain,
             };
@@ -300,11 +304,11 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         if (!_cleanSession && exchange != null && !_clientId.IsNullOrEmpty())
         {
             // CleanSession=0，优先恢复本地会话
-            sessionPresent = exchange.RestorePersistentSession(_clientId, Session.ID);
+            sessionPresent = exchange.RestorePersistentSession(_clientId, Session.SessionId);
 
             // 本地无会话时向集群节点查询（F035 集群会话漂移）
             if (!sessionPresent && ClusterExchange?.Cluster != null)
-                sessionPresent = TryMigrateClusterSession(_clientId, Session.ID, exchange);
+                sessionPresent = TryMigrateClusterSession(_clientId, Session.SessionId, exchange);
         }
         else if (_cleanSession && exchange != null && !_clientId.IsNullOrEmpty())
         {
@@ -398,9 +402,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         // CleanSession=0 时保存持久会话
         if (!_cleanSession && Exchange != null && !_clientId.IsNullOrEmpty())
-            Exchange.SavePersistentSession(_clientId, Session.ID, _subscriptions);
+            Exchange.SavePersistentSession(_clientId, Session.SessionId, _subscriptions);
 
-        Exchange?.Remove(Session.ID);
+        Exchange?.Remove(Session.SessionId);
 
         _inflightManager.TryDispose();
 
@@ -478,7 +482,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         // 使用带 publisherSessionId 的重载以支持 NoLocal
         if (Exchange is MqttExchange mqttEx)
-            mqttEx.Publish(message, Session.ID);
+            mqttEx.Publish(message, Session.SessionId);
         else
             Exchange?.Publish(message);
 
@@ -553,9 +557,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
             // 传递 MQTT 5.0 订阅选项（含订阅标识符）
             if (exchange is MqttExchange mqttEx)
-                mqttEx.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService, item.NoLocal, item.RetainAsPublished, item.RetainHandling, subscriptionIdentifier);
+                mqttEx.Subscribe(Session.SessionId, item.TopicFilter, item.QualityOfService, item.NoLocal, item.RetainAsPublished, item.RetainHandling, subscriptionIdentifier);
             else
-                exchange?.Subscribe(Session.ID, item.TopicFilter, item.QualityOfService);
+                exchange?.Subscribe(Session.SessionId, item.TopicFilter, item.QualityOfService);
 
             _subscriptions[item.TopicFilter] = item.QualityOfService;
             grantedQos.Add(item.QualityOfService);
@@ -585,7 +589,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         {
             foreach (var item in message.TopicFilters)
             {
-                exchange.Unsubscribe(Session.ID, item);
+                exchange.Unsubscribe(Session.SessionId, item);
                 _subscriptions.Remove(item);
 
                 // WebHook 客户端取消订阅事件
@@ -725,18 +729,11 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         var client = Session;
         try
         {
-            // 断开消息没有响应
-            if (!waitForResponse)
-            {
-                client.SendMessage(msg);
-                return null;
-            }
+            var rs = await client.SendMessageAsync(msg, waitForResponse).ConfigureAwait(false);
 
-            var rs = await client.SendMessageAsync(msg).ConfigureAwait(false);
+            if (waitForResponse && Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs);
 
-            if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("<= {0}", rs as MqttMessage);
-
-            return rs as MqttMessage;
+            return rs;
         }
         catch (Exception ex)
         {
@@ -792,11 +789,11 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
 
         // CleanSession=0 时保存持久会话
         if (!_cleanSession && Exchange != null && !_clientId.IsNullOrEmpty())
-            Exchange.SavePersistentSession(_clientId, Session.ID, _subscriptions);
+            Exchange.SavePersistentSession(_clientId, Session.SessionId, _subscriptions);
 
         _inflightManager.TryDispose();
 
-        Exchange?.Remove(Session.ID);
+        Exchange?.Remove(Session.SessionId);
     }
     #endregion
 

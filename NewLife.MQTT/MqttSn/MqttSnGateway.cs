@@ -203,7 +203,7 @@ public class MqttSnGateway : DisposeBase
         {
             await MqttClient.SubscribeAsync(topic, e =>
             {
-                var payload = e.Payload is Packet pk ? pk.ToArray() : [];
+                var payload = e.Payload is { } pk ? pk.ToArray() : [];
                 var pub = new MqttSnPublishMessage
                 {
                     Flags = 0,

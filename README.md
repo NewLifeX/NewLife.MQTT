@@ -20,6 +20,7 @@
 | [竞品分析](Doc/竞品分析.md) | MQTT 生态全景对比（EMQX/MQTTnet/Mosquitto 等）、SWOT |
 | [CLUS-集群竞品分析](Doc/CLUS-集群竞品分析.md) | 集群能力专项对标（EMQX/HiveMQ/VerneMQ） |
 | [集成测试说明](Doc/集成测试说明.md) | 测试架构、运行方法、测试分类 |
+| [AOT兼容性分析](Doc/AOT兼容性分析.md) | NativeAOT 实测评估：场景结果、唯一阻断点与修复路径、复现方法 |
 | [更新日志](Doc/更新日志.md) | 版本发布记录与提交明细 |
 
 ---
@@ -187,6 +188,8 @@ new MqttClient { Server = "wss://broker.example.com:8084" };           // WSS
 new MqttClient { Server = "quic://broker.example.com:14567" };         // QUIC (.NET 7+)
 ```
 
+> WebSocket 服务端：v12 起由独立 `HttpServer` 承载（`EnableWebSocket = true`，`WebSocketPort` 默认 0 由系统分配、`WebSocketPath` 默认 `/mqtt`），不再与 MQTT 的 TCP 端口共用；客户端仍按 `ws://host:port/mqtt` 连接。设置 `WebSocketCertificate` 后该端口启用 TLS，即 `wss://host:port/mqtt`。
+
 ---
 
 ## 服务端详细用法
@@ -293,6 +296,8 @@ services.AddSingleton<IMqttExchange, ClusterExchange>();
 ```
 
 集群操作：Join 加入（启动时）→ Ping 保活（15 秒）→ Lease 离开（停止时），超时节点（5 分钟）自动剔除。
+
+> v12 起集群 RPC 走 HTTP（`ClusterPort` 为 HTTP 端口，节点地址可写 `host:port` 或 `http://host:port`），共享密钥 `ClusterSecret` 作为请求令牌逐次校验；不再依赖 NewLife.Remoting。
 
 ### 阿里云 IoT 适配
 

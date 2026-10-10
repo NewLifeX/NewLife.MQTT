@@ -1,15 +1,17 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Buffers;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using NewLife.Buffers;
 using NewLife.Data;
 using NewLife.Log;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
 using NewLife.MQTT.Quic;
+using NewLife.Messaging;
 using NewLife.Net;
-using NewLife.Net.Handlers;
 using NewLife.Serialization;
 using NewLife.Threading;
 
@@ -137,6 +139,57 @@ public class MqttClient : DisposeBase
     private Int32 _taskCanceledCount;
     private Int32 _reconnectAttempts;
     private CancellationTokenSource? _reconnectCts;
+
+    /// <summary>MQTT 消息工厂</summary>
+    private readonly MqttFactory _factory = new();
+
+    /// <summary>连接协议版本。CONNECT 发送时确定，供帧编解码使用</summary>
+    private MqttVersion _protocolLevel = MqttVersion.V311;
+
+    /// <summary>帧编解码器。WebSocket 传输自行定界帧，客户端不识别代理头</summary>
+    private readonly MqttCodec _codec = new() { AcceptProxyProtocol = false };
+
+    /// <summary>WebSocket 连接的帧定界器。键为连接实例，重连后不复用旧残余</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<WebSocketClient, MqttFrameDeframer> _wsDeframers = new();
+
+    /// <summary>挂起的请求。WebSocket 传输没有协议泵配对，需自行登记等待队列</summary>
+    private readonly List<PendingFrame> _pending = [];
+
+    private sealed class PendingFrame
+    {
+        public MqttFrame Request = null!;
+
+#if NET45
+        // net45 没有 RunContinuationsAsynchronously，接受同步续体
+        public TaskCompletionSource<IMessage> Source = new();
+#else
+        public TaskCompletionSource<IMessage> Source = new(TaskCreationOptions.RunContinuationsAsynchronously);
+#endif
+    }
+
+    /// <summary>包装 MQTT 消息为协议帧</summary>
+    private MqttFrame CreateFrame(MqttMessage msg)
+    {
+        if (msg is ConnectMessage cm) _protocolLevel = cm.ProtocolLevel;
+
+        var flag = (Byte)((Byte)msg.Type << 4);
+
+        return new MqttFrame
+        {
+            Mqtt = msg,
+            Version = _protocolLevel,
+            FirstByte = flag,
+            Kind = MqttFrame.GetKind(flag),
+        };
+    }
+
+    /// <summary>解码协议帧为 MQTT 消息</summary>
+    private MqttMessage? Decode(Object? message) => message switch
+    {
+        MqttFrame frame => _factory.ReadMessage(frame, _protocolLevel),
+        MqttMessage msg => msg,
+        _ => null,
+    };
 
     /// <summary>Inflight 消息管理器（客户端消息重发）</summary>
     private InflightManager? _inflightManager;
@@ -304,20 +357,14 @@ public class MqttClient : DisposeBase
             ISocketClient client;
             if (isWebSocket)
             {
-                // 使用 Core 的 WebSocketClient，自带握手和帧编解码
-                var ws = new WebSocketClient(Server);
-                if (ws.Remote.Port == 0) ws.Remote.Port = isWss ? 8884 : 8083;
-                ws.SetRequestHeader("Sec-WebSocket-Protocol", "mqtt");
-                ws.KeepAlive = TimeSpan.Zero; // MQTT 有自己的心跳，禁用 WebSocket 层 Ping
-
-                // 重建管线，确保顺序：ProxyCodec → WebSocketCodec → MqttCodec
-                ws.Pipeline.Clear();
-                if (EnableProxyProtocol) ws.Add(new ProxyCodec { Client = true });
-                ws.Add(new WebSocketCodec { UserPacket = true });
-                ws.Add(new MqttCodec());
+                // MQTT over WebSocket：二进制消息承载 MQTT 报文，没有协议泵，请求-响应配对由客户端自管
+                var ws = new WebSocketClient(new Uri(Server))
+                {
+                    RequestHeaders = new Dictionary<String, String?> { ["Sec-WebSocket-Protocol"] = "mqtt" },
+                };
+                WriteLog("正在连接[{0}]", Server);
 
                 client = ws;
-                WriteLog("正在连接[{0}](WebSocket)", ws.Remote);
             }
             else
             {
@@ -338,12 +385,15 @@ public class MqttClient : DisposeBase
                     client = uri.CreateRemote();
                 }
 
-                if (EnableProxyProtocol)
+                // v12 协议泵：MQTT 帧编解码必须在打开前设置；启用代理时在帧前追加 PROXY 头
+                if (client is SessionBase session)
                 {
-                    if (client is ISocketClient sc)
-                        sc.Add(new ProxyCodec { Client = true });
+                    // 客户端不解析代理头：PROXY 协议只服务于服务端识别真实地址
+                    IMessageCodec codec = new MqttCodec { AcceptProxyProtocol = false };
+                    if (EnableProxyProtocol) codec = new ProxyClientCodec(codec) { Session = session };
+                    session.Protocol = codec;
+                    session.MatchQueue ??= new DefaultMatchQueue();
                 }
-                client.Add(new MqttCodec());
             }
 
             client.Log = Log;
@@ -379,6 +429,9 @@ public class MqttClient : DisposeBase
             await client.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             _Client = client;
+
+            // WebSocket 拉取模式：协议层事件回调会把每条消息拷入内部队列，必须由接收循环消费
+            if (client is WebSocketClient wsc) _ = ReceiveWsLoopAsync(wsc);
 
             // 打开心跳定时器
             var p = KeepAlive * 1000 / 2;
@@ -420,11 +473,11 @@ public class MqttClient : DisposeBase
         var client = _Client ?? throw new ArgumentNullException(nameof(_Client));
         try
         {
-            // 断开消息没有响应
-            if (!waitForResponse)
+            // 断开消息没有响应。WebSocket 传输在其分支内处理
+            if (!waitForResponse && client is not WebSocketClient)
             {
                 if (client is ISocketClient socket)
-                    socket.SendMessage(msg);
+                    socket.SendMessage(CreateFrame(msg));
 #if NET7_0_OR_GREATER
                 else if (client is QuicClient quic)
                     quic.SendMessage(msg);
@@ -434,8 +487,39 @@ public class MqttClient : DisposeBase
             }
 
             MqttMessage? rs;
-            if (client is ISocketClient socket2)
-                rs = await socket2.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false) as MqttMessage;
+            if (client is WebSocketClient ws)
+            {
+                if (!waitForResponse)
+                {
+                    await SendWsAsync(ws, msg, cancellationToken).ConfigureAwait(false);
+                    return null;
+                }
+
+                // WebSocket 没有协议泵配对，登记等待队列后由接收循环唤醒
+                var pending = new PendingFrame { Request = CreateFrame(msg) };
+                lock (_pending) _pending.Add(pending);
+                try
+                {
+                    await SendWsAsync(ws, msg, cancellationToken).ConfigureAwait(false);
+
+                    var winner = await Task.WhenAny(pending.Source.Task, Task.Delay(Timeout, cancellationToken)).ConfigureAwait(false);
+                    if (winner != pending.Source.Task) throw new TimeoutException($"等待服务器响应超时：{msg.Type}");
+
+                    var rep = await pending.Source.Task.ConfigureAwait(false);
+                    rs = Decode(rep);
+                    rep.TryDispose();
+                }
+                finally
+                {
+                    lock (_pending) _pending.Remove(pending);
+                }
+            }
+            else if (client is ISocketClient socket2)
+            {
+                var rep = await socket2.SendMessageAsync(CreateFrame(msg), cancellationToken).ConfigureAwait(false);
+                rs = Decode(rep);
+                rep.TryDispose();
+            }
 #if NET7_0_OR_GREATER
             else if (client is QuicClient quic2)
                 rs = await quic2.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false);
@@ -487,8 +571,18 @@ public class MqttClient : DisposeBase
 
     private void Client_Received(Object sender, ReceivedEventArgs e)
     {
-        if (e.Message is not MqttMessage msg || msg.Reply) return;
+        // WebSocket 传输由拉取循环处理，协议层事件仅负责把消息拷入内部队列
+        if (e.Message is WsMessage) return;
 
+        var msg = Decode(e.Message);
+        if (msg == null || msg.Reply) return;
+
+        ProcessMessage(sender, msg);
+    }
+
+    /// <summary>处理服务端主动下发的消息</summary>
+    private void ProcessMessage(Object sender, MqttMessage msg)
+    {
         if (Log != null && Log.Level <= LogLevel.Debug)
         {
             if (msg is PublishMessage pm)
@@ -506,8 +600,10 @@ public class MqttClient : DisposeBase
             {
                 if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", rs);
 
-                if (sender is ISocketRemote ss)
-                    ss.SendMessage(rs);
+                if (sender is WebSocketClient ws)
+                    _ = SendWsAsync(ws, rs, CancellationToken.None);
+                else if (sender is ISocketRemote ss)
+                    ss.SendMessage(CreateFrame(rs));
 #if NET7_0_OR_GREATER
                 else if (sender is QuicClient quic)
                     quic.SendMessage(rs);
@@ -522,39 +618,125 @@ public class MqttClient : DisposeBase
         }
     }
 
+    /// <summary>WebSocket 接收循环。拉取模式消费内部队列，连接关闭时退出</summary>
+    private async Task ReceiveWsLoopAsync(WebSocketClient ws)
+    {
+        while (true)
+        {
+            WsMessage? message;
+            try
+            {
+                message = await ws.ReceiveMessageAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                WriteLog("WebSocket接收失败：{0}", ex.Message);
+                break;
+            }
+
+            if (message == null) break;
+
+            try
+            {
+                ProcessWsMessage(ws, message);
+            }
+            catch (Exception ex)
+            {
+                WriteLog("WebSocket消息处理失败：{0}", ex.Message);
+            }
+            finally
+            {
+                message.TryDispose();
+            }
+        }
+    }
+
+    /// <summary>处理 WebSocket 消息。二进制负载定界为 MQTT 帧后分发</summary>
+    private void ProcessWsMessage(WebSocketClient ws, WsMessage message)
+    {
+        if (message.Type != WebSocketMessageType.Binary || message.Payload == null || message.Payload.Total == 0) return;
+
+        // 一条 WS 消息可能承载半个 MQTT 帧，残余由定界器保留到下一轮拼接后定界
+        var deframer = _wsDeframers.GetValue(ws, e => new MqttFrameDeframer());
+        if (!deframer.Process(_codec, message.Payload, frame =>
+        {
+            var msg = Decode(frame);
+            if (msg == null) return;
+
+            // 响应交给等待方，其余按主动下发处理
+            if (msg.Reply)
+            {
+                TryMatchPending(frame);
+
+                return;
+            }
+
+            ProcessMessage(ws, msg);
+        }) && deframer.Overflow)
+        {
+            WriteLog("WebSocket报文残余超限，断开连接");
+            ws.Close("MQTT报文超限");
+        }
+    }
+
+    /// <summary>把响应帧交给等待方。配对规则与协议泵一致</summary>
+    private Boolean TryMatchPending(IMessage frame)
+    {
+        PendingFrame? pending = null;
+        lock (_pending)
+        {
+            foreach (var item in _pending)
+            {
+                if (_codec.Match(item.Request, frame))
+                {
+                    pending = item;
+                    break;
+                }
+            }
+
+            if (pending != null) _pending.Remove(pending);
+        }
+
+        return pending != null && pending.Source.TrySetResult(frame);
+    }
+
+    /// <summary>把 MQTT 消息写成 WebSocket 二进制消息。启用 PROXY 协议时在负载前追加代理头</summary>
+    private async Task SendWsAsync(WebSocketClient ws, MqttMessage msg, CancellationToken cancellationToken)
+    {
+        var data = _codec.Build(CreateFrame(msg))!;
+        if (EnableProxyProtocol)
+        {
+            var header = ProxyClientCodec.BuildProxyHeader(ws);
+            if (header != null)
+            {
+                var owner = new OwnerPacket(header.Length + data.Total);
+                var writer = new SpanWriter(owner);
+                writer.Write(header);
+                writer.Write(data);
+                owner.Resize(writer.WrittenCount);
+
+                data.TryDispose();
+                data = owner;
+            }
+        }
+
+        try
+        {
+            await ws.SendBinaryAsync(data, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            data.TryDispose();
+        }
+    }
+
 #if NET7_0_OR_GREATER
     /// <summary>QUIC 客户端收到消息时</summary>
     private void QuicClient_Received(Object? sender, MqttMessage msg)
     {
         if (msg == null || msg.Reply) return;
 
-        if (Log != null && Log.Level <= LogLevel.Debug)
-        {
-            if (msg is PublishMessage pm)
-                WriteLog("<= {0} {1}", msg, pm.Payload?.ToStr());
-            else
-                WriteLog("<= {0}", msg);
-        }
-
-        // 性能埋点
-        using var span = Tracer?.NewSpan($"mqtt:{Name}:{msg.Type}", msg);
-        try
-        {
-            var rs = OnReceive(msg);
-            if (rs != null)
-            {
-                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", rs);
-
-                if (sender is QuicClient quic)
-                    quic.SendMessage(rs);
-            }
-        }
-        catch (Exception ex)
-        {
-            span?.SetError(ex, null);
-
-            throw;
-        }
+        ProcessMessage(sender!, msg);
     }
 
     /// <summary>QUIC 客户端发生错误时</summary>
@@ -681,7 +863,7 @@ public class MqttClient : DisposeBase
         {
             var innerClient = _Client;
             if (innerClient is ISocketClient s && s.Active && !s.Disposed)
-                s.SendMessage(msg);
+                s.SendMessage(CreateFrame(msg));
 #if NET7_0_OR_GREATER
             else if (innerClient is QuicClient q && q.Active)
                 q.SendMessage(msg);
@@ -728,8 +910,14 @@ public class MqttClient : DisposeBase
         {
             if (disconnectClient is ISocketClient sock && !sock.Disposed)
             {
-                // 先取消事件订阅，避免 Close 触发 Client_Closed 二次触发 Disconnected
+                // 先取消事件订阅，避免 Close 触发 Client_Closed 二次触发 Disconnected，也避免误启自动重连
                 sock.Closed -= Client_Closed;
+
+                // 再等对端处理 DISCONNECT 并关闭连接（协议约定服务端关闭），避免客户端立即断开触发服务端误判。
+                // v12 消息泵在连接关闭时取消挂起读取：若客户端发完 DISCONNECT 立即断开，服务端可能丢弃已到达
+                // 的 DISCONNECT 报文，把正常断开误判为异常断开而误发遗嘱消息。最多等待 500ms，超时随即自行关闭。
+                await WaitForServerClose(sock).ConfigureAwait(false);
+
                 sock.TryDispose();
             }
 #if NET7_0_OR_GREATER
@@ -743,6 +931,30 @@ public class MqttClient : DisposeBase
 
         var e = new EventArgs();
         Disconnected?.Invoke(this, e);
+    }
+
+    /// <summary>等待服务端关闭连接。已关闭或超时（500ms）即返回</summary>
+    /// <param name="sock">客户端连接</param>
+    private static async Task WaitForServerClose(ISocketClient sock)
+    {
+#if NET45
+        // net45 没有 RunContinuationsAsynchronously，接受同步续体
+        var closed = new TaskCompletionSource<Boolean>();
+#else
+        var closed = new TaskCompletionSource<Boolean>(TaskCreationOptions.RunContinuationsAsynchronously);
+#endif
+        void OnClosed(Object sender, EventArgs e) => closed.TrySetResult(true);
+
+        sock.Closed += OnClosed;
+        try
+        {
+            await Task.WhenAny(closed.Task, Task.Delay(500)).ConfigureAwait(false);
+        }
+        catch { }
+        finally
+        {
+            sock.Closed -= OnClosed;
+        }
     }
 
     private void Client_Error(Object sender, ExceptionEventArgs e)

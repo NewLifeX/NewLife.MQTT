@@ -27,6 +27,9 @@ public class ProxyMessageV2
     private static readonly Byte[] _Magic = "\r\n\r\n\0\r\nQUIT\n".GetBytes();
     private static readonly Byte[] _NewLine = "\r\n".GetBytes();
 
+    /// <summary>协议魔数。用于快速识别与增量等待判断</summary>
+    public static ReadOnlySpan<Byte> Magic => _Magic;
+
     /// <summary>快速验证协议头</summary>
     /// <param name="data"></param>
     /// <returns></returns>

@@ -10,7 +10,7 @@
 当前集群是一个 RPC 广播式集群，内置于 `NewLife.MQTT/Clusters/` 目录：
 
 ```
-  Node A ──RPC──► Node B     通信方式：ApiServer/ApiClient（独立端口 2883）
+  Node A ──RPC──► Node B     通信方式：HttpServer 控制器 + ApiHttpClient（HTTP，默认端口 2883）
     │               │         订阅同步：RPC 广播（foreach 遍历）
     └───RPC──► Node C        消息转发：主题过滤器匹配后 RPC 转发
                              节点发现：UDP 广播 (ClusterDiscovery)
@@ -309,14 +309,11 @@ services.AddMqttServer(o => {
 
 **验证流程**：
 ```
-新节点请求 Join
-  → ClusterController 收到请求
-  → 提取 ClusterSecret 头
-  → 检查：对方 IP 是否同网段？
-      → 是，且 UDP 已发现对方 → 允许（局域网信任）
-      → 否 → 验证 ClusterSecret
-          → 一致 → 允许
-          → 不一致/缺失 → 拒绝 + 记日志
+新节点请求 POST /Cluster/Join（Authorization: Bearer <ClusterSecret>）
+  → ClusterSecretHandler 校验请求令牌
+      → 一致或本端未配置密钥 → 放行
+      → 不一致/缺失 → 401 拒绝 + 记日志
+  → ClusterController 再次校验 NodeInfo 中携带的 ClusterSecret（兼容 UDP 发现加入）
 ```
 
 **竞品对比**：
@@ -911,7 +908,7 @@ sequenceDiagram
 
 | 领域 | 选型 | 理由 |
 |------|------|------|
-| 集群 RPC | NewLife.Remoting（ApiServer/ApiClient） | 自有框架，零外部依赖，已在当前集群验证 |
+| 集群 RPC | NewLife.Core 内置 HTTP RPC（HttpServer + ApiHttpClient） | 零外部依赖，与 Core v12 方向一致；集群端口为 HTTP 端口 |
 | 共识协议 | 自研精简 Raft（Leader Election + Log Replication + Snapshot） | 零外部依赖；仅需管理订阅元数据，范围可控 |
 | Gossip 传播 | 自研 GossipExchange | 简单可靠，定期随机传播 |
 | 主题分片 | 自研一致哈希（SortedDictionary + 虚拟节点） | 零依赖，节点变更仅影响 O(1/N) 分片 |

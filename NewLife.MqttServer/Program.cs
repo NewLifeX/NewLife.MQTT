@@ -44,6 +44,9 @@ var svr = new MqttServer()
     Port = set.Port,
     ClusterPort = set.ClusterPort,
     ClusterNodes = set.ClusterNodes.Split(",", ";"),
+    EnableWebSocket = set.EnableWebSocket,
+    WebSocketPort = set.WebSocketPort,
+    WebSocketPath = set.WebSocketPath,
     ServiceProvider = services.BuildServiceProvider(),
 
     Tracer = star.Tracer,

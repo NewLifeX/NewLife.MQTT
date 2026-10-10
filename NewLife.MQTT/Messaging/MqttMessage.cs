@@ -93,6 +93,27 @@ public abstract class MqttMessage : ISpanSerializable
         return OnRead(ref reader, context);
     }
 
+    /// <summary>从已定界的帧体反序列化。固定头字段由帧层解析后传入，帧体为可变头部+负载</summary>
+    /// <param name="body">帧体（不含固定头）</param>
+    /// <param name="flag">固定头首字节</param>
+    /// <param name="protocolLevel">协议版本</param>
+    /// <returns>是否成功</returns>
+    public Boolean ReadBody(IPacket body, Byte flag, MqttVersion protocolLevel)
+    {
+        if (body == null) throw new ArgumentNullException(nameof(body));
+
+        Type = (MqttType)((flag & 0b1111_0000) >> 4);
+        Duplicate = ((flag & 0b0000_1000) >> 3) > 0;
+        QoS = (QualityOfService)((flag & 0b0000_0110) >> 1);
+        Retain = ((flag & 0b0000_0001) >> 0) > 0;
+        Length = (Int32)body.Total;
+
+        Object? context = protocolLevel >= MqttVersion.V500 ? protocolLevel : null;
+        var reader = new SpanReader(body) { IsLittleEndian = false };
+
+        return OnRead(ref reader, context);
+    }
+
     /// <summary>子消息读取</summary>
     /// <param name="reader">Span读取器</param>
     /// <param name="context">上下文</param>

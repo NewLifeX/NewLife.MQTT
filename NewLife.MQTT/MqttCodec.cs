@@ -1,145 +1,203 @@
-﻿using NewLife.Buffers;
+﻿using System.Buffers;
 using NewLife.Data;
 using NewLife.Messaging;
-using NewLife.Model;
 using NewLife.MQTT.Messaging;
-using NewLife.Net.Handlers;
+using NewLife.MQTT.ProxyProtocol;
 
 namespace NewLife.MQTT;
 
-/// <summary>编码器</summary>
-public class MqttCodec : MessageCodec<MqttMessage>
+/// <summary>MQTT 帧编解码器。在 v12 消息泵上定界 MQTT 帧：解析固定头（类型+标志+变长剩余长度），帧体交由泵绑定</summary>
+/// <remarks>
+/// <para>无状态、可跨连接共享；MQTT 协议版本属于连接态，解码由会话层用连接版本调用 <see cref="MqttFactory.ReadMessage(MqttFrame, MqttVersion)"/>。</para>
+/// <para>帧体跨轮到达时由泵绑定为流式体，会话需启用匹配队列（<c>SessionBase.MatchQueue</c>）以确保交付前物化为内存，供同步解码。</para>
+/// <para>服务端可识别并剥离前置代理（nginx/haproxy）写入的 PROXY 协议头，定界为 <see cref="MqttProxyFrame"/> 交由会话层修正客户端地址。</para>
+/// </remarks>
+public class MqttCodec : IMessageCodec, IMessageMatcher
 {
-    private readonly MqttFactory _Factory = new();
+    /// <summary>剩余长度上限。MQTT 规范 268435455（约256MB）</summary>
+    public const Int32 MaxRemainingLength = 268_435_455;
 
-    /// <summary>实例化编码器</summary>
-    public MqttCodec() => UserPacket = false;
+    /// <summary>识别并剥离 PROXY 协议头。默认true，用于前置代理场景</summary>
+    public Boolean AcceptProxyProtocol { get; set; } = true;
 
-    /// <summary>编码</summary>
-    /// <param name="context"></param>
-    /// <param name="msg"></param>
+    private static readonly Byte[] _ProxyMagic = "PROXY ".GetBytes();
+
+    #region 定界
+    /// <summary>定界并构造帧消息。固定头不足返回null；剩余长度非法返回损坏帧</summary>
+    /// <param name="buffer">帧首窗口（只读序列，可跨段）</param>
     /// <returns></returns>
-    protected override Object? Encode(IHandlerContext context, MqttMessage msg)
+    public virtual ParseResult? TryParse(ReadOnlySequence<Byte> buffer)
     {
-        // 客户端发送 CONNECT 时记录协议版本，供后续编码 MQTT 5.0 属性使用
-        if (msg is ConnectMessage connect && context.Owner is IExtend ssConn)
-            ssConn["ProtocolLevel"] = connect.ProtocolLevel;
+        if (AcceptProxyProtocol && TryParseProxy(buffer, out var proxy)) return proxy;
 
-        if (msg is MqttMessage cmd)
+        return TryParseMqtt(buffer);
+    }
+
+    private static ParseResult? TryParseMqtt(in ReadOnlySequence<Byte> buffer)
+    {
+        // 固定头：1字节类型/标志 + 1~4字节变长剩余长度
+        if (buffer.Length < 2) return null;
+
+        var reader = new SequenceReader<Byte>(buffer);
+        reader.TryRead(out var flag);
+
+        var remaining = 0;
+        var multiplier = 1;
+        var len = 0;
+        while (true)
         {
-            // 若当前连接已知为 MQTT 5.0，则携带协议版本 context，以便 PublishMessage 等写入空属性长度字节
-            var pl = context.Owner is IExtend ss && ss["ProtocolLevel"] is MqttVersion level ? level : MqttVersion.V311;
-            Object? ctx = pl >= MqttVersion.V500 ? (Object)pl : null;
+            // 变长长度最多4字节，第4字节仍带延续位即为损坏
+            if (len == 4) return new ParseResult { Invalid = true };
+            if (!reader.TryRead(out var b)) return null;
+            len++;
 
-            // 使用 SpanWriter 编码消息，避免 MemoryStream 分配
-            var pk = new OwnerPacket(cmd.GetEstimatedSize());
-            var writer = new SpanWriter(pk) { IsLittleEndian = false };
-            cmd.Write(ref writer, ctx);
-            pk.Resize(writer.WrittenCount);
-            return pk;
+            remaining += (b & 0x7F) * multiplier;
+            if ((b & 0x80) == 0) break;
+            multiplier *= 128;
         }
 
-        return null;
-    }
+        if (remaining > MaxRemainingLength) return new ParseResult { Invalid = true };
 
-    /// <summary>加入队列</summary>
-    /// <param name="context"></param>
-    /// <param name="msg"></param>
-    /// <returns></returns>
-    protected override void AddToQueue(IHandlerContext context, MqttMessage msg)
-    {
-        if (!msg.Reply) base.AddToQueue(context, msg);
-    }
-
-
-    /// <summary>读取消息</summary>
-    /// <param name="context"></param>
-    /// <param name="message"></param>
-    /// <returns></returns>
-    public override Object? Read(IHandlerContext context, Object message)
-    {
-        if (message is not IPacket pk) return base.Read(context, message);
-
-        var list = Decode(context, pk);
-        if (list == null) return null;
-
-        var queue = Queue;
-        foreach (var msg in list)
+        var frame = new MqttFrame
         {
-            if (msg == null) continue;
+            FirstByte = flag,
+            RemainingLength = remaining,
+            Kind = MqttFrame.GetKind(flag),
+        };
 
-            if (queue != null && msg.Reply)
-                queue.Match(context.Owner, msg, msg, IsMatch);
-
-            base.Read(context, msg);
-        }
-
-        return null;
+        return new ParseResult { Message = frame, HeaderSize = 1 + len, BodyLength = remaining };
     }
 
-    /// <summary>解码</summary>
-    /// <param name="context"></param>
-    /// <param name="pk"></param>
-    /// <returns></returns>
-    protected override IEnumerable<MqttMessage> Decode(IHandlerContext context, IPacket pk)
+    /// <summary>尝试把当前位置定界为 PROXY 协议头</summary>
+    /// <param name="buffer">帧首窗口</param>
+    /// <param name="result">定界结果；<paramref name="handled"/> 为 true 时有效</param>
+    /// <returns>是否已处理该位置（含"检测到代理头但未到齐"的等待语义）</returns>
+    private static Boolean TryParseProxy(in ReadOnlySequence<Byte> buffer, out ParseResult? result)
     {
-        if (context.Owner is not IExtend ss) return [];
+        result = null;
+        if (buffer.Length == 0) return false;
 
-        if (ss["Codec"] is not PacketCodec pc)
-            ss["Codec"] = pc = new PacketCodec { GetLength = p => GetLength(p, 1, 0), GetLength2 = p => GetLength(p, 1, 0) };
+        var first = buffer.Slice(0, 1).First.Span[0];
 
-        var pks = pc.Parse(pk);
-        var list = new List<MqttMessage>();
-        foreach (var item in pks)
+        // v1：文本行 "PROXY ...\r\n"
+        if (first == (Byte)'P')
         {
-            // 使用当前连接已知的协议版本解码（支持 MQTT 5.0 属性读取）
-            var protocolLevel = ss["ProtocolLevel"] is MqttVersion pl ? pl : MqttVersion.V311;
-            var msg = _Factory.ReadMessage(item, protocolLevel);
-            if (msg != null)
+            if (!IsMagicPrefix(buffer, _ProxyMagic)) return false;
+
+            var span = GetPrefix(buffer, 6 + 65536);
+            var msg = new ProxyMessage();
+            var n = msg.Read(span);
+            if (n > 0)
             {
-                // 从 CONNECT 消息中记录协议版本，供后续消息编解码使用
-                if (msg is ConnectMessage connect)
-                    ss["ProtocolLevel"] = connect.ProtocolLevel;
-                list.Add(msg);
+                result = new ParseResult
+                {
+                    Message = new MqttProxyFrame { V1 = msg, Kind = MessageKinds.OneWay },
+                    HeaderSize = 0,
+                    BodyLength = n,
+                };
+                return true;
             }
+
+            // 行未到齐则等待；已达上限仍未闭合视为损坏
+            if (buffer.Length <= 6 + 65536) return true;
+
+            result = new ParseResult { Invalid = true };
+            return true;
         }
 
-        return list;
-    }
-
-    /// <summary>连接关闭时，清空粘包编码器</summary>
-    /// <param name="context"></param>
-    /// <param name="reason"></param>
-    /// <returns></returns>
-    public override Boolean Close(IHandlerContext context, String reason)
-    {
-        if (context.Owner is IExtend ss) ss["Codec"] = null;
-
-        return base.Close(context, reason);
-    }
-
-    /// <summary>是否匹配响应</summary>
-    /// <param name="request"></param>
-    /// <param name="response"></param>
-    /// <returns></returns>
-    protected override Boolean IsMatch(Object? request, Object? response)
-    {
-        if (request is not MqttMessage req || response is not MqttMessage res) return false;
-
-        // 请求响应前后配对
-        if (req.Reply || !res.Reply) return false;
-
-        // 要求Id匹配
-        if (request is not MqttIdMessage req2 ||
-            response is not MqttIdMessage res2 ||
-            req2.Id == res2.Id)
+        // v2：二进制魔数 + 4字节头 + 可变长度体
+        if (first == (Byte)'\r')
         {
-            if (req.Type + 1 == res.Type) return true;
+            if (!IsMagicPrefix(buffer, ProxyMessageV2.Magic)) return false;
 
-            // 特殊处理Public
-            if (req.Type == MqttType.Publish && (res.Type == MqttType.PubAck || res.Type == MqttType.PubRec)) return true;
+            var span = GetPrefix(buffer, 16 + 65536);
+            if (span.Length < 16) return true;      // 固定头未到齐
+
+            var total = 16 + ((span[14] << 8) | span[15]);
+            if (buffer.Length < total) return true; // 变长体未到齐
+
+            var head = GetPrefix(buffer, total);
+            var msg = new ProxyMessageV2();
+            var n = msg.Read(head);
+            if (n <= 0)
+            {
+                result = new ParseResult { Invalid = true };
+                return true;
+            }
+
+            result = new ParseResult
+            {
+                Message = new MqttProxyFrame { V2 = msg, Kind = MessageKinds.OneWay },
+                HeaderSize = 0,
+                BodyLength = total,
+            };
+            return true;
         }
 
         return false;
     }
+
+    private static ReadOnlySpan<Byte> GetPrefix(in ReadOnlySequence<Byte> buffer, Int32 max)
+    {
+        var len = (Int32)Math.Min(buffer.Length, max);
+        var slice = buffer.Slice(0, len);
+
+        return slice.IsSingleSegment ? slice.First.Span : slice.ToArray();
+    }
+
+    private static Boolean IsMagicPrefix(in ReadOnlySequence<Byte> buffer, ReadOnlySpan<Byte> magic)
+    {
+        var n = (Int32)Math.Min(buffer.Length, magic.Length);
+        var slice = buffer.Slice(0, n);
+        var span = slice.IsSingleSegment ? slice.First.Span : slice.ToArray();
+
+        return span.SequenceEqual(magic[..n]);
+    }
+    #endregion
+
+    #region 构建
+    /// <summary>构建整帧。仅接受携带 MQTT 消息的帧</summary>
+    /// <param name="message">消息</param>
+    /// <returns></returns>
+    public virtual IOwnerPacket? Build(IMessage message)
+    {
+        if (message is not MqttFrame frame || frame.Mqtt == null) return null;
+
+        return frame.Mqtt.ToPacket(frame.Version);
+    }
+
+    /// <summary>头部构建。MQTT 剩余长度需要整帧内容才能确定，不支持头部与帧体分段发送</summary>
+    /// <param name="message">消息</param>
+    /// <param name="bodyLength">消息体字节数</param>
+    /// <returns></returns>
+    public virtual IOwnerPacket BuildHeader(IMessage message, Int64 bodyLength) => throw new NotSupportedException("MQTT 协议不支持头部与帧体分段发送");
+    #endregion
+
+    #region 配对
+    /// <summary>请求-响应配对。沿用既有规则：方向、报文类型相邻或发布确认、标识符相等</summary>
+    /// <param name="request">挂起的请求消息</param>
+    /// <param name="response">收到的响应消息</param>
+    /// <returns></returns>
+    public virtual Boolean Match(IMessage request, IMessage response)
+    {
+        if (request is not MqttFrame req || response is not MqttFrame res) return false;
+
+        // 请求非响应、应答为响应
+        if (req.Reply || !res.Reply) return false;
+
+        // 类型匹配：应答类型紧跟请求类型，或发布消息对应 PUBACK/PUBREC
+        var reqType = req.Type;
+        var resType = res.Type;
+        if ((Int32)reqType + 1 != (Int32)resType &&
+            !(reqType == MqttType.Publish && (resType == MqttType.PubAck || resType == MqttType.PubRec)))
+            return false;
+
+        // 标识符匹配：双方都带标识符时要求相等
+        var reqId = req.GetId();
+        var resId = res.GetId();
+        if (reqId != 0 && resId != 0 && reqId != resId) return false;
+
+        return true;
+    }
+    #endregion
 }
