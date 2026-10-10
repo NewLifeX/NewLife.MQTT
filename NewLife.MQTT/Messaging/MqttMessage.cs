@@ -102,6 +102,8 @@ public abstract class MqttMessage : ISpanSerializable
     {
         if (body == null) throw new ArgumentNullException(nameof(body));
 
+        body = EnsureContiguous(body);
+
         Type = (MqttType)((flag & 0b1111_0000) >> 4);
         Duplicate = ((flag & 0b0000_1000) >> 3) > 0;
         QoS = (QualityOfService)((flag & 0b0000_0110) >> 1);
@@ -113,6 +115,17 @@ public abstract class MqttMessage : ISpanSerializable
 
         return OnRead(ref reader, context);
     }
+
+    /// <summary>确保数据包连续。多段链包在正文各处以单段看待的读法（索引、Span 切片、剩余长度判断）都会出错</summary>
+    /// <remarks>
+    /// <para>v12 消息泵零拷贝切帧：帧体跨多次管道追加时由共享切片组成多段链（<see cref="IPacket.Next"/> 非空）。
+    /// <see cref="SpanReader"/> 遇到链式包会退化为“流式分块缓冲”，此时 <c>Available</c> 只代表已缓冲分块的剩余量，
+    /// 按它取负载会静默截断、按它判断“是否读完”会提前结束循环、按它校验长度会误报数据不足。</para>
+    /// <para>帧体最大不过单帧上限（默认 16M），链包仅出现在“窗口跨越多次追加”的中小帧上，这里一次性聚合为连续包，换取读侧按单段处理的正确性。</para>
+    /// </remarks>
+    /// <param name="body">原始数据包</param>
+    /// <returns>连续数据包（原本连续时原样返回）</returns>
+    internal static IPacket EnsureContiguous(IPacket body) => body.Next == null ? body : new ArrayPacket(body.ToArray());
 
     /// <summary>子消息读取</summary>
     /// <param name="reader">Span读取器</param>

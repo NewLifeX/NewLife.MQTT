@@ -88,6 +88,10 @@ public class MqttFactory
     {
         try
         {
+            // 多段链包先聚合为连续包：SpanReader 对链式输入退化为流式分块缓冲，
+            // 其 Available 只反映已缓冲分块，会让下方“数据长度不足”校验误报并截断负载
+            pk = MqttMessage.EnsureContiguous(pk);
+
             var msg = CreateMessage((MqttType)(pk[0] >> 4));
             // 使用 SpanReader 直接从数据包读取，避免创建 MemoryStream
             Object? ctx = protocolLevel >= MqttVersion.V500 ? (Object)protocolLevel : null;
