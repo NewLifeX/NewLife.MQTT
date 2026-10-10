@@ -1,12 +1,12 @@
 # NewLife.MQTT AOT 兼容性评估
 
-> 基线：NewLife.Core 12.0.2026.1009-beta0916（v12 已 AOT 就绪）｜评估方式：**NativeAOT 真实编译 + 运行实测**（win-x64，.NET 10）｜冒烟工程：临时工程（不入库，复现方法见 §5）
+> 基线：NewLife.Core 12.0.2026.1009-beta0916（发布包）与 12.0.2026.1010（下一版，本地 HEAD）双基线｜评估方式：**NativeAOT 真实编译 + 运行实测**（win-x64，.NET 10）｜冒烟工程：临时工程（不入库，复现方法见 §5）
 
 ---
 
 ## 1. 现状摘要
 
-- **主链路 AOT 编译/运行双通**：11 场景冒烟全部通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根、管理 API、集群 RPC），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
+- **主链路 AOT 编译/运行双通**：14 场景冒烟全部通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根、管理 API、集群 RPC、集群发布、大载荷跨轮帧体、断线重连+自动重订阅），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
 - **已实施修复（2026-10-09）**：
   1. 控制器元数据保根：`MqttManagementServer.Start` / `ClusterServer.Start` 标注 `[DynamicDependency(PublicConstructors | PublicMethods, typeof(控制器))]`（低版本 TFM 由 Core 公共垫片提供该特性，无需条件编译）；
   2. 匿名对象载荷改字典承载：AOT 下匿名类型属性被裁剪，经运行时序列化会得到空对象 `{}`——`MqttManagementController.Stats`、`ClusterController.Health`、`ClusterNode` 六处 RPC 载荷、`AliyunMqttClient` 两处载荷均改为 `Dictionary<String, Object?>`（键名与线格式不变，JIT 行为不变）；
@@ -14,10 +14,11 @@
   4. 集群 RPC 载荷 DTO 保根与订阅数组归一化：`ClusterServer.Start` 对控制器签名涉及的载荷 DTO（NodeInfo/SubscriptionInfo/PublishInfo/PublishMessage/MqttProperties/SessionInfo/Raft 系列/SnapshotSubscription）统一标注 `[DynamicDependency(PublicConstructors | PublicProperties)]`（AOT 下运行时参数绑定需反射创建/读写，修复前 `Publish` 等路径报 `No parameterless constructor defined`）；`Subscribe`/`Unsubscribe` 控制器的数组参数经 `ToSubscriptionInfos` 归一化（FIX-CLUS-1：JSON 数组经参数绑定为对象列表后无法直接强转，JIT/AOT 同错）。
 - **边界**：`NewLife.MQTT.Storage`（XCode/Redis）与 `NewLife.MqttServer` 应用（Stardust）不在本轮范围（未验证，取决于各自依赖链的 AOT 就绪度）。
 - **FIX-CLUS-1 已修复（2026-10-09）**：订阅/退订 RPC 数组参数绑定失败为 v12 迁移引入的既有缺陷，已随本次改造修复并补 RPC 级回归测试（`ClusterRpcSubscribeTests`）。
+- **深挖中发现并修复的两个运行时缺陷（2026-10-10）**：冒烟场景 13/14 与端到端大载荷探针驱动发现——①**链式帧体解码静默截断**：v12 消息泵零拷贝切帧时，跨多次管道追加的帧体为多段共享切片组成的链包（`Next != null`），Core `SpanReader` 对链包退化为 8192 字节流式缓冲，`Available` 只反映已缓冲分块，`ReadPacket(Available)` 会截断负载（载荷超过单轮读取上限 8KB 且跨轮追加时即触发，20KB 载荷确定性复现）；修复为 `MqttMessage.EnsureContiguous`（链包→`new ArrayPacket(body.ToArray())`），在 `ReadBody` 与 `MqttFactory.ReadMessage` 入口归一化。②**管理 API 断开客户端不真正断连**：`MqttExchange.DisconnectClient` 原仅调 `handler.Close(...)`（关闭通知语义），交换机登记已清但 TCP 连接仍在，客户端收不到消息又不触发重连；修复为经 `(handler as MqttHandler)?.Session` 走标准会话关闭（含遗嘱与注销）。两处均补确定性回归测试（`FrameBodyChainTests` / `ExchangeDisconnectTests`），修复前红灯、修复后全绿。
 
 ## 2. 实测数据
 
-### 2.1 运行期：12 场景冒烟（JIT/AOT 双跑）
+### 2.1 运行期：14 场景冒烟（JIT/AOT 双跑）
 
 | # | 场景 | JIT | AOT | 说明 |
 |---|------|:---:|:---:|------|
@@ -33,12 +34,16 @@
 | 10 | 对照：手工注册、无保根 | ✅ 可用 | ❌ 404 | 因果闭合：无保根即被裁剪 |
 | 11 | 集群 RPC：Echo/Join/Ping/Leave/GetSession/Subscribe/Unsubscribe/Health | ✅ | ✅ | 保根 + 数组归一化 + 字典载荷/返回值（NodeInfo/SessionInfo 往返） |
 | 12 | 集群发布：PublishInfo/PublishMessage 载荷保真 | ✅ | ✅ | topic/qos/payload 完整往返（记录型交换机观测） |
+| 13 | 大载荷跨轮帧体：20KB/200KB 逐字节完整往返 | ✅ | ✅ | 消息泵零拷贝切帧产生链式帧体（`Next != null`），验证 `EnsureContiguous` 归一化路径 |
+| 14 | 断线重连 + 自动重订阅 | ✅ | ✅ | 经 `MqttExchange.DisconnectClient` 强制断开，客户端重连并恢复订阅（连接次数=2，重订阅送达） |
 
 > 订阅/退订 RPC 的数组参数绑定曾为既有缺陷（FIX-CLUS-1），2026-10-09 已随本页方案修复并解除门禁。
+> 场景 13/14 为 2026-10-10 新增（随上表两个运行时缺陷的修复一并加入冒烟网），其中场景 13 用于覆盖"大帧体跨多轮接收→链式包"这一 v12 特有路径。
 
 ### 2.2 编译期：ILC 告警
 
 - `dotnet publish -c Release -r win-x64`：**0 条来自 NewLife.MQTT / NewLife.Core 的告警**；仅冒烟工程自身诊断行 `Assembly.Location` 触发 IL3000（评估证据，正式工程不会出现）。
+- 双基线一致：发布包 `12.0.2026.1009-beta0916` 与下一版 `12.0.2026.1010`（Core 本地 HEAD，尚未发包，仅作前瞻验证）分别发布运行，均 0 条库侧 ILC 告警、14 场景全通过。
 - 产物：单文件 exe 约 11.0 MB（含 MQTT 全功能）。
 - AOT 判真：产物运行 `IsDynamicCodeSupported=False`、`Assembly.Location` 为空。
 - 严格姿态：`JsonSerializerIsReflectionEnabledByDefault=false`，配置类与 JSON 场景仍全通过。
@@ -72,12 +77,12 @@
 #    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
 # 2) JIT 基线
 dotnet run -c Release
-# 3) NativeAOT 真编译 + 运行（期望 0 条库侧 ILC 告警；场景 3 当前失败为已知阻断）
+# 3) NativeAOT 真编译 + 运行（期望 0 条库侧 ILC 告警；正常输出为"全部场景通过"）
 dotnet publish -c Release -r win-x64 -o out
 .\out\AotSmoke.exe
 ```
 
-冒烟场景清单见 §2.1（TCP/WS 收发、管理 API、签名、JSON、配置、看板、控制器分发 ×3）。
+冒烟场景清单见 §2.1（TCP/WS 收发、管理 API、签名、JSON、配置、看板、控制器分发 ×3、集群 RPC/发布、大载荷跨轮帧体、断线重连+自动重订阅）。
 
 ## 6. 收口记录（只增不删）
 
