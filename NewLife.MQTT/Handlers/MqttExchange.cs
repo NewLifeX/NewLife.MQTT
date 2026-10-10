@@ -806,13 +806,22 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     {
         if (clientId.IsNullOrEmpty()) return false;
 
+        var text = reason ?? "管理 API 断开";
         foreach (var kv in _clientIdMap)
         {
             if (kv.Value == clientId)
             {
                 if (_sessions.TryGetValue(kv.Key, out var handler))
                 {
-                    handler.Close(reason ?? "管理 API 断开");
+                    // 断开的是连接本身：走会话标准关闭流程触发 OnDisconnected（含遗嘱发布与交换机注销）。
+                    // 只调 handler.Close 是“连接已关闭”的通知语义——连接会留在原处，仅清掉交换机登记，
+                    // 表现为客户端仍在线却收不到任何消息
+                    var session = (handler as MqttHandler)?.Session;
+                    if (session != null)
+                        session.Close(text);
+                    else
+                        handler.Close(text);
+
                     Remove(kv.Key);
                     return true;
                 }
