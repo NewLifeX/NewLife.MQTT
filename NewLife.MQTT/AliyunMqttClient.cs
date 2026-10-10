@@ -48,11 +48,12 @@ public class AliyunMqttClient : MqttClient
     public virtual async Task PostProperty(Object data)
     {
         await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post_reply", OnPostProperty).ConfigureAwait(false);
-        await PublishAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post", new
+        // AOT 下匿名类型属性会被裁剪，改用字典构造报文（键名与 JSON 形状不变）
+        await PublishAsync($"/sys/{ProductKey}/{DeviceName}/thing/event/property/post", new Dictionary<String, Object?>
         {
             //id = 1,
-            @params = data,
-            method = "thing.event.property.post"
+            ["params"] = data,
+            ["method"] = "thing.event.property.post"
         }).ConfigureAwait(false);
 
         await SubscribeAsync($"/sys/{ProductKey}/{DeviceName}/thing/service/property/set", OnSetProperty).ConfigureAwait(false);
@@ -73,7 +74,7 @@ public class AliyunMqttClient : MqttClient
     public async Task SyncTime()
     {
         await SubscribeAsync($"/ext/ntp/{ProductKey}/{DeviceName}/response", OnSyncTime).ConfigureAwait(false);
-        await PublishAsync($"/ext/ntp/{ProductKey}/{DeviceName}/request", new { version = "1.0" }).ConfigureAwait(false);
+        await PublishAsync($"/ext/ntp/{ProductKey}/{DeviceName}/request", new Dictionary<String, Object?> { ["version"] = "1.0" }).ConfigureAwait(false);
     }
 
     /// <summary>收到时间同步</summary>

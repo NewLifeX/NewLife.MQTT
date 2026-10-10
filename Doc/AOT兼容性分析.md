@@ -6,30 +6,33 @@
 
 ## 1. 现状摘要
 
-- **主链路 AOT 编译/运行双通**：10 场景冒烟中 9 通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
-- **唯一阻断点**：管理 API 与集群 RPC 的控制器分发。`MqttManagementController` / `ClusterController` 经手工 `new ControllerHandler { ControllerType = typeof(...) }` 注册，AOT 下控制器公开方法元数据被裁剪，请求返回 404（`Cannot find operation [Stats] within controller [...]`）。
-- **修复路径两条，均已实测验证**：
-  1. `HttpServer.MapController<T>()` 源生成静态分发（推荐：零反射，分发由 Core 源生成器生成 `HttpDispatchTable`；需把令牌校验/响应信封改 `HttpServer.Use` 中间件）；
-  2. `[DynamicDependency(PublicConstructors | PublicMethods, typeof(X))]` 显式保根（最小改动：每个控制器 1 处注解）。
+- **主链路 AOT 编译/运行双通**：11 场景冒烟全部通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根、管理 API、集群 RPC），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
+- **已实施修复（2026-10-09）**：
+  1. 控制器元数据保根：`MqttManagementServer.Start` / `ClusterServer.Start` 标注 `[DynamicDependency(PublicConstructors | PublicMethods, typeof(控制器))]`（低版本 TFM 由 Core 公共垫片提供该特性，无需条件编译）；
+  2. 匿名对象载荷改字典承载：AOT 下匿名类型属性被裁剪，经运行时序列化会得到空对象 `{}`——`MqttManagementController.Stats`、`ClusterController.Health`、`ClusterNode` 六处 RPC 载荷、`AliyunMqttClient` 两处载荷均改为 `Dictionary<String, Object?>`（键名与线格式不变，JIT 行为不变）；
+  3. 对照实验确认因果：无保根的手工注册在 AOT 下 404（方法元数据被裁剪），保根后恢复。
 - **边界**：`NewLife.MQTT.Storage`（XCode/Redis）与 `NewLife.MqttServer` 应用（Stardust）不在本轮范围（未验证，取决于各自依赖链的 AOT 就绪度）。
-- **结论**：AOT 支持属于**小改造**（1 个阻断点 ×2 处注册 + 1 个 CI 作业）；是否纳入正式支持由排期决策。
+- **遗留（非 AOT 问题）**：订阅/退订 RPC 的数组参数绑定失败为 v12 迁移引入的既有缺陷（FIX-CLUS-1，JIT/AOT 行为一致），与 AOT 改造无关，另行修复。
 
 ## 2. 实测数据
 
-### 2.1 运行期：10 场景冒烟（JIT/AOT 双跑）
+### 2.1 运行期：11 场景冒烟（JIT/AOT 双跑）
 
 | # | 场景 | JIT | AOT | 说明 |
 |---|------|:---:|:---:|------|
 | 1 | TCP 回环：连接/订阅/发布/接收 | ✅ | ✅ | 主收发链路（消息泵编解码） |
 | 2 | WebSocket 桥接：连接/订阅/发布/接收 | ✅ | ✅ | HttpServer + MqttWebSocketHandler |
-| 3 | 管理 API：`GET /Api/Stats` | ✅ | ❌ 404 `Cannot find operation [Stats]` | **唯一阻断点**：反射分发未保根 |
+| 3 | 管理 API：`GET /Api/Stats` | ✅ | ✅ | 保根后可达；字典返回值键完整（修复前 404） |
 | 4 | MqttSign：HMAC 签名计算 | ✅ | ✅ | `Assembly.GetEntryAssembly` 为空时回退 `GetExecutingAssembly` |
 | 5 | JSON：`ToJson`/`ToJsonEntity` 往返 | ✅ | ✅ | 走 Core JsonHelper（源生成成员访问） |
 | 6 | 配置：`Config<T>` 绑定 | ✅ | ✅ | 走 Core ConfigModelGenerator |
 | 7 | 看板：HttpListener 提供 HTML | ✅ | ✅ | `System.Net.HttpListener` 可用 |
-| 8 | 控制器分发：`MapController<T>` 源生成静态分发 | ✅ | ✅ | **修复路径 1 验证** |
-| 9 | 控制器分发：手工注册 + `[DynamicDependency]` 保根 | ✅ | ✅ | **修复路径 2 验证** |
+| 8 | 控制器分发：`MapController<T>` 源生成静态分发 | ✅ | ✅ | 源生成器路径可用 |
+| 9 | 控制器分发：手工注册 + `[DynamicDependency]` 保根 | ✅ | ✅ | 本轮采用的最小保根路径 |
 | 10 | 对照：手工注册、无保根 | ✅ 可用 | ❌ 404 | 因果闭合：无保根即被裁剪 |
+| 11 | 集群 RPC：Echo/Join/Ping/Leave/GetSession/Health | ✅ | ✅ | 保根 + 字典载荷/返回值（NodeInfo/SessionInfo 往返） |
+
+> 注：订阅/退订 RPC（数组参数绑定）为既有缺陷 FIX-CLUS-1，JIT/AOT 行为一致（同一错误），不计入 AOT 结论。
 
 ### 2.2 编译期：ILC 告警
 
@@ -40,14 +43,14 @@
 
 ## 3. 支持所需工作（清单）
 
-| # | 工作项 | 位置 | 做法 | 验收 |
-|---|--------|------|------|------|
-| 1 | 管理 API 控制器保根 | `Handlers/MqttManagementServer.cs`（`Start`） | 首选：令牌校验/响应信封改 `HttpServer.Use` 中间件 + `MapController<MqttManagementController>(ApiPath)`；次选：`[DynamicDependency]` 注解 | 冒烟场景 3 转 ✅ |
-| 2 | 集群 RPC 控制器保根 | `Clusters/ClusterServer.cs`（`Start`） | 同 #1（`ClusterController`，密钥校验改中间件或加注解） | 新增冒烟场景 |
-| 3 | AOT 冒烟工程入库 + CI | `AotSmoke/`、`.github/workflows/aot.yml` | 参考 NewLife.Core 的 AotSmoke：`PublishAot` 写在工程属性内（勿走 CLI 全局属性，避免波及 net45 等多目标依赖），win-x64 发布 + 运行按退出码判定 | CI 防回归 |
-| 4 | 多目标共存口径 | 无改动 | `PublishAot` 只作用于应用工程，库的 net45~net10 多目标不受影响 | — |
+| # | 工作项 | 状态 | 说明 |
+|---|--------|------|------|
+| 1 | 管理 API 控制器保根 | ✅ 已完成 | `MqttManagementServer.Start` 标注 `[DynamicDependency]`；冒烟场景 3 转 ✅ |
+| 2 | 集群 RPC 控制器保根 | ✅ 已完成 | `ClusterServer.Start` 标注 `[DynamicDependency]`；冒烟场景 11 通过 |
+| 3 | 匿名对象载荷改字典承载 | ✅ 已完成 | 管理 Stats / 集群 Health / ClusterNode 六处 / Aliyun 两处（AOT 下匿名类型属性被裁剪 → 空对象） |
+| 4 | AOT 冒烟工程入库 + CI（可选） | ⏸ 未实施 | 参考 NewLife.Core 的 AotSmoke：`PublishAot` 写在工程属性内、win-x64 发布 + 运行按退出码判定；本轮冒烟为临时工程（复现方法见 §5） |
 
-> 说明：`MapController<T>` 的静态分发由 Core 源生成器 `HttpControllerDispatchGenerator` 生成；生成器随 Core 包分发、对下游零配置（冒烟场景 6/8 已在 AOT 下证实生成器在消费方生效）。
+> 说明：`MapController<T>` 的静态分发由 Core 源生成器 `HttpControllerDispatchGenerator` 生成；生成器随 Core 包分发、对下游零配置（冒烟场景 6/8 已在 AOT 下证实生成器在消费方生效）。手工保根路径下控制器仍走反射分发，AOT 下功能等价、性能与 JIT 一致。
 
 ## 4. 边界与不在范围
 

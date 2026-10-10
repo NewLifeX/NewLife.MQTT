@@ -1,4 +1,5 @@
-﻿using NewLife.Http;
+﻿using System.Diagnostics.CodeAnalysis;
+using NewLife.Http;
 using NewLife.Log;
 using NewLife.Model;
 using NewLife.Net;
@@ -62,6 +63,8 @@ public class MqttManagementServer : DisposeBase, IServer, ILogFeature, ITracerFe
 
     #region 启动停止
     /// <summary>启动管理服务</summary>
+    /// <remarks>AOT 下控制器动作经反射分发，需显式保留控制器公开构造与公开方法的元数据（见 Doc/AOT兼容性分析.md）</remarks>
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods, typeof(MqttManagementController))]
     public void Start()
     {
         if (Exchange == null) throw new InvalidOperationException("未配置消息交换机 Exchange");

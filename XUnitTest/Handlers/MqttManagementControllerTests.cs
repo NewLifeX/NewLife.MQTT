@@ -30,6 +30,9 @@ public class MqttManagementControllerTests
         return (server, ctrl);
     }
 
+    /// <summary>读取 Stats 返回值（字典形态）中的字段。AOT 下匿名类型属性会被裁剪，Stats 以字典承载字段</summary>
+    private static Object? GetStat(Object result, String name) => (result as IDictionary<String, Object?>)?[name];
+
     #region Echo
     [Fact]
     [System.ComponentModel.DisplayName("Management：Echo 返回原始消息")]
@@ -66,10 +69,9 @@ public class MqttManagementControllerTests
         var result = ctrl.Stats();
 
         Assert.NotNull(result);
-        // 通过反射读取匿名对象 ConnectedClients 字段
-        var prop = result.GetType().GetProperty("ConnectedClients");
-        Assert.NotNull(prop);
-        Assert.Equal(7, (Int32)prop!.GetValue(result)!);
+        // 读取字典字段（键名与字段一致）
+        var value = GetStat(result, "ConnectedClients");
+        Assert.Equal(7, (Int32)value!);
     }
 
     [Fact]
@@ -80,9 +82,8 @@ public class MqttManagementControllerTests
 
         var result = ctrl.Stats();
 
-        var prop = result.GetType().GetProperty("Version");
-        Assert.NotNull(prop);
-        Assert.False(String.IsNullOrEmpty((String)prop!.GetValue(result)!));
+        var version = GetStat(result, "Version") as String;
+        Assert.False(String.IsNullOrEmpty(version));
     }
 
     [Fact]
@@ -93,9 +94,8 @@ public class MqttManagementControllerTests
 
         var result = ctrl.Stats();
 
-        var prop = result.GetType().GetProperty("StartTime");
-        Assert.NotNull(prop);
-        var startTime = (String)prop!.GetValue(result)!;
+        var startTime = GetStat(result, "StartTime") as String;
+        Assert.NotNull(startTime);
         // 验证格式
         Assert.True(DateTime.TryParseExact(startTime, "yyyy-MM-dd HH:mm:ss",
             System.Globalization.CultureInfo.InvariantCulture,
@@ -111,9 +111,7 @@ public class MqttManagementControllerTests
 
         var result = ctrl.Stats();
 
-        var prop = result.GetType().GetProperty("Uptime");
-        Assert.NotNull(prop);
-        var uptime = (Int64)prop!.GetValue(result)!;
+        var uptime = (Int64)GetStat(result, "Uptime")!;
         Assert.True(uptime >= 0);
     }
 
@@ -127,8 +125,7 @@ public class MqttManagementControllerTests
 
         var result = ctrl.Stats();
 
-        var prop = result.GetType().GetProperty("MessagesReceived");
-        Assert.Equal(999L, (Int64)prop!.GetValue(result)!);
+        Assert.Equal(999L, (Int64)GetStat(result, "MessagesReceived")!);
     }
     #endregion
 

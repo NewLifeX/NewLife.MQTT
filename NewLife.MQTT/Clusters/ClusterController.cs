@@ -208,14 +208,14 @@ public class ClusterController : IHttpController
 
     #region 系统管理
     /// <summary>集群健康检查</summary>
-    public Object Health() => new
+    public Object Health() => new Dictionary<String, Object?>
     {
-        NodeId = _cluster.GetNodeInfo().EndPoint,
-        Nodes = _cluster.Nodes.Count,
-        ActiveNodes = _cluster.Nodes.Count(e => e.Value.LastActive > DateTime.Now.AddSeconds(-30)),
-        RaftState = _cluster.RaftCluster?.State.ToString() ?? "Disabled",
-        RaftLeader = _cluster.RaftCluster?.LeaderId,
-        ClusterSecret = !_cluster.ClusterSecret.IsNullOrEmpty() ? "configured" : null,
+        ["NodeId"] = _cluster.GetNodeInfo().EndPoint,
+        ["Nodes"] = _cluster.Nodes.Count,
+        ["ActiveNodes"] = _cluster.Nodes.Count(e => e.Value.LastActive > DateTime.Now.AddSeconds(-30)),
+        ["RaftState"] = _cluster.RaftCluster?.State.ToString() ?? "Disabled",
+        ["RaftLeader"] = _cluster.RaftCluster?.LeaderId,
+        ["ClusterSecret"] = !_cluster.ClusterSecret.IsNullOrEmpty() ? "configured" : null,
     };
     #endregion
 

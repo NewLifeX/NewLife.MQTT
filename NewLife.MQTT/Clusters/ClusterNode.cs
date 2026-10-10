@@ -96,8 +96,8 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        // Http 参数按名称绑定，单参数需以具名对象传递
-        return Client.InvokeAsync<String>("Cluster/Echo", new { msg });
+        // Http 参数按名称绑定，单参数需以具名对象传递；AOT 下匿名类型属性会被裁剪导致序列化为空对象，改用字典（线格式不变）
+        return Client.InvokeAsync<String>("Cluster/Echo", new Dictionary<String, Object?> { ["msg"] = msg });
     }
 
     /// <summary>加入集群</summary>
@@ -138,7 +138,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<String>("Cluster/Subscribe", new { infos });
+        return Client.InvokeAsync<String>("Cluster/Subscribe", new Dictionary<String, Object?> { ["infos"] = infos });
     }
 
     /// <summary>退订</summary>
@@ -148,7 +148,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<String>("Cluster/Unsubscribe", new { infos });
+        return Client.InvokeAsync<String>("Cluster/Unsubscribe", new Dictionary<String, Object?> { ["infos"] = infos });
     }
 
     /// <summary>心跳</summary>
@@ -183,7 +183,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<SessionInfo>("Cluster/GetSession", new { clientId });
+        return Client.InvokeAsync<SessionInfo>("Cluster/GetSession", new Dictionary<String, Object?> { ["clientId"] = clientId });
     }
 
     /// <summary>删除远程节点的客户端持久会话（会话迁移完成后调用）</summary>
@@ -192,7 +192,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<String>("Cluster/DeleteSession", new { clientId });
+        return Client.InvokeAsync<String>("Cluster/DeleteSession", new Dictionary<String, Object?> { ["clientId"] = clientId });
     }
 
     /// <summary>原子化获取并删除远程节点的持久会话（会话迁移）</summary>
@@ -201,7 +201,7 @@ public class ClusterNode : DisposeBase
     {
         Init();
 
-        return Client.InvokeAsync<SessionInfo>("Cluster/TransferSession", new { clientId });
+        return Client.InvokeAsync<SessionInfo>("Cluster/TransferSession", new Dictionary<String, Object?> { ["clientId"] = clientId });
     }
     #endregion
 }

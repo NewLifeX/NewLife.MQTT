@@ -31,23 +31,25 @@ public class MqttManagementController
     public Object Stats()
     {
         var s = Exchange.Stats;
-        return new
+
+        // AOT 下匿名类型属性会被裁剪导致序列化为空对象，显式字典保证键完整（键名与 JSON 形状不变）
+        return new Dictionary<String, Object?>
         {
-            s.ConnectedClients,
-            s.MaxConnectedClients,
-            s.TotalConnections,
-            s.Subscriptions,
-            s.Topics,
-            s.RetainedMessages,
-            s.MessagesReceived,
-            s.MessagesSent,
-            s.MessagesReceivedPerSecond,
-            s.MessagesSentPerSecond,
-            s.BytesReceived,
-            s.BytesSent,
-            StartTime = s.StartTime.ToString("yyyy-MM-dd HH:mm:ss"),
-            s.Uptime,
-            s.Version,
+            ["ConnectedClients"] = s.ConnectedClients,
+            ["MaxConnectedClients"] = s.MaxConnectedClients,
+            ["TotalConnections"] = s.TotalConnections,
+            ["Subscriptions"] = s.Subscriptions,
+            ["Topics"] = s.Topics,
+            ["RetainedMessages"] = s.RetainedMessages,
+            ["MessagesReceived"] = s.MessagesReceived,
+            ["MessagesSent"] = s.MessagesSent,
+            ["MessagesReceivedPerSecond"] = s.MessagesReceivedPerSecond,
+            ["MessagesSentPerSecond"] = s.MessagesSentPerSecond,
+            ["BytesReceived"] = s.BytesReceived,
+            ["BytesSent"] = s.BytesSent,
+            ["StartTime"] = s.StartTime.ToString("yyyy-MM-dd HH:mm:ss"),
+            ["Uptime"] = s.Uptime,
+            ["Version"] = s.Version,
         };
     }
 

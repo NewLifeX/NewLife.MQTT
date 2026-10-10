@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using NewLife.Data;
 using NewLife.Http;
@@ -169,6 +170,8 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
     #region 启动停止
     /// <summary>启动服务</summary>
+    /// <remarks>AOT 下控制器动作经反射分发，需显式保留控制器公开构造与公开方法的元数据（见 Doc/AOT兼容性分析.md）</remarks>
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods, typeof(ClusterController))]
     public void Start()
     {
         if (Name.IsNullOrEmpty()) Name = $"Cluster{Port}";
