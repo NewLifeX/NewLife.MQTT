@@ -177,7 +177,8 @@ public class MqttOfflineMessageEntity : Entity<MqttOfflineMessageEntity>
 
     #region 方法
     /// <summary>根据客户端标识查找所有离线消息（数据库实时查询）。转义单引号避免注入</summary>
-    public static IList<MqttOfflineMessageEntity> FindAllByClientId(String clientId) => FindAll($"ClientId='{clientId.Replace("'", "''")}'");
+    /// <remarks>条件交由 Where 子句重载处理；单参 FindAll(String) 是整条 SQL 语义，不可传裸条件</remarks>
+    public static IList<MqttOfflineMessageEntity> FindAllByClientId(String clientId) => FindAll($"ClientId='{clientId.Replace("'", "''")}'", null, null, 0, 0);
 
     /// <summary>删除指定客户端的所有离线消息</summary>
     public static Int32 DeleteByClientId(String clientId) => Delete($"ClientId='{clientId.Replace("'", "''")}'");

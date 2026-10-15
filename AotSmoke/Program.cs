@@ -1,7 +1,10 @@
-// NewLife.MQTT AOT 冒烟：覆盖主链路（TCP/WS 收发、管理 API、签名、JSON、配置、看板），逐场景 PASS/FAIL。
+// NewLife.MQTT AOT 冒烟：覆盖主链路（TCP/WS 收发、管理 API、签名、JSON、配置、看板）与认证/授权/保留/离线/SN 场景，逐场景 PASS/FAIL。
 // 用法：dotnet run -c Release（JIT 基线）；dotnet publish -c Release -r win-x64（NativeAOT 真编译后运行产物）。
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using NewLife;
 using NewLife.Configuration;
 using NewLife.Data;
@@ -11,6 +14,7 @@ using NewLife.MQTT;
 using NewLife.MQTT.Clusters;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
+using NewLife.MQTT.MqttSn;
 using NewLife.Serialization;
 
 var failures = new List<String>();
@@ -292,11 +296,210 @@ try
 }
 catch (Exception ex) { Check($"断线重连（异常：{ex.GetType().Name} {ex.Message}）", false); }
 
+// 15. JWT 认证（HS256 签名 + Claims 解析 + 主题级授权）
+try
+{
+    const String secret = "aot_smoke_jwt_secret_0123456789";
+    using var server = new MqttServer { Port = 0, Authenticator = new MqttJwtAuthenticator(secret) };
+    server.Start();
+
+    var exp = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
+    var token = MakeJwt(secret, $"{{\"sub\":\"aot_jwt\",\"pub\":\"aot/#\",\"mqtt_sub\":\"aot/#\",\"exp\":{exp}}}");
+
+    using var client = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_jwt", UserName = "aot_jwt", Password = token, Timeout = 5000, Reconnect = false };
+    var ack = await client.ConnectAsync();
+    var accepted = ack.ReturnCode == ConnectReturnCode.Accepted;
+
+    var tcs = new TaskCompletionSource<String?>();
+    client.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr());
+    await client.SubscribeAsync("aot/jwt");
+    await client.PublishAsync("aot/jwt", "jwt-ok");
+    var received = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task && tcs.Task.Result == "jwt-ok";
+
+    // 篡改载荷后签名校验失败，连接应被拒绝
+    var parts = token.Split('.');
+    var badToken = $"{parts[0]}.{Base64Url(Encoding.UTF8.GetBytes("{\"sub\":\"hacker\"}"))}.{parts[2]}";
+    var refused = false;
+    using (var bad = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_jwt_bad", UserName = "aot_jwt_bad", Password = badToken, Timeout = 5000, Reconnect = false })
+    {
+        try { await bad.ConnectAsync(); } catch { refused = true; }
+    }
+
+    Check($"JWT 认证：有效令牌连接并收发（accepted={accepted}, received={received}），篡改令牌被拒={refused}", accepted && received && refused);
+
+    await client.DisconnectAsync();
+}
+catch (Exception ex) { Check($"JWT 认证（异常：{ex.GetType().Name} {ex.Message}）", false); }
+
+// 16. OAuth 认证（HS256 令牌 + Claims/Scope 主题级授权）
+try
+{
+    const String secret = "aot_smoke_oauth_secret_9876543210";
+    using var server = new MqttServer { Port = 0, Authenticator = new MqttOAuthAuthenticator(secret) };
+    server.Start();
+
+    var exp = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds();
+    var token = MakeJwt(secret, $"{{\"sub\":\"aot_oauth\",\"pub\":\"aot/#\",\"mqtt_sub\":\"aot/#\",\"scope\":\"mqtt:*\",\"exp\":{exp}}}");
+
+    using var client = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_oauth", UserName = "aot_oauth", Password = token, Timeout = 5000, Reconnect = false };
+    var ack = await client.ConnectAsync();
+    var accepted = ack.ReturnCode == ConnectReturnCode.Accepted;
+
+    var tcs = new TaskCompletionSource<String?>();
+    client.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr());
+    await client.SubscribeAsync("aot/oauth");
+    await client.PublishAsync("aot/oauth", "oauth-ok");
+    var received = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task && tcs.Task.Result == "oauth-ok";
+
+    // 错误密钥签发的令牌应被拒绝
+    var refused = false;
+    var badToken = MakeJwt("wrong_secret", $"{{\"sub\":\"aot_oauth_bad\",\"exp\":{exp}}}");
+    using (var bad = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_oauth_bad", UserName = "aot_oauth_bad", Password = badToken, Timeout = 5000, Reconnect = false })
+    {
+        try { await bad.ConnectAsync(); } catch { refused = true; }
+    }
+
+    Check($"OAuth 认证：有效令牌连接并收发（accepted={accepted}, received={received}），错误密钥被拒={refused}", accepted && received && refused);
+
+    await client.DisconnectAsync();
+}
+catch (Exception ex) { Check($"OAuth 认证（异常：{ex.GetType().Name} {ex.Message}）", false); }
+
+// 17. 保留消息：新订阅即刻下发、清除后不再下发
+try
+{
+    using var server = new MqttServer { Port = 0 };
+    server.Start();
+
+    using (var pub = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_retain_pub", Timeout = 5000, Reconnect = false })
+    {
+        await pub.ConnectAsync();
+        await pub.PublishAsync(new PublishMessage { Topic = "aot/retain", Payload = (ArrayPacket)"retained-value"u8.ToArray(), QoS = QualityOfService.AtMostOnce, Retain = true });
+        await Task.Delay(300);
+        await pub.DisconnectAsync();
+    }
+
+    using var sub = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_retain_sub", Timeout = 5000, Reconnect = false };
+    var got = new TaskCompletionSource<String?>();
+    sub.Received += (s, e) => got.TrySetResult(e.Arg.Payload?.ToStr());
+    await sub.ConnectAsync();
+    await sub.SubscribeAsync("aot/retain");
+    var gotRetained = await Task.WhenAny(got.Task, Task.Delay(5000)) == got.Task && got.Task.Result == "retained-value";
+
+    // 空负载清除保留消息；随后新订阅者不应再收到
+    using (var pub2 = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_retain_pub2", Timeout = 5000, Reconnect = false })
+    {
+        await pub2.ConnectAsync();
+        await pub2.PublishAsync(new PublishMessage { Topic = "aot/retain", Payload = (ArrayPacket)Array.Empty<Byte>(), QoS = QualityOfService.AtMostOnce, Retain = true });
+        await Task.Delay(300);
+        await pub2.DisconnectAsync();
+    }
+
+    using var sub2 = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_retain_sub2", Timeout = 5000, Reconnect = false };
+    var got2 = new TaskCompletionSource<String?>();
+    sub2.Received += (s, e) => got2.TrySetResult(e.Arg.Payload?.ToStr());
+    await sub2.ConnectAsync();
+    await sub2.SubscribeAsync("aot/retain");
+    var cleared = await Task.WhenAny(got2.Task, Task.Delay(1000)) != got2.Task;
+
+    Check($"保留消息：订阅即得={gotRetained}，清除后不再下发={cleared}", gotRetained && cleared);
+
+    await sub.DisconnectAsync();
+    await sub2.DisconnectAsync();
+}
+catch (Exception ex) { Check($"保留消息（异常：{ex.GetType().Name} {ex.Message}）", false); }
+
+// 18. 持久会话离线消息补发（CleanSession=false + QoS1）
+try
+{
+    using var server = new MqttServer { Port = 0 };
+    server.Start();
+
+    const String clientId = "aot_offline_client";
+    const String topic = "aot/offline";
+
+    using (var c1 = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = clientId, CleanSession = false, Timeout = 5000, Reconnect = false })
+    {
+        await c1.ConnectAsync();
+        await c1.SubscribeAsync([topic], QualityOfService.AtLeastOnce);
+        await c1.DisconnectAsync();
+    }
+    await Task.Delay(300);
+
+    using (var pub = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_offline_pub", Timeout = 5000, Reconnect = false })
+    {
+        await pub.ConnectAsync();
+        await pub.PublishAsync(topic, "offline-msg", QualityOfService.AtLeastOnce);
+        await pub.DisconnectAsync();
+    }
+    await Task.Delay(300);
+
+    using var c2 = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = clientId, CleanSession = false, Timeout = 5000, Reconnect = false };
+    var tcs = new TaskCompletionSource<String?>();
+    c2.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr());
+    var ack = await c2.ConnectAsync();
+    var present = ack.SessionPresent;
+    var gotOffline = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task && tcs.Task.Result == "offline-msg";
+
+    Check($"持久会话离线补发：SessionPresent={present}，补投收到={gotOffline}", present && gotOffline);
+
+    await c2.DisconnectAsync();
+}
+catch (Exception ex) { Check($"持久会话离线补发（异常：{ex.GetType().Name} {ex.Message}）", false); }
+
+// 19. MQTT-SN 网关：UDP 接入注册/发布 → TCP 订阅者收到
+try
+{
+    using var server = new MqttServer { Port = 0 };
+    server.Start();
+
+    using var tcpSub = new MqttClient { Server = $"tcp://127.0.0.1:{server.Port}", ClientId = "aot_sn_tcpsub", Timeout = 5000, Reconnect = false };
+    var tcs = new TaskCompletionSource<String?>();
+    tcpSub.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr());
+    await tcpSub.ConnectAsync();
+    await tcpSub.SubscribeAsync("aot/sn");
+    await Task.Delay(200);
+
+    using var gateway = new MqttSnGateway { Port = 0, GatewayId = 1, MqttBroker = $"tcp://127.0.0.1:{server.Port}", AdvertiseInterval = 120 };
+    gateway.Start();
+
+    using var sn = new MqttSnClient
+    {
+        ClientId = "aot_sn_client",
+        LocalPort = 0,
+        Gateway = new IPEndPoint(IPAddress.Loopback, gateway.ActualPort),
+        KeepAliveSeconds = 120,
+        CleanSession = true,
+    };
+    var connected = await sn.ConnectAsync();
+    var topicId = await sn.RegisterTopicAsync("aot/sn");
+    await sn.PublishAsync(topicId, "sn-hello"u8.ToArray(), QualityOfService.AtMostOnce);
+
+    var gotSn = await Task.WhenAny(tcs.Task, Task.Delay(10000)) == tcs.Task && tcs.Task.Result == "sn-hello";
+    Check($"MQTT-SN 网关：UDP 注册/发布→TCP 订阅者收到（connected={connected}, topicId={topicId}, received={gotSn}）", connected && topicId > 0 && gotSn);
+
+    await sn.DisconnectAsync();
+    await tcpSub.DisconnectAsync();
+}
+catch (Exception ex) { Check($"MQTT-SN 网关（异常：{ex.GetType().Name} {ex.Message}）", false); }
+
 Console.WriteLine(failures.Count == 0 ? "全部场景通过" : $"失败 {failures.Count} 个场景：{String.Join("；", failures)}");
 return failures.Count == 0 ? 0 : 1;
 
 [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods, typeof(AotControllerB))]
 static void RootControllerB() { }
+
+// 手动构造 HS256 JWT：header.payload.signature（Base64Url）
+static String MakeJwt(String secret, String payloadJson)
+{
+    var header = Base64Url(Encoding.UTF8.GetBytes("{\"alg\":\"HS256\",\"typ\":\"JWT\"}"));
+    var payload = Base64Url(Encoding.UTF8.GetBytes(payloadJson));
+    var data = Encoding.UTF8.GetBytes($"{header}.{payload}");
+    var signature = Base64Url(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), data));
+    return $"{header}.{payload}.{signature}";
+}
+
+static String Base64Url(Byte[] data) => Convert.ToBase64String(data).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
 internal class SmokeConfig : Config<SmokeConfig>
 {

@@ -6,19 +6,19 @@
 
 ## 1. 现状摘要
 
-- **主链路 AOT 编译/运行双通**：14 场景冒烟全部通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根、管理 API、集群 RPC、集群发布、大载荷跨轮帧体、断线重连+自动重订阅），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
+- **主链路 AOT 编译/运行双通**：19 场景冒烟全部通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根、管理 API、集群 RPC、集群发布、大载荷跨轮帧体、断线重连+自动重订阅、JWT/OAuth 认证、保留消息、持久会话离线补发、MQTT-SN 网关），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
 - **已实施修复（2026-10-09）**：
   1. 控制器元数据保根：`MqttManagementServer.Start` / `ClusterServer.Start` 标注 `[DynamicDependency(PublicConstructors | PublicMethods, typeof(控制器))]`（低版本 TFM 由 Core 公共垫片提供该特性，无需条件编译）；
   2. 匿名对象载荷改字典承载：AOT 下匿名类型属性被裁剪，经运行时序列化会得到空对象 `{}`——`MqttManagementController.Stats`、`ClusterController.Health`、`ClusterNode` 六处 RPC 载荷、`AliyunMqttClient` 两处载荷均改为 `Dictionary<String, Object?>`（键名与线格式不变，JIT 行为不变）；
   3. 对照实验确认因果：无保根的手工注册在 AOT 下 404（方法元数据被裁剪），保根后恢复；
   4. 集群 RPC 载荷 DTO 保根与订阅数组归一化：`ClusterServer.Start` 对控制器签名涉及的载荷 DTO（NodeInfo/SubscriptionInfo/PublishInfo/PublishMessage/MqttProperties/SessionInfo/Raft 系列/SnapshotSubscription）统一标注 `[DynamicDependency(PublicConstructors | PublicProperties)]`（AOT 下运行时参数绑定需反射创建/读写，修复前 `Publish` 等路径报 `No parameterless constructor defined`）；`Subscribe`/`Unsubscribe` 控制器的数组参数经 `ToSubscriptionInfos` 归一化（FIX-CLUS-1：JSON 数组经参数绑定为对象列表后无法直接强转，JIT/AOT 同错）。
-- **边界**：`NewLife.MQTT.Storage`（XCode/Redis）与 `NewLife.MqttServer` 应用（Stardust）不在本轮范围（未验证，取决于各自依赖链的 AOT 就绪度）。
+- **边界（2026-10-15 更新）**：`NewLife.MQTT.Storage`（XCode 数据库路径与 Redis 路径）与 `NewLife.MqttServer` 应用（Stardust）仍不在支持范围；其中 Storage 已完成就绪度实测——XCode 包（12.2.2026.901 / 912-beta）在 AOT 下产生 7 条 ILC 告警且运行期数据库命令创建失败，`RedisExchange` 仅构造级可用，详见 §4。
 - **FIX-CLUS-1 已修复（2026-10-09）**：订阅/退订 RPC 数组参数绑定失败为 v12 迁移引入的既有缺陷，已随本次改造修复并补 RPC 级回归测试（`ClusterRpcSubscribeTests`）。
 - **深挖中发现并修复的两个运行时缺陷（2026-10-10）**：冒烟场景 13/14 与端到端大载荷探针驱动发现——①**链式帧体解码静默截断**：v12 消息泵零拷贝切帧时，跨多次管道追加的帧体为多段共享切片组成的链包（`Next != null`），Core `SpanReader` 对链包退化为 8192 字节流式缓冲，`Available` 只反映已缓冲分块，`ReadPacket(Available)` 会截断负载（载荷超过单轮读取上限 8KB 且跨轮追加时即触发，20KB 载荷确定性复现）；修复为 `MqttMessage.EnsureContiguous`（链包→`new ArrayPacket(body.ToArray())`），在 `ReadBody` 与 `MqttFactory.ReadMessage` 入口归一化。②**管理 API 断开客户端不真正断连**：`MqttExchange.DisconnectClient` 原仅调 `handler.Close(...)`（关闭通知语义），交换机登记已清但 TCP 连接仍在，客户端收不到消息又不触发重连；修复为经 `(handler as MqttHandler)?.Session` 走标准会话关闭（含遗嘱与注销）。两处均补确定性回归测试（`FrameBodyChainTests` / `ExchangeDisconnectTests`），修复前红灯、修复后全绿。
 
 ## 2. 实测数据
 
-### 2.1 运行期：14 场景冒烟（JIT/AOT 双跑）
+### 2.1 运行期：19 场景冒烟（JIT/AOT 双跑）
 
 | # | 场景 | JIT | AOT | 说明 |
 |---|------|:---:|:---:|------|
@@ -36,14 +36,20 @@
 | 12 | 集群发布：PublishInfo/PublishMessage 载荷保真 | ✅ | ✅ | topic/qos/payload 完整往返（记录型交换机观测） |
 | 13 | 大载荷跨轮帧体：20KB/200KB 逐字节完整往返 | ✅ | ✅ | 消息泵零拷贝切帧产生链式帧体（`Next != null`），验证 `EnsureContiguous` 归一化路径 |
 | 14 | 断线重连 + 自动重订阅 | ✅ | ✅ | 经 `MqttExchange.DisconnectClient` 强制断开，客户端重连并恢复订阅（连接次数=2，重订阅送达） |
+| 15 | JWT 认证：HS256 令牌连接并收发、篡改令牌被拒 | ✅ | ✅ | `MqttJwtAuthenticator`：Core JsonParser 解析 Claims + 主题级授权（pub/mqtt_sub） |
+| 16 | OAuth 认证：HS256 令牌连接并收发、错误密钥被拒 | ✅ | ✅ | `MqttOAuthAuthenticator`（HS256 共享密钥路径，未启用 JwksEndpoint/RS256） |
+| 17 | 保留消息：订阅即得、清除后不再下发 | ✅ | ✅ | 保留消息存取与订阅时推送（RetainHandling=0） |
+| 18 | 持久会话离线补发：SessionPresent + QoS1 补投 | ✅ | ✅ | CleanSession=false 会话保存/恢复 + 离线队列补发（内存交换机） |
+| 19 | MQTT-SN 网关：UDP 注册/发布 → TCP 订阅者收到 | ✅ | ✅ | `MqttSnGateway` + `MqttSnClient`（UDP 编解码 + 网关桥接至 broker） |
 
 > 订阅/退订 RPC 的数组参数绑定曾为既有缺陷（FIX-CLUS-1），2026-10-09 已随本页方案修复并解除门禁。
 > 场景 13/14 为 2026-10-10 新增（随上表两个运行时缺陷的修复一并加入冒烟网），其中场景 13 用于覆盖"大帧体跨多轮接收→链式包"这一 v12 特有路径。
+> 场景 15~19 为 2026-10-15 新增（JWT/OAuth 认证、保留消息、持久会话离线补发、MQTT-SN 网关；JWT/OAuth 令牌为手工 HS256 构造）。
 
 ### 2.2 编译期：ILC 告警
 
 - `dotnet publish -c Release -r win-x64`：**0 条来自 NewLife.MQTT / NewLife.Core 的告警**；仅冒烟工程自身诊断行 `Assembly.Location` 触发 IL3000（评估证据，正式工程不会出现）。
-- 升级复验：`12.0.2026.1013-beta0732` 发布运行同样 0 条库侧 ILC 告警、14 场景全通过（2026-10-15）；此前双基线（发布包 `12.0.2026.1009-beta0916` 与下一版 `12.0.2026.1010` 本地 HEAD，尚未发包）结论一致。
+- 升级复验：`12.0.2026.1013-beta0732` 发布运行同样 0 条库侧 ILC 告警、19 场景全通过（2026-10-15，扩展场景后复跑）；此前双基线（发布包 `12.0.2026.1009-beta0916` 与下一版 `12.0.2026.1010` 本地 HEAD，尚未发包）结论一致。
 - 产物：单文件 exe 约 11.6 MB（含 MQTT 全功能）。
 - AOT 判真：产物运行 `IsDynamicCodeSupported=False`、`Assembly.Location` 为空。
 - 严格姿态：`JsonSerializerIsReflectionEnabledByDefault=false`，配置类与 JSON 场景仍全通过。
@@ -64,7 +70,7 @@
 
 | 项 | 现状 | 理由 |
 |---|---|---|
-| `NewLife.MQTT.Storage`（XCode/Redis） | 未验证 | 取决于 XCode/Redis 自身 AOT 就绪度 |
+| `NewLife.MQTT.Storage`（XCode/Redis） | 未就绪（2026-10-15 实测） | 数据库路径：XCode 包（12.2.2026.901 stable / 912-beta，已复刻 XCode AotSmoke 裁剪根配方）在 win-x64 NativeAOT 下产生 7 条 ILC 告警（均出自 XCode.dll：IL2104/IL3053/IL3000/IL3002）且运行期 `DbSession.OnCreateCommand` 抛 `InvalidOperationException`；Redis 路径仅 `RedisExchange` 构造级可用（真实读写未验证）。随本轮修复 `MqttOfflineMessageEntity.FindAllByClientId` 的单参 `FindAll(String)`（整条 SQL 语义）重载误用后，DbExchange 在 JIT 下会话与离线消息往返已通过 |
 | `NewLife.MqttServer` 应用（Stardust + DI） | 未验证 | Stardust 运行时基于 Core 11 编译，AOT 就绪度未知 |
 | `Test` / `Benchmark` / `XUnitTest` | 不参与 | 非发布产物 |
 | net45~netstandard2.x 目标框架 | 与 AOT 无关 | AOT 只作用于应用工程 |

@@ -20,7 +20,7 @@
 | [竞品分析](Doc/竞品分析.md) | MQTT 生态全景对比（EMQX/MQTTnet/Mosquitto 等）、SWOT |
 | [CLUS-集群竞品分析](Doc/CLUS-集群竞品分析.md) | 集群能力专项对标（EMQX/HiveMQ/VerneMQ） |
 | [集成测试说明](Doc/集成测试说明.md) | 测试架构、运行方法、测试分类 |
-| [AOT兼容性分析](Doc/AOT兼容性分析.md) | NativeAOT 实测：主链路 14 场景 JIT/AOT 双跑通过、已实施保根方案、复现方法（冒烟工程 AotSmoke 已入库） |
+| [AOT兼容性分析](Doc/AOT兼容性分析.md) | NativeAOT 实测：主链路 19 场景 JIT/AOT 双跑通过、已实施保根方案、复现方法（冒烟工程 AotSmoke 已入库） |
 | [更新日志](Doc/更新日志.md) | 版本发布记录与提交明细 |
 
 ---
@@ -40,7 +40,7 @@
 | **自动重订阅** | 断线重连后自动重新订阅全部主题，无需用户代码干预 |
 | **SOCKS5 代理** | 内置 SOCKS5 代理支持（用户名密码认证），TCP/WS 连接均可通过代理转发 |
 | **全版本覆盖** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 ~ net10 |
-| **NativeAOT 支持** | 主链路 NativeAOT 实测通过（管理 API / 集群 RPC / TCP / WS 等，14 场景 JIT/AOT 双跑、库侧 0 条 ILC 告警） |
+| **NativeAOT 支持** | 主链路 NativeAOT 实测通过（管理 API / 集群 RPC / TCP / WS / 认证 / MQTT-SN 等，19 场景 JIT/AOT 双跑、库侧 0 条 ILC 告警） |
 | **信创合规** | 完全自主研发，MIT 开源，无 Copyleft / 专利条款，无境外供应链风险 |
 
 ---
