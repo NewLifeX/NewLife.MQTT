@@ -22,7 +22,8 @@ public class ExchangeDisconnectTests : IDisposable
 
     public ExchangeDisconnectTests()
     {
-        var services = ObjectContainer.Current;
+        // 独立容器：避免解析到其他用例注册进全局 ObjectContainer.Current 的共享处理器（Session 会被后续连接覆写导致投递错连）
+        var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
 
         _server = new MqttServer

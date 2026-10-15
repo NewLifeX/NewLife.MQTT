@@ -1,6 +1,6 @@
 # NewLife.MQTT AOT 兼容性评估
 
-> 基线：NewLife.Core 12.0.2026.1009-beta0916（发布包）与 12.0.2026.1010（下一版，本地 HEAD）双基线｜评估方式：**NativeAOT 真实编译 + 运行实测**（win-x64，.NET 10）｜冒烟工程：临时工程（不入库，复现方法见 §5）
+> 基线：NewLife.Core 12.0.2026.1013-beta0732（2026-10-15 升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（win-x64，.NET 10）｜冒烟工程：临时工程（不入库，复现方法见 §5）
 
 ---
 
@@ -43,8 +43,8 @@
 ### 2.2 编译期：ILC 告警
 
 - `dotnet publish -c Release -r win-x64`：**0 条来自 NewLife.MQTT / NewLife.Core 的告警**；仅冒烟工程自身诊断行 `Assembly.Location` 触发 IL3000（评估证据，正式工程不会出现）。
-- 双基线一致：发布包 `12.0.2026.1009-beta0916` 与下一版 `12.0.2026.1010`（Core 本地 HEAD，尚未发包，仅作前瞻验证）分别发布运行，均 0 条库侧 ILC 告警、14 场景全通过。
-- 产物：单文件 exe 约 11.0 MB（含 MQTT 全功能）。
+- 升级复验：`12.0.2026.1013-beta0732` 发布运行同样 0 条库侧 ILC 告警、14 场景全通过（2026-10-15）；此前双基线（发布包 `12.0.2026.1009-beta0916` 与下一版 `12.0.2026.1010` 本地 HEAD，尚未发包）结论一致。
+- 产物：单文件 exe 约 11.6 MB（含 MQTT 全功能）。
 - AOT 判真：产物运行 `IsDynamicCodeSupported=False`、`Assembly.Location` 为空。
 - 严格姿态：`JsonSerializerIsReflectionEnabledByDefault=false`，配置类与 JSON 场景仍全通过。
 

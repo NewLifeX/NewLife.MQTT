@@ -53,7 +53,8 @@ public class MqttClientTests
     [Fact]
     public void TestServer()
     {
-        var services = ObjectContainer.Current;
+        // 独立容器：避免把单例处理器注册进全局 ObjectContainer.Current，被并行用例的服务器解析后串用连接
+        var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
         //services.AddSingleton<IMqttHandler, MqttHandler>();
         services.AddSingleton<IMqttHandler, MqttController>();
