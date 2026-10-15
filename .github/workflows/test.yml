@@ -30,3 +30,22 @@ jobs:
     - name: Test
       run: |
         dotnet test -c Release XUnitTest/XUnitTest.csproj
+
+  aot-smoke:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup dotNET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          10.x
+    - name: Publish
+      run: |
+        dotnet publish -c Release -r win-x64 -o BinTest/AotSmoke AotSmoke/AotSmoke.csproj
+    - name: Run
+      run: |
+        ./BinTest/AotSmoke/AotSmoke.exe
+        if ($LASTEXITCODE -ne 0) { throw "AOT smoke failed: exit $LASTEXITCODE" }

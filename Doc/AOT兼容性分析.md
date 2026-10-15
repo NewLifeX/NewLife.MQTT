@@ -1,6 +1,6 @@
 # NewLife.MQTT AOT 兼容性评估
 
-> 基线：NewLife.Core 12.0.2026.1013-beta0732（2026-10-15 升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（win-x64，.NET 10）｜冒烟工程：临时工程（不入库，复现方法见 §5）
+> 基线：NewLife.Core 12.0.2026.1013-beta0732（2026-10-15 升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（win-x64，.NET 10）｜冒烟工程：`AotSmoke/`（已入库，复现方法见 §5）
 
 ---
 
@@ -56,7 +56,7 @@
 | 2 | 集群 RPC 控制器保根 | ✅ 已完成 | `ClusterServer.Start` 标注 `[DynamicDependency]`；冒烟场景 11 通过 |
 | 3 | 匿名对象载荷改字典承载 | ✅ 已完成 | 管理 Stats / 集群 Health / ClusterNode 六处 / Aliyun 两处（AOT 下匿名类型属性被裁剪 → 空对象） |
 | 4 | 集群 RPC 载荷 DTO 保根 + 订阅数组归一化 | ✅ 已完成 | `ClusterServer.Start` 保根 14 类载荷 DTO；`Subscribe`/`Unsubscribe` 数组参数归一化（FIX-CLUS-1）；冒烟场景 11/12 通过 |
-| 5 | AOT 冒烟工程入库 + CI（可选） | ⏸ 未实施 | 参考 NewLife.Core 的 AotSmoke：`PublishAot` 写在工程属性内、win-x64 发布 + 运行按退出码判定；本轮冒烟为临时工程（复现方法见 §5） |
+| 5 | AOT 冒烟工程入库 + CI | ✅ 已完成 | `AotSmoke/` 工程入库（`PublishAot` 写在工程属性内、严格姿态关反射序列化）；CI 作业 `aot-smoke`（windows-latest，win-x64 发布后运行按退出码判定，见 `.github/workflows/test.yml`）；复现方法见 §5 |
 
 > 说明：`MapController<T>` 的静态分发由 Core 源生成器 `HttpControllerDispatchGenerator` 生成；生成器随 Core 包分发、对下游零配置（冒烟场景 6/8 已在 AOT 下证实生成器在消费方生效）。手工保根路径下控制器仍走反射分发，AOT 下功能等价、性能与 JIT 一致。
 
@@ -72,14 +72,14 @@
 ## 5. 复现方法
 
 ```powershell
-# 1) 临时冒烟工程（不入库）：net10.0，ProjectReference 到 NewLife.MQTT，工程属性：
+# 冒烟工程：仓库内 AotSmoke/（net10.0，ProjectReference 到 NewLife.MQTT，工程属性：
 #    <PublishAot>true</PublishAot>
-#    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-# 2) JIT 基线
-dotnet run -c Release
-# 3) NativeAOT 真编译 + 运行（期望 0 条库侧 ILC 告警；正常输出为"全部场景通过"）
-dotnet publish -c Release -r win-x64 -o out
-.\out\AotSmoke.exe
+#    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>）
+# 1) JIT 基线
+dotnet run -c Release --project AotSmoke
+# 2) NativeAOT 真编译 + 运行（期望 0 条库侧 ILC 告警；正常输出为"全部场景通过"）
+dotnet publish -c Release -r win-x64 -o BinTest/AotSmoke AotSmoke/AotSmoke.csproj
+.\BinTest\AotSmoke\AotSmoke.exe
 ```
 
 冒烟场景清单见 §2.1（TCP/WS 收发、管理 API、签名、JSON、配置、看板、控制器分发 ×3、集群 RPC/发布、大载荷跨轮帧体、断线重连+自动重订阅）。
