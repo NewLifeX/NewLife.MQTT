@@ -174,7 +174,9 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 | vstest 不支持 loongarch64 | `ProcessHelper.GetCurrentProcessArchitecture()` 抛 `NotSupportedException` | 单测改用 xunit 独立控制台运行器（`xunit.runner.console` net6.0 纯 IL + `DOTNET_ROLL_FORWARD=LatestMajor`） |
 | 部分测试类触发运行时内部缺陷 | 段错误 / `AccessViolationException` / `ExecutionEngineException: Illegal instruction`；栈顶多见反射调用桩（`InvokeStub_...`、`ReflectionAttributeInfo.GetNamedArgument`），与库代码无关，且同一命令存在偶发失败 | 按"已实测稳定"的粒度分批执行（每批一个独立进程），每批最多重试 3 次兜底偶发崩溃，连续 3 次失败才判失败；未纳入的类待运行时修复或接入真机 runner 后回收 |
 
-**LA64 当前覆盖（全量单测阻断，AOT 冒烟观察期）**：38 个批次共 638 个测试用例 + `AotSmoke` 全场景冒烟，覆盖协议编解码、传输层（TCP/WS/UDP/QUIC 会话与客户端）、会话与补发、路由与规则引擎、集群（模型/服务器/连接聚合/分层/分片快照/降级）、集成与端到端场景；分片路由 E2E 与 QUIC E2E 仍在 x64/arm64 runner 原生执行。
+**QEMU 用户态已知缺陷（.NET 代码页双映射触发）**：`QEMU internal SIGSEGV {code=MAPERR, addr=0x20}` 可在任意测试/冒烟进程出现，基线崩溃率随测试内容而异（本机实测 `XUnitTest.Transports.ProxyProtocolTests` 约 50%、`AotSmoke` 约 33%），与库代码无关；仿真环境统一设置 `DOTNET_EnableWriteXorExecute=0` 关闭 .NET 代码页双映射后，实测 `ProxyProtocolTests` 连续 30 次、`AotSmoke` 连续 3 次、全量批次一轮 646 用例零失败（残余偶发仍由每批 3 次重试兜底），设置位置见 `.github/actions/setup-la64`。
+
+**LA64 当前覆盖（全量单测阻断，AOT 冒烟观察期）**：38 个批次共 646 个测试用例 + `AotSmoke` 全场景冒烟，覆盖协议编解码、传输层（TCP/WS/UDP/QUIC 会话与客户端）、会话与补发、路由与规则引擎、集群（模型/服务器/连接聚合/分层/分片快照/降级）、集成与端到端场景；分片路由 E2E 与 QUIC E2E 仍在 x64/arm64 runner 原生执行。
 
 **暂未纳入 LA64 的测试类**（其余平台正常执行）：
 
@@ -197,7 +199,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 | 分片路由环不含自身 | `Clusters/TopicRouter.cs` | 不处理。路由环语义为"主题的转发目标节点"，逐节点计算且天然排除自身（本地投递另行处理）；`ShardRoutingE2ETests` 已按该语义固化验证。 |
 | LA64 无 NativeAOT 支持 | `.github/workflows/aot.yml` | 官方/龙芯均无 linux-loongarch64 的 ILCompiler 产物；以 JIT 冒烟 + 全量单测覆盖平台行为；因仿真环境不稳定，aot.yml 的 LA64 冒烟列为观察期（continue-on-error，失败不阻断），有真机后再评估升级。 |
 | LA64 仿真下不跑 MSBuild/csc/vstest | `.github/actions/setup-la64`、`test.yml` | 龙芯运行时为解释器模式，MSBuild 任务反射调用与 Roslyn 在仿真下会崩溃（实测 MSB4018 / FailFast），官方 vstest 亦不支持 loongarch64；固定为「x64 编译 IL + LA64 执行」，不追修复。 |
-| LA64 部分测试类在仿真下不可运行 | `test.yml`（test-la64 批次清单） | 解释器在反射调用桩上存在缺陷（段错误/AccessViolation/ExecutionEngineException），与库代码无关，且偶发；按已实测稳定粒度分批覆盖 638 个用例、每批最多重试 3 次，其余类待运行时修复或真机 runner 回收，明细见 §6.2。 |
+| LA64 部分测试类在仿真下不可运行 | `test.yml`（test-la64 批次清单） | 解释器在反射调用桩上存在缺陷（段错误/AccessViolation/ExecutionEngineException），与库代码无关，且偶发；按已实测稳定粒度分批覆盖 646 个用例、每批最多重试 3 次，其余类待运行时修复或真机 runner 回收，明细见 §6.2。 |
 
 ---
 

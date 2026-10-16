@@ -100,6 +100,8 @@ jobs:
       # ExecutionEngineException，实测与库代码无关），且同一命令存在偶发失败，因此：
       #   1) 按"已实测可稳定运行"的粒度分批，每批一个独立进程；
       #   2) 每批最多重试 3 次，仅当 3 次都失败才判失败（真实回归会稳定失败，仿真偶发崩溃可被重试兜底）。
+      # 另有 QEMU 用户态内部崩溃（internal SIGSEGV MAPERR），已由 setup-la64 设置
+      # DOTNET_EnableWriteXorExecute=0 关闭 .NET 代码页双映射规避。
       # 覆盖范围与排除项见 Doc/AOT兼容性分析.md §6.2。
       run: |
         set -uo pipefail

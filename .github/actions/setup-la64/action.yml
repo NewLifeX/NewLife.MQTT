@@ -83,6 +83,10 @@ runs:
         echo "DOTNET_CLI_TELEMETRY_OPTOUT=1"
         # xunit.runner.console 面向 net6.0，需要靠 10.0 运行时承载
         echo "DOTNET_ROLL_FORWARD=LatestMajor"
+        # 关闭 .NET 代码页双映射（W^X）：QEMU 的 loongarch64 用户态在该映射序列上会内部崩溃
+        # （QEMU internal SIGSEGV {code=MAPERR, addr=0x20}），本机实测基线崩溃率 30%~50%（随测试类而异），
+        # 关闭后 ProxyProtocolTests 30 次、AotSmoke 3 次零崩溃；残余偶发由批次重试兜底
+        echo "DOTNET_EnableWriteXorExecute=0"
       } >> "$GITHUB_ENV"
 
   - name: Verify LA64 runtime
