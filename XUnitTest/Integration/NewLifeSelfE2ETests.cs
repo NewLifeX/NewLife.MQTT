@@ -15,6 +15,7 @@ namespace XUnitTest.Integration;
 /// <summary>NewLife MqttClient ↔ NewLife MqttServer 端到端集成测试。
 /// 覆盖断线重连、持久化 Session 离线消息、MQTT 5.0 协议、多订阅者等场景，
 /// 作为对 MqttIntegrationTests 的补充</summary>
+[Trait("Category", "CrossCompatibility")]
 [Collection("SelfE2ETests")]
 public class NewLifeSelfE2ETests : IDisposable
 {

@@ -29,6 +29,8 @@ jobs:
 
   # 单元测试矩阵：必选覆盖 win-x64 / linux-x64 / linux-arm64（阻断）；
   # linux-la64（龙芯）为必选项，见 test-la64（QEMU + 龙芯 SDK 仿真）。
+  # 每平台先跑交叉兼容测试（NewLife ↔ MQTTnet，Category=CrossCompatibility）再做全量回归，
+  # 交叉兼容失败时提前阻断；过滤语法见 Doc/集成测试说明.md「交叉兼容测试」。
   test:
     name: test (${{ matrix.rid }})
     runs-on: ${{ matrix.os }}
@@ -58,9 +60,15 @@ jobs:
         sudo dpkg -i /tmp/packages-microsoft-prod.deb
         sudo apt-get update
         sudo apt-get install -y libmsquic
-    - name: Test
+    - name: Cross-compat tests (NewLife ↔ MQTTnet)
+      # 交叉兼容测试：NewLife客户端→MQTTnet服务端 / MQTTnet客户端→NewLife服务端 / NewLife自通信
+      # 零匹配会以非 0 退出，防止 Trait 失效后静默跳过
       run: |
-        dotnet test -c Release XUnitTest/XUnitTest.csproj
+        dotnet test -c Release XUnitTest/XUnitTest.csproj --filter "Category=CrossCompatibility"
+    - name: Unit & integration tests
+      # 其余全量单元与集成测试；--no-build 复用上一步构建产物
+      run: |
+        dotnet test -c Release XUnitTest/XUnitTest.csproj --no-build --filter "Category!=CrossCompatibility"
 
   # LA64（linux-loongarch64，必选）：官方无 runner，QEMU 用户态仿真 + 龙芯 .NET SDK 执行全量单元测试。
   # 注意：龙芯运行时为解释器模式（IsDynamicCodeSupported=False），MSBuild/csc/vstest 在仿真下不可用，

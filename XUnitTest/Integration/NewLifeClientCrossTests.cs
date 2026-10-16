@@ -19,6 +19,7 @@ namespace XUnitTest.Integration;
 
 /// <summary>NewLife MqttClient → MQTTnet Server 交叉集成测试。
 /// 验证 NewLife 客户端能与第三方 MQTT 服务端正常交互</summary>
+[Trait("Category", "CrossCompatibility")]
 [Collection("CrossClientTests")]
 public class NewLifeClientCrossTests : IClassFixture<CrossIntegrationFixture>
 {
@@ -31,13 +32,14 @@ public class NewLifeClientCrossTests : IClassFixture<CrossIntegrationFixture>
         _port = fixture.Port;
     }
 
-    private MqttClient CreateClient(String? clientId = null) => new MqttClient
+    private MqttClient CreateClient(String? clientId = null, MqttVersion version = MqttVersion.V311) => new MqttClient
     {
         Log = XTrace.Log,
         Server = $"tcp://127.0.0.1:{_port}",
         ClientId = clientId ?? $"nl_{Rand.NextString(6)}",
         Timeout = 5000,
         Reconnect = false,
+        Version = version,
     };
 
     #region 连接与断开
@@ -147,16 +149,30 @@ public class NewLifeClientCrossTests : IClassFixture<CrossIntegrationFixture>
     [Fact(DisplayName = "NewLife客户端QoS2发布完成PUBREC-PUBREL-PUBCOMP流程")]
     public async Task Publish_QoS2_CompletionFlow()
     {
-        using var client = CreateClient("nl_qos2_test");
-        await client.ConnectAsync();
+        using var sub = CreateClient("nl_qos2_sub");
+        using var pub = CreateClient("nl_qos2_test");
 
-        var rs = await client.PublishAsync("cross/qos2/test", "qos2_data", QualityOfService.ExactlyOnce);
+        await sub.ConnectAsync();
+        await pub.ConnectAsync();
+
+        var tcs = new TaskCompletionSource<String>();
+        sub.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr() ?? "");
+
+        await sub.SubscribeAsync(new[] { "cross/qos2/test" }, QualityOfService.ExactlyOnce);
+        await Task.Delay(200);
+
+        var rs = await pub.PublishAsync("cross/qos2/test", "qos2_data", QualityOfService.ExactlyOnce);
 
         Assert.NotNull(rs);
         Assert.IsType<PubComp>(rs);
         Assert.NotEqual(0, rs!.Id);
 
-        await client.DisconnectAsync();
+        var winner = await Task.WhenAny(tcs.Task, Task.Delay(4000));
+        Assert.True(winner == tcs.Task, "未在超时内收到 QoS2 消息");
+        Assert.Equal("qos2_data", tcs.Task.Result);
+
+        await sub.DisconnectAsync();
+        await pub.DisconnectAsync();
     }
     #endregion
 
@@ -246,6 +262,106 @@ public class NewLifeClientCrossTests : IClassFixture<CrossIntegrationFixture>
         Assert.True(winner == reconnected.Task, "客户端未在超时内完成重连");
 
         client.Dispose();
+    }
+    #endregion
+
+    #region MQTT 5.0 协议互操作
+    [Fact(DisplayName = "NewLife客户端V500连接MQTTnet服务端并完成发布订阅")]
+    public async Task MQTT5_Connect_And_PubSub_Via_MQTTnet()
+    {
+        using var sub = CreateClient("nl_v5_sub", MqttVersion.V500);
+        using var pub = CreateClient("nl_v5_pub", MqttVersion.V500);
+
+        await sub.ConnectAsync();
+        await pub.ConnectAsync();
+        Assert.True(sub.IsConnected);
+        Assert.True(pub.IsConnected);
+
+        var tcs = new TaskCompletionSource<String>();
+        sub.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr() ?? "");
+
+        await sub.SubscribeAsync("cross/v5/test");
+        await Task.Delay(200);
+
+        var payload = "v5_nl_" + Rand.NextString(4);
+        var ack = await pub.PublishAsync("cross/v5/test", payload, QualityOfService.AtLeastOnce);
+
+        Assert.NotNull(ack);
+        Assert.IsType<PubAck>(ack);
+
+        var winner = await Task.WhenAny(tcs.Task, Task.Delay(4000));
+        Assert.True(winner == tcs.Task, "未在超时内收到 V500 消息");
+        Assert.Equal(payload, tcs.Task.Result);
+
+        await sub.DisconnectAsync();
+        await pub.DisconnectAsync();
+    }
+    #endregion
+
+    #region Retain 消息
+    [Fact(DisplayName = "NewLife客户端发布Retain消息MQTTnet服务端存储并投递给新订阅者")]
+    public async Task Retain_NewLife_Publish_MQTTnet_Server_Delivers()
+    {
+        using var pub = CreateClient("nl_retain_pub");
+        await pub.ConnectAsync();
+
+        var retainMsg = new PublishMessage
+        {
+            Topic = "cross/retain/test",
+            QoS = QualityOfService.AtLeastOnce,
+            Retain = true,
+            Payload = (ArrayPacket)"retain_nl_value".GetBytes(),
+        };
+        await pub.PublishAsync(retainMsg);
+        await Task.Delay(200);
+
+        // 新订阅者连接后应收到 retain 消息
+        using var sub = CreateClient("nl_retain_sub");
+        await sub.ConnectAsync();
+
+        var tcs = new TaskCompletionSource<String>();
+        sub.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr() ?? "");
+
+        await sub.SubscribeAsync("cross/retain/test");
+
+        var winner = await Task.WhenAny(tcs.Task, Task.Delay(4000));
+        Assert.True(winner == tcs.Task, "新订阅者未收到 Retain 消息");
+        Assert.Equal("retain_nl_value", tcs.Task.Result);
+
+        await pub.DisconnectAsync();
+        await sub.DisconnectAsync();
+    }
+    #endregion
+
+    #region Will 消息
+    [Fact(DisplayName = "NewLife客户端异常断开MQTTnet服务端发布遗嘱消息")]
+    public async Task Will_NewLife_AbnormalDisconnect_MQTTnet_Server_Publishes()
+    {
+        using var sub = CreateClient("nl_will_sub");
+        await sub.ConnectAsync();
+
+        var tcs = new TaskCompletionSource<String>();
+        sub.Received += (s, e) => tcs.TrySetResult(e.Arg.Payload?.ToStr() ?? "");
+
+        await sub.SubscribeAsync("cross/will/status");
+        await Task.Delay(200);
+
+        var willClient = CreateClient("nl_will_client");
+        willClient.WillTopic = "cross/will/status";
+        willClient.WillMessage = "offline"u8.ToArray();
+        willClient.WillQoS = QualityOfService.AtMostOnce;
+        await willClient.ConnectAsync();
+        await Task.Delay(200);
+
+        // 模拟异常断开（直接 Dispose 不发 DISCONNECT）
+        willClient.Dispose();
+        await Task.Delay(500);
+
+        var winner = await Task.WhenAny(tcs.Task, Task.Delay(5000));
+        Assert.True(winner == tcs.Task, "未在超时内收到遗嘱消息");
+        Assert.Equal("offline", tcs.Task.Result);
+
+        await sub.DisconnectAsync();
     }
     #endregion
 }
