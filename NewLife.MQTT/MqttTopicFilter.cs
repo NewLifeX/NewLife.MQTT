@@ -91,64 +91,99 @@ public class MqttTopicFilter
         // 发布主题不能包含通配符
         if (topicName.Contains('#') || topicName.Contains('+')) return false;
 
-        // 拆分一次即可，供后续匹配使用
-        var topicFilterParts = actualTopicFilter.Split('/');
-        var topicNameParts = topicName.Split('/');
+        // 快速通道：过滤器不含通配符时等价于恒等匹配，避免分段开销
+        if (!actualTopicFilter.Contains('#') && !actualTopicFilter.Contains('+'))
+            return String.Equals(topicName, actualTopicFilter, StringComparison.Ordinal);
 
-        // 订阅主题过滤器非法：多个 #、# 或 + 与其他字符混用、# 不在末尾
-        var hashCount = 0;
-        for (var i = 0; i < topicFilterParts.Length; i++)
+        return IsMatchCore(topicName.AsSpan(), actualTopicFilter.AsSpan());
+    }
+
+    /// <summary>基于 Span 的零分配主题匹配</summary>
+    /// <remarks>匹配语义与 MQTT 规范一致：+ 匹配单层，# 匹配剩余多层（含零层），通配符开头不匹配 $ 主题</remarks>
+    /// <param name="topic">发布主题</param>
+    /// <param name="filter">主题过滤器（已提取共享订阅前缀，且含 + / # 通配符）</param>
+    /// <returns></returns>
+    private static Boolean IsMatchCore(ReadOnlySpan<Char> topic, ReadOnlySpan<Char> filter)
+    {
+        // 第一遍：校验过滤器结构，统计段数与 # 所在位置
+        var filterSegs = 0;
+        var hashIndex = -1;
+        for (var start = 0; ;)
         {
-            var part = topicFilterParts[i];
-            if (part == "#") hashCount++;
-            else if (part.Contains('#')) return false;
-            else if (part.Contains('+') && part.Length > 1) return false;
+            var slash = filter[start..].IndexOf('/');
+            var end = slash < 0 ? filter.Length : start + slash;
+            var seg = filter[start..end];
+
+            if (seg.Length == 1 && seg[0] == '#')
+            {
+                // 多个 # 非法
+                if (hashIndex >= 0) return false;
+                hashIndex = filterSegs;
+            }
+            else
+            {
+                // # 或 + 与其他字符混用非法
+                if (seg.IndexOf('#') >= 0) return false;
+                if (seg.Length > 1 && seg.IndexOf('+') >= 0) return false;
+            }
+
+            filterSegs++;
+            if (end >= filter.Length) break;
+            start = end + 1;
         }
-        if (hashCount > 1) return false;
-        if (hashCount == 1 && !actualTopicFilter.EndsWith("#")) return false;
 
-        if (topicNameParts.Length > topicFilterParts.Length && topicFilterParts[^1] != "#")
-            return false;
+        // # 必须位于末尾
+        if (hashIndex >= 0 && hashIndex != filterSegs - 1) return false;
 
-        if (topicFilterParts.Length - topicNameParts.Length > 1)
-            return false;
-
-        if (topicFilterParts.Length - topicNameParts.Length == 1 && topicFilterParts[^1] != "#")
-            return false;
-
-        if ((topicFilterParts[0] == "#" || topicFilterParts[0] == "+") && topicNameParts[0].StartsWith("$"))
-            return false;
-
-        var matches = true;
-
-        for (var i = 0; i < topicFilterParts.Length; i++)
+        // 第二遍：统计主题段数
+        var topicSegs = 1;
+        for (var i = 0; i < topic.Length; i++)
         {
-            var topicFilterPart = topicFilterParts[i];
-
-            if (topicFilterPart == "#")
-            {
-                matches = true;
-                break;
-            }
-
-            if (topicFilterPart == "+")
-            {
-                if (i == topicFilterParts.Length - 1 && topicNameParts.Length > topicFilterParts.Length)
-                {
-                    matches = false;
-                    break;
-                }
-
-                continue;
-            }
-
-            if (topicFilterPart != topicNameParts[i])
-            {
-                matches = false;
-                break;
-            }
+            if (topic[i] == '/') topicSegs++;
         }
-        return matches;
+
+        var lastIsHash = hashIndex >= 0 && hashIndex == filterSegs - 1;
+        if (topicSegs > filterSegs && !lastIsHash) return false;
+        if (filterSegs - topicSegs > 1) return false;
+        if (filterSegs - topicSegs == 1 && !lastIsHash) return false;
+
+        // 以通配符开头的过滤器不匹配 $ 开头的主题
+        if (topic[0] == '$' && (filter[0] == '#' || filter[0] == '+')) return false;
+
+        // 第三遍：逐段匹配
+        var tleft = topicSegs;
+        var tpos = 0;
+        for (var fpos = 0; fpos < filter.Length;)
+        {
+            var slash = filter[fpos..].IndexOf('/');
+            var fend = slash < 0 ? filter.Length : fpos + slash;
+            var fseg = filter[fpos..fend];
+
+            // # 匹配剩余全部（含零段）
+            if (fseg.Length == 1 && fseg[0] == '#') return true;
+
+            if (tleft == 0) return false;
+
+            if (fseg.Length == 1 && fseg[0] == '+')
+            {
+                // 单层通配符消耗一个主题段
+                var tslash = topic[tpos..].IndexOf('/');
+                tpos = tslash < 0 ? topic.Length + 1 : tpos + tslash + 1;
+            }
+            else
+            {
+                // 字面量段与对应主题段逐字符比较
+                var tslash = topic[tpos..].IndexOf('/');
+                var tend = tslash < 0 ? topic.Length : tpos + tslash;
+                if (!fseg.SequenceEqual(topic[tpos..tend])) return false;
+                tpos = tend + 1;
+            }
+
+            tleft--;
+            fpos = fend + 1;
+        }
+
+        return true;
     }
 
     /// <summary>扩展主题，得到所有通配符组合</summary>

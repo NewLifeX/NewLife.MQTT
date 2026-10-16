@@ -77,11 +77,29 @@ public class MqttServer : NetServer<MqttSession>
     private MqttQuicListener? _quicListener;
 #endif
 
+    /// <summary>会话接收缓冲区大小（字节）。默认 2048，避免默认 8KB 缓冲在小消息高吞吐场景产生大量大对象分配；小于等于 0 时使用框架全局默认</summary>
+    /// <remarks>
+    /// 消息大于缓冲时由 v12 消息泵跨轮拼帧，不影响正确性，仅影响单次读取的系统调用次数。
+    /// 大载荷为主的场景（如文件切片传输）可调大以减少读取次数。
+    /// </remarks>
+    public Int32 SessionBufferSize { get; set; } = 2 * 1024;
+
     /// <summary>实例化MQTT服务器</summary>
     public MqttServer()
     {
         Port = 1883;
         ProtocolType = NetType.Tcp;
+    }
+
+    /// <summary>创建会话时应用 MQTT 专属接收缓冲大小</summary>
+    /// <param name="session">底层Socket会话</param>
+    /// <returns></returns>
+    protected override INetSession CreateSession(ISocketSession session)
+    {
+        // 接收环挂在底层 Socket 会话上，必须在会话启动（建立接收环）之前设置
+        if (SessionBufferSize > 0 && session is SessionBase sb) sb.BufferSize = SessionBufferSize;
+
+        return base.CreateSession(session);
     }
 
     /// <summary>已重载。</summary>

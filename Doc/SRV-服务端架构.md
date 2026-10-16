@@ -33,19 +33,21 @@ SRV 服务端实现高性能 MQTT Broker，面向平台运维工程师提供全�
 | 字典 | 键 | 值 | 说明 |
 |------|------|------|------|
 | `_sessions` | `sessionId` | `IMqttHandler` | 所有活跃会话 |
-| `_subscribers` | `topicFilter` | `ConcurrentDictionary<IMqttHandler, Subscription>` | 主题→订阅者映射 |
-| `_retained` | `topic` | `PublishMessage` | Retain 保留消息 |
-| `_clientIds` | `clientId` | `sessionId` | ClientId→会话映射 |
-| `_sharedGroups` | `$share/{group}/{topic}` | `Int32` 轮询索引 | 共享订阅负载均衡 |
+| `_topics` | `topicFilter` | `SubscriptionList`（写时复制快照） | 主题→订阅者映射 |
+| `_topicIndex` | 首层主题段 | `FilterBucket`（过滤器快照） | 前缀索引，Publish 按前缀定位候选过滤器 |
+| `_wildcardFilters` | — | `FilterBucket` | `+`/`#` 开头的过滤器集合（不与 `$` 主题匹配） |
+| `_retainMessages` | `topic` | `PublishMessage` | Retain 保留消息 |
+| `_clientIdMap` | `sessionId` | `clientId` | ClientId 映射 |
+| `_sharedGroupIndex` | `$share/{group}/{topic}` | `Int32` 轮询索引 | 共享订阅负载均衡 |
 
 **Publish 路由流程**（`MqttExchange.Publish()`）：
 
 ```
 1. Retain 处理：带 Retain → 空Payload清除 / 非空存储
 2. $SYS 独立分发（不匹配通配符）
-3. 订阅者遍历匹配
-   ├── 精确匹配：_subscribers 直接查找
-   ├── 通配符匹配：MqttTopicFilter.IsMatch() 逐层匹配
+3. 前缀索引路由：按发布主题首层段取候选过滤器 + 通配符过滤器（$ 主题跳过）
+   ├── 精确匹配：过滤器与主题逐段比对（无通配符过滤器走字符串恒等快速通道）
+   ├── 通配符匹配：MqttTopicFilter.IsMatch() Span 零分配逐层匹配
    ├── 共享订阅：$share 解析 → 轮询分发
    └── NoLocal 过滤（5.0）：跳过发布者自身
 4. QoS 降级：Min(publishQoS, subscribeQoS)
@@ -115,6 +117,8 @@ WebSocket → 独立 HttpServer + MqttWebSocketHandler 桥接 → 同一 MqttSes
 | 异常断开 | 遗嘱发布 + `Exchange.Remove(sessionId)` |
 | 正常 DISCONNECT | 遗嘱清除 + 会话关闭 |
 | 超时清理 | 30s 定时扫描 `RemoveNotAlive()` |
+
+**接收缓冲调优**：`MqttServer.SessionBufferSize`（默认 2048 字节，`MqttClient.ReceiveBufferSize` 同语义）在会话启动前设置底层 Socket 会话的 `BufferSize`。v12 消息泵下每个接收轮次都会更换接收缓冲，缓冲大小即每条消息的接收侧分配量级；默认 8KB 在小消息高吞吐场景会产生大量大对象（每消息 8KB），2048 可降低约 75%。大载荷为主的场景可调大以减少读取次数。
 
 ---
 

@@ -30,6 +30,13 @@ public class MqttClient : DisposeBase
     /// <summary>链接超时。一半时间发起心跳，默认600秒</summary>
     public Int32 KeepAlive { get; set; } = 600;
 
+    /// <summary>接收缓冲区大小（字节）。默认 2048，避免默认 8KB 缓冲在小消息高吞吐场景产生大量大对象分配；小于等于 0 时使用框架全局默认</summary>
+    /// <remarks>
+    /// 消息大于缓冲时由 v12 消息泵跨轮拼帧，不影响正确性，仅影响单次读取的系统调用次数。
+    /// 大载荷为主的场景可调大以减少读取次数。
+    /// </remarks>
+    public Int32 ReceiveBufferSize { get; set; } = 2 * 1024;
+
     /// <summary>服务器地址</summary>
     public String? Server { get; set; }
 
@@ -396,6 +403,9 @@ public class MqttClient : DisposeBase
                 }
             }
 
+            // MQTT 小消息高吞吐场景使用更小的接收缓冲，避免每条消息分配 8KB 大对象
+            if (client is SessionBase sb2 && ReceiveBufferSize > 0) sb2.BufferSize = ReceiveBufferSize;
+
             client.Log = Log;
             client.Timeout = Timeout;
 
@@ -477,7 +487,9 @@ public class MqttClient : DisposeBase
             if (!waitForResponse && client is not WebSocketClient)
             {
                 if (client is ISocketClient socket)
+                {
                     socket.SendMessage(CreateFrame(msg));
+                }
 #if NET7_0_OR_GREATER
                 else if (client is QuicClient quic)
                     quic.SendMessage(msg);

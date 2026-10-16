@@ -186,24 +186,22 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
 
         foreach (var kv in _topics)
         {
-            lock (kv.Value)
-            {
-                var count = kv.Value.RemoveAll(e => e.Id == sessionId);
+            var (removed, remaining) = kv.Value.RemoveBySession(sessionId);
 
-                // 只有该主题已无本地订阅者时，才通知集群节点删除订阅记录
-                if (count > 0 && kv.Value.Count == 0)
-                    infos.Add(new SubscriptionInfo
-                    {
-                        Topic = kv.Key,
-                        Endpoint = myEndpoint,
-                        ClientId = clientId,
-                        SessionId = sessionId,
-                    });
-            }
+            // 只有该主题已无本地订阅者时，才通知集群节点删除订阅记录
+            if (removed > 0 && remaining == 0)
+                infos.Add(new SubscriptionInfo
+                {
+                    Topic = kv.Key,
+                    Endpoint = myEndpoint,
+                    ClientId = clientId,
+                    SessionId = sessionId,
+                });
 
-            if (kv.Value.Count == 0)
+            if (remaining == 0)
             {
-                _topics.TryRemove(kv.Key, out _);
+                if (_topics.TryRemove(kv.Key, out _)) RemoveFromTopicIndex(kv.Key);
+
                 // 主题清空时清理共享订阅轮询索引，避免内存增长
                 if (kv.Key.StartsWith("$share/")) _sharedGroupIndex.TryRemove(kv.Key, out _);
             }
@@ -246,11 +244,154 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         public UInt32 SubscriptionIdentifier { get; set; }
     }
 
+    /// <summary>订阅者列表。写时复制快照，读路径（Publish）无锁零分配</summary>
+    private sealed class SubscriptionList
+    {
+        private readonly List<SubscriptionItem> _list = [];
+        private volatile SubscriptionItem[]? _snapshot;
+
+        /// <summary>订阅者数量</summary>
+        public Int32 Count
+        {
+            get
+            {
+                var arr = _snapshot;
+                return arr != null ? arr.Length : _list.Count;
+            }
+        }
+
+        /// <summary>获取快照。快照未失效时直接返回缓存数组</summary>
+        /// <returns></returns>
+        public SubscriptionItem[] Snapshot()
+        {
+            var arr = _snapshot;
+            if (arr != null) return arr;
+
+            lock (_list)
+            {
+                return _snapshot ??= _list.ToArray();
+            }
+        }
+
+        /// <summary>添加或替换指定会话的订阅</summary>
+        /// <param name="sessionId">会话标识</param>
+        /// <param name="item">订阅项</param>
+        /// <returns>是否为新订阅（之前不存在同会话订阅）</returns>
+        public Boolean Upsert(Int32 sessionId, SubscriptionItem item)
+        {
+            lock (_list)
+            {
+                var exists = false;
+                for (var i = 0; i < _list.Count; i++)
+                {
+                    if (_list[i].Id == sessionId)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                _list.RemoveAll(e => e.Id == sessionId);
+                _list.Add(item);
+                _snapshot = null;
+
+                return !exists;
+            }
+        }
+
+        /// <summary>移除指定会话的订阅</summary>
+        /// <param name="sessionId">会话标识</param>
+        /// <returns>移除数量与剩余数量（同一锁内读取，保证一致）</returns>
+        public (Int32 Removed, Int32 Remaining) RemoveBySession(Int32 sessionId)
+        {
+            lock (_list)
+            {
+                var removed = _list.RemoveAll(e => e.Id == sessionId);
+                if (removed > 0) _snapshot = null;
+
+                return (removed, _list.Count);
+            }
+        }
+
+        /// <summary>移除指定订阅项</summary>
+        /// <param name="item">订阅项</param>
+        public void Remove(SubscriptionItem item)
+        {
+            lock (_list)
+            {
+                if (_list.Remove(item)) _snapshot = null;
+            }
+        }
+    }
+
+    /// <summary>过滤器快照集合。写时复制，读取零分配</summary>
+    private sealed class FilterBucket
+    {
+        private readonly List<String> _list = [];
+        private volatile String[]? _snapshot;
+
+        /// <summary>过滤器数量</summary>
+        public Int32 Count
+        {
+            get
+            {
+                var arr = _snapshot;
+                return arr != null ? arr.Length : _list.Count;
+            }
+        }
+
+        /// <summary>获取快照。快照未失效时直接返回缓存数组</summary>
+        /// <returns></returns>
+        public String[] Snapshot()
+        {
+            var arr = _snapshot;
+            if (arr != null) return arr;
+
+            lock (_list)
+            {
+                return _snapshot ??= _list.ToArray();
+            }
+        }
+
+        /// <summary>添加过滤器（去重）</summary>
+        /// <param name="filter">主题过滤器</param>
+        public void Add(String filter)
+        {
+            lock (_list)
+            {
+                if (_list.Contains(filter)) return;
+
+                _list.Add(filter);
+                _snapshot = null;
+            }
+        }
+
+        /// <summary>移除过滤器</summary>
+        /// <param name="filter">主题过滤器</param>
+        /// <returns>是否移除成功</returns>
+        public Boolean Remove(String filter)
+        {
+            lock (_list)
+            {
+                if (!_list.Remove(filter)) return false;
+
+                _snapshot = null;
+                return true;
+            }
+        }
+    }
+
     /// <summary>主题订阅集合</summary>
-    private ConcurrentDictionary<String, List<SubscriptionItem>> _topics = new();
+    private readonly ConcurrentDictionary<String, SubscriptionList> _topics = new();
 
     /// <summary>共享订阅轮询索引。key=共享组名，value=当前索引</summary>
     private readonly ConcurrentDictionary<String, Int32> _sharedGroupIndex = new();
+
+    /// <summary>主题前缀索引。key=过滤器首层主题段，用于 Publish 热路径按前缀快速定位候选过滤器</summary>
+    private readonly ConcurrentDictionary<String, FilterBucket> _topicIndex = new();
+
+    /// <summary>通配符开头的过滤器集合（+ 或 # 开头）。这类过滤器不与 $ 开头的主题匹配</summary>
+    private readonly FilterBucket _wildcardFilters = new();
 
     /// <summary>发布消息</summary>
     /// <remarks>
@@ -303,113 +444,202 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             if (!RuleEngine.ProcessMessage(message, publisherClientId)) return;
         }
 
-        // 遍历所有Topic，找到匹配的订阅者
-        foreach (var item in _topics)
+        // 按首层主题段定位候选过滤器，避免对全部过滤器做全表扫描
+        var topic = message.Topic;
+        var firstSegment = GetFirstSegment(topic);
+        if (_topicIndex.TryGetValue(firstSegment, out var bucket))
         {
-            if (!MqttTopicFilter.IsMatch(message.Topic, item.Key)) continue;
-
-            // 检查是否为共享订阅（$share/{group}/{topic}）
-            var topicFilter = item.Key;
-            var isShared = topicFilter.StartsWith("$share/");
-
-            var subs = item.Value;
-            if (isShared)
+            foreach (var filter in bucket.Snapshot())
             {
-                // 共享订阅：轮询选择一个订阅者
-                var groupKey = topicFilter;
-                var activeSubs = subs.Where(s => _sessions.ContainsKey(s.Id)).ToArray();
-                if (activeSubs.Length > 0)
-                {
-                    var idx = _sharedGroupIndex.AddOrUpdate(groupKey, 0, (_, v) => v + 1);
-                    var sub = activeSubs[idx % activeSubs.Length];
+                RouteToFilter(filter, message, publisherSessionId);
+            }
+        }
 
-                    if (_sessions.TryGetValue(sub.Id, out var session))
+        // 通配符开头的过滤器不与 $ 开头的主题匹配
+        if (!topic.StartsWith("$"))
+        {
+            foreach (var filter in _wildcardFilters.Snapshot())
+            {
+                RouteToFilter(filter, message, publisherSessionId);
+            }
+        }
+    }
+
+    /// <summary>将消息路由到指定过滤器的订阅者</summary>
+    /// <param name="topicFilter">主题过滤器</param>
+    /// <param name="message">发布消息</param>
+    /// <param name="publisherSessionId">发布者会话标识</param>
+    private void RouteToFilter(String topicFilter, PublishMessage message, Int32 publisherSessionId)
+    {
+        if (!MqttTopicFilter.IsMatch(message.Topic, topicFilter)) return;
+
+        if (!_topics.TryGetValue(topicFilter, out var subs)) return;
+
+        // 检查是否为共享订阅（$share/{group}/{topic}）
+        var isShared = topicFilter.StartsWith("$share/");
+        if (isShared)
+        {
+            // 共享订阅：轮询选择一个在线订阅者
+            var groupKey = topicFilter;
+            var snapshot = subs.Snapshot();
+            var activeCount = 0;
+            foreach (var s in snapshot)
+            {
+                if (_sessions.ContainsKey(s.Id)) activeCount++;
+            }
+            if (activeCount > 0)
+            {
+                var idx = _sharedGroupIndex.AddOrUpdate(groupKey, 0, (_, v) => v + 1);
+                var target = idx % activeCount;
+
+                SubscriptionItem? sub = null;
+                foreach (var s in snapshot)
+                {
+                    if (!_sessions.ContainsKey(s.Id)) continue;
+                    if (target-- == 0)
                     {
-                        var msg = new PublishMessage
-                        {
-                            Topic = message.Topic,
-                            Payload = message.Payload,
-                            QoS = sub.QoS,
-                            Properties = message.Properties,
-                        };
-                        // MQTT 5.0 订阅标识符回传
-                        if (sub.SubscriptionIdentifier > 0)
-                        {
-                            msg.Properties = msg.Properties != null ? msg.Properties.Clone() : new MqttProperties();
-                            msg.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)sub.SubscriptionIdentifier);
-                        }
-                        session.PublishAsync(msg);
-                        Interlocked.Increment(ref Stats.MessagesSent);
-                        Interlocked.Add(ref Stats.BytesSent, msg.Payload?.Length ?? 0);
+                        sub = s;
+                        break;
                     }
                 }
-            }
-            else
-            {
-                // 普通订阅：发送给所有匹配的订阅者，同一会话只投递一次
-                var delivered = new HashSet<Int32>();
-                foreach (var sub in subs.ToArray())
+
+                if (sub != null && _sessions.TryGetValue(sub.Id, out var session))
                 {
-                    // MQTT 5.0 NoLocal：不转发给发布者自身
-                    if (sub.NoLocal && sub.Id == publisherSessionId) continue;
-
-                    if (!delivered.Add(sub.Id)) continue;
-
-                    if (_sessions.TryGetValue(sub.Id, out var session))
+                    var msg = new PublishMessage
                     {
-                        // 使用指定Qos发送消息
-                        // MQTT 5.0 RetainAsPublished：保留消息按发布时的状态转发
-                        var msg = new PublishMessage
+                        Topic = message.Topic,
+                        Payload = message.Payload,
+                        QoS = sub.QoS,
+                        Properties = message.Properties,
+                    };
+                    // MQTT 5.0 订阅标识符回传
+                    if (sub.SubscriptionIdentifier > 0)
+                    {
+                        msg.Properties = msg.Properties != null ? msg.Properties.Clone() : new MqttProperties();
+                        msg.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)sub.SubscriptionIdentifier);
+                    }
+                    session.PublishAsync(msg);
+                    Interlocked.Increment(ref Stats.MessagesSent);
+                    Interlocked.Add(ref Stats.BytesSent, msg.Payload?.Length ?? 0);
+                }
+            }
+        }
+        else
+        {
+            // 普通订阅：发送给所有匹配的订阅者，同一会话只投递一次
+            var snapshot = subs.Snapshot();
+            HashSet<Int32>? delivered = snapshot.Length > 1 ? [] : null;
+            foreach (var sub in snapshot)
+            {
+                // MQTT 5.0 NoLocal：不转发给发布者自身
+                if (sub.NoLocal && sub.Id == publisherSessionId) continue;
+
+                if (delivered != null && !delivered.Add(sub.Id)) continue;
+
+                if (_sessions.TryGetValue(sub.Id, out var session))
+                {
+                    // 使用指定Qos发送消息
+                    // MQTT 5.0 RetainAsPublished：保留消息按发布时的状态转发
+                    var msg = new PublishMessage
+                    {
+                        Topic = message.Topic,
+                        Payload = message.Payload,
+                        QoS = sub.QoS,
+                        Retain = sub.RetainAsPublished && message.Retain,
+                        Properties = message.Properties,
+                    };
+                    // MQTT 5.0 订阅标识符回传
+                    if (sub.SubscriptionIdentifier > 0)
+                    {
+                        msg.Properties = msg.Properties != null ? msg.Properties.Clone() : new MqttProperties();
+                        msg.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)sub.SubscriptionIdentifier);
+                    }
+                    session.PublishAsync(msg);
+                    Interlocked.Increment(ref Stats.MessagesSent);
+                    Interlocked.Add(ref Stats.BytesSent, msg.Payload?.Length ?? 0);
+                    // WebHook 消息投递事件
+                    if (RuleEngine?.WebHook is { } webHook2)
+                    {
+                        _clientIdMap.TryGetValue(sub.Id, out var subscriberClientId2);
+                        webHook2.OnMessageDelivered(subscriberClientId2, message);
+                    }
+                }
+                else
+                {
+                    // 订阅者不在线，检查是否为持久化会话，若是则暂存离线消息
+                    var offlineSession = GetPersistentSessionBySessionId(sub.Id);
+                    if (offlineSession != null && sub.QoS >= QualityOfService.AtLeastOnce)
+                    {
+                        // 必须复制 Payload 字节，避免共享网络接收缓冲区导致内容被后续消息覆写
+                        var offlineMsg = new PublishMessage
                         {
                             Topic = message.Topic,
-                            Payload = message.Payload,
+                            Payload = message.Payload != null ? (IPacket?)new ArrayPacket(message.Payload.ToArray()) : null,
                             QoS = sub.QoS,
                             Retain = sub.RetainAsPublished && message.Retain,
-                            Properties = message.Properties,
                         };
-                        // MQTT 5.0 订阅标识符回传
-                        if (sub.SubscriptionIdentifier > 0)
-                        {
-                            msg.Properties = msg.Properties != null ? msg.Properties.Clone() : new MqttProperties();
-                            msg.Properties.SetVariableInt(MqttPropertyId.SubscriptionIdentifier, (Int32)sub.SubscriptionIdentifier);
-                        }
-                        session.PublishAsync(msg);
-                        Interlocked.Increment(ref Stats.MessagesSent);
-                        Interlocked.Add(ref Stats.BytesSent, msg.Payload?.Length ?? 0);
-                        // WebHook 消息投递事件
-                        if (RuleEngine?.WebHook is { } webHook2)
-                        {
-                            _clientIdMap.TryGetValue(sub.Id, out var subscriberClientId2);
-                            webHook2.OnMessageDelivered(subscriberClientId2, message);
-                        }
+                        EnqueueOfflineMessage(offlineSession.ClientId, offlineMsg);
                     }
                     else
                     {
-                        // 订阅者不在线，检查是否为持久化会话，若是则暂存离线消息
-                        var offlineSession = GetPersistentSessionBySessionId(sub.Id);
-                        if (offlineSession != null && sub.QoS >= QualityOfService.AtLeastOnce)
-                        {
-                            // 必须复制 Payload 字节，避免共享网络接收缓冲区导致内容被后续消息覆写
-                            var offlineMsg = new PublishMessage
-                            {
-                                Topic = message.Topic,
-                                Payload = message.Payload != null ? (IPacket?)new ArrayPacket(message.Payload.ToArray()) : null,
-                                QoS = sub.QoS,
-                                Retain = sub.RetainAsPublished && message.Retain,
-                            };
-                            EnqueueOfflineMessage(offlineSession.ClientId, offlineMsg);
-                        }
-                        else
-                        {
-                            // 没有持久化会话，删除订阅关系
-                            lock (subs)
-                            {
-                                subs.Remove(sub);
-                            }
-                        }
+                        // 没有持久化会话，删除订阅关系
+                        subs.Remove(sub);
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>取主题的首层段（第一个 / 之前的部分）</summary>
+    /// <param name="topic">主题</param>
+    /// <returns></returns>
+    private static String GetFirstSegment(String topic)
+    {
+        var index = topic.IndexOf('/');
+        return index < 0 ? topic : topic.Substring(0, index);
+    }
+
+    /// <summary>将过滤器注册到前缀索引</summary>
+    /// <param name="filter">主题过滤器</param>
+    private void AddToTopicIndex(String filter)
+    {
+        var actual = MqttTopicFilter.ExtractActualTopicFilter(filter);
+        var first = GetFirstSegment(actual);
+
+        // + 或 # 开头的过滤器不与 $ 主题匹配，单独存放
+        if (first.IndexOf('+') >= 0 || first.IndexOf('#') >= 0)
+        {
+            _wildcardFilters.Add(filter);
+            return;
+        }
+
+        // 与移除操作竞争时桶可能被摘除，校验桶仍在索引中后完成注册
+        while (true)
+        {
+            var bucket = _topicIndex.GetOrAdd(first, _ => new FilterBucket());
+            bucket.Add(filter);
+
+            if (_topicIndex.TryGetValue(first, out var current) && ReferenceEquals(current, bucket)) break;
+        }
+    }
+
+    /// <summary>将过滤器从前缀索引移除</summary>
+    /// <param name="filter">主题过滤器</param>
+    private void RemoveFromTopicIndex(String filter)
+    {
+        var actual = MqttTopicFilter.ExtractActualTopicFilter(filter);
+        var first = GetFirstSegment(actual);
+
+        if (first.IndexOf('+') >= 0 || first.IndexOf('#') >= 0)
+        {
+            _wildcardFilters.Remove(filter);
+            return;
+        }
+
+        if (_topicIndex.TryGetValue(first, out var bucket) && bucket.Remove(filter) && bucket.Count == 0)
+        {
+            // 值匹配移除，避免摘除并发添加过滤器的新桶
+            ((ICollection<KeyValuePair<String, FilterBucket>>)_topicIndex).Remove(new(first, bucket));
         }
     }
 
@@ -439,26 +669,21 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     public virtual void Subscribe(Int32 sessionId, String topic, QualityOfService qos, Boolean noLocal, Boolean retainAsPublished, Byte retainHandling, UInt32 subscriptionIdentifier)
     {
         // 保存订阅关系
-        var subs = _topics.GetOrAdd(topic, []);
-        var isNewSub = false;
+        var subs = _topics.GetOrAdd(topic, _ => new SubscriptionList());
 
-        lock (subs)
+        // 删除旧的订阅关系后写入新订阅
+        var isNewSub = subs.Upsert(sessionId, new SubscriptionItem
         {
-            // 检查是否为新订阅
-            isNewSub = !subs.Any(e => e.Id == sessionId);
+            Id = sessionId,
+            QoS = qos,
+            NoLocal = noLocal,
+            RetainAsPublished = retainAsPublished,
+            RetainHandling = retainHandling,
+            SubscriptionIdentifier = subscriptionIdentifier,
+        });
 
-            // 删除旧的订阅关系
-            subs.RemoveAll(e => e.Id == sessionId);
-            subs.Add(new SubscriptionItem
-            {
-                Id = sessionId,
-                QoS = qos,
-                NoLocal = noLocal,
-                RetainAsPublished = retainAsPublished,
-                RetainHandling = retainHandling,
-                SubscriptionIdentifier = subscriptionIdentifier,
-            });
-        }
+        // 注册到前缀索引（内部去重，重复订阅无副作用）
+        AddToTopicIndex(topic);
 
         // 更新统计
         Stats.Topics = _topics.Count;
@@ -498,15 +723,13 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     {
         if (_topics.TryGetValue(topic, out var subs))
         {
-            lock (subs)
-            {
-                subs.RemoveAll(e => e.Id == sessionId);
-            }
+            subs.RemoveBySession(sessionId);
 
             // 没有订阅者了，删除主题
             if (subs.Count == 0)
             {
-                _topics.TryRemove(topic, out _);
+                if (_topics.TryRemove(topic, out _)) RemoveFromTopicIndex(topic);
+
                 // 共享订阅主题清空时清理轮询索引，避免内存增长
                 if (topic.StartsWith("$share/")) _sharedGroupIndex.TryRemove(topic, out _);
             }
@@ -738,7 +961,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
             if (!item.Key.StartsWith("$SYS/")) continue;
             if (!MqttTopicFilter.IsMatch(topic, item.Key)) continue;
 
-            foreach (var sub in item.Value.ToArray())
+            foreach (var sub in item.Value.Snapshot())
             {
                 if (_sessions.TryGetValue(sub.Id, out var session))
                     session.PublishAsync(msg);
