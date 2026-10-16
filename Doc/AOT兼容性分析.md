@@ -1,12 +1,12 @@
 # NewLife.MQTT AOT 兼容性评估
 
-> 基线：NewLife.Core 12.0.2026.1013-beta0732（2026-10-15 升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（必选覆盖 win-x64 / linux-x64 / linux-arm64 / linux-la64，.NET 10；win-arm64 / osx 双架构 / linux-musl 为观察期）｜冒烟工程：`AotSmoke/`（已入库，复现方法见 §5）
+> 基线：NewLife.Core 12.0.2026.1013-beta0732（2026-10-15 升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（必选覆盖 win-x64 / linux-x64 / linux-arm64，.NET 10；linux-la64 全量单测门禁、AOT 冒烟与 win-arm64 / osx 双架构 / linux-musl 为观察期）｜冒烟工程：`AotSmoke/`（已入库，复现方法见 §5）
 
 ---
 
 ## 1. 现状摘要
 
-- **RID 覆盖（2026-10-16 扩展）**：AOT 冒烟与单元测试均覆盖 **win-x64 / linux-x64 / linux-arm64 / linux-la64（必选，阻断门禁）**；win-arm64 / osx-x64 / osx-arm64 / linux-musl 观察期（continue-on-error，稳定后转阻断）；边缘 RID（win-x86 / linux-arm32）见 `edge.yml`（仅手动触发）；矩阵与约定见 §6。
+- **RID 覆盖（2026-10-16 扩展）**：AOT 冒烟与单元测试均覆盖 **win-x64 / linux-x64 / linux-arm64 / linux-la64**；前三者 AOT + 单测阻断门禁，linux-la64 全量单测为阻断门禁、AOT 冒烟为观察期（continue-on-error，失败不阻断）；win-arm64 / osx-x64 / osx-arm64 / linux-musl 观察期（continue-on-error，稳定后转阻断）；边缘 RID（win-x86 / linux-arm32）见 `edge.yml`（仅手动触发）；矩阵与约定见 §6。
 - **主链路 AOT 编译/运行双通**：19 场景冒烟全部通过（TCP 回环、WebSocket 桥接、HMAC 签名、JSON、配置绑定、看板 HttpListener、控制器源生成分发、动态依赖保根、管理 API、集群 RPC、集群发布、大载荷跨轮帧体、断线重连+自动重订阅、JWT/OAuth 认证、保留消息、持久会话离线补发、MQTT-SN 网关），**0 条来自 NewLife.MQTT / NewLife.Core 的 ILC 告警**。
 - **已实施修复（2026-10-09）**：
   1. 控制器元数据保根：`MqttManagementServer.Start` / `ClusterServer.Start` 标注 `[DynamicDependency(PublicConstructors | PublicMethods, typeof(控制器))]`（低版本 TFM 由 Core 公共垫片提供该特性，无需条件编译）；
@@ -64,7 +64,7 @@
 | 2 | 集群 RPC 控制器保根 | ✅ 已完成 | `ClusterServer.Start` 标注 `[DynamicDependency]`；冒烟场景 11 通过 |
 | 3 | 匿名对象载荷改字典承载 | ✅ 已完成 | 管理 Stats / 集群 Health / ClusterNode 六处 / Aliyun 两处（AOT 下匿名类型属性被裁剪 → 空对象） |
 | 4 | 集群 RPC 载荷 DTO 保根 + 订阅数组归一化 | ✅ 已完成 | `ClusterServer.Start` 保根 14 类载荷 DTO；`Subscribe`/`Unsubscribe` 数组参数归一化（FIX-CLUS-1）；冒烟场景 11/12 通过 |
-| 5 | AOT 冒烟工程入库 + CI 多 RID 矩阵 | ✅ 已完成 | `AotSmoke/` 工程入库（`PublishAot` 写在工程属性内、严格姿态关反射序列化）；CI 拆分为独立 `.github/workflows/aot.yml`：分析器门禁 + 必选 RID（win-x64/linux-x64/linux-arm64/linux-la64）阻断 + 观察期 RID（win-arm64/osx 双架构/musl）；边缘 RID 见 `.github/workflows/edge.yml`（仅手动触发）；矩阵见 §6，复现方法见 §5 |
+| 5 | AOT 冒烟工程入库 + CI 多 RID 矩阵 | ✅ 已完成 | `AotSmoke/` 工程入库（`PublishAot` 写在工程属性内、严格姿态关反射序列化）；CI 拆分为独立 `.github/workflows/aot.yml`：分析器门禁 + 必选 RID（win-x64/linux-x64/linux-arm64）阻断 + 观察期 RID（linux-la64 冒烟/win-arm64/osx 双架构/musl）；边缘 RID 见 `.github/workflows/edge.yml`（仅手动触发）；矩阵见 §6，复现方法见 §5 |
 | 6 | 编译期分析器门禁（IsAotCompatible） | ✅ 已完成 | 库工程 net8.0/9.0/10.0 常驻启用 `IsAotCompatible`（IsTrimmable 元数据随包分发，与 Core 口径一致）；CI `aot-analyzer` 作业对三个 TFM 校验 0 条 IL 告警 |
 
 > 说明：`MapController<T>` 的静态分发由 Core 源生成器 `HttpControllerDispatchGenerator` 生成；生成器随 Core 包分发、对下游零配置（冒烟场景 6/8 已在 AOT 下证实生成器在消费方生效）。手工保根路径下控制器仍走反射分发，AOT 下功能等价、性能与 JIT 一致。
@@ -141,7 +141,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 
 ## 6. 多 RID 支持矩阵与 CI
 
-> 目标：**必选覆盖 win-x64 / linux-x64 / linux-arm64 / linux-la64（阻断门禁）**；扩展 win-arm64、osx 双架构、linux-musl 双架构（观察期）；边缘 RID（win-x86、linux-arm32）尽力而为。
+> 目标：**必选覆盖 win-x64 / linux-x64 / linux-arm64（AOT 冒烟 + 单测阻断门禁）、linux-la64（全量单测阻断门禁，AOT 冒烟为观察期）**；扩展 win-arm64、osx 双架构、linux-musl 双架构（观察期）；边缘 RID（win-x86、linux-arm32）尽力而为。
 > 前提：**NativeAOT 官方不支持跨 OS 编译**（Windows→Linux 需 WSL/VM），每个 RID 均使用原生 runner 发布运行。
 
 ### 6.1 覆盖分层
@@ -151,7 +151,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 | T1 必选 | win-x64 | ✔ | ✔ 阻断 | windows-latest | 门禁 |
 | T1 必选 | linux-x64 | ✔ | ✔ 阻断 | ubuntu-latest | 门禁 |
 | T1 必选 | linux-arm64 | ✔ | ✔ 阻断 | ubuntu-24.04-arm | 门禁 |
-| T1 必选 | linux-la64（龙芯） | ✔（全量） | ✔（JIT 冒烟） | ubuntu-latest（x64 编译 IL）+ QEMU + 龙芯 SDK v10.0.112 | 门禁 |
+| T1 必选 | linux-la64（龙芯） | ✔（全量） | ✔（JIT 冒烟） | ubuntu-latest（x64 编译 IL）+ QEMU + 龙芯 SDK v10.0.112 | 单测门禁 / AOT 观察期 |
 | T1 扩展 | win-arm64 | — | ✔ | windows-11-arm（自带 ARM64 MSVC 工具链） | 观察期 |
 | T1 扩展 | linux-musl-x64 / arm64 | — | ✔ | ubuntu(-arm) + alpine:3.20 容器 | 观察期 |
 | T1 扩展 | osx-arm64 / osx-x64 | — | ✔ | macos-latest / macos-15-intel（官方称可用至 2027-08） | 观察期 |
@@ -161,7 +161,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 - **CI 拆分**：`.github/workflows/aot.yml`（分析器门禁 + NativeAOT 矩阵 + LA64 + musl）、`.github/workflows/test.yml`（单元测试矩阵 + LA64 全量单测）、`.github/workflows/edge.yml`（边缘 RID，仅手动触发）；
 - **触发约定**：test/aot 在 push / PR 与手动触发时运行，**不采用夜间调度**（多代码库服务端同步到 GitHub 的节奏不固定）；
 - **观察期约定**：新增平台 job 均带 `continue-on-error`，连续稳定全绿后逐项去掉该标记转阻断；必选 RID 自接入起即阻断；
-- **LA64（linux-loongarch64）**：官方不发 runtime pack、无 NativeAOT 支持（ILCompiler 无 linux-loongarch64 产物），故以 **JIT 冒烟 + 全量单元测试** 覆盖该平台行为；受解释器模式限制，仿真下只运行 IL 产物（x64 编译），不在仿真内跑 MSBuild/csc/vstest；有龙芯真机后可接 self-hosted runner 升级为原生执行；
+- **LA64（linux-loongarch64）**：官方不发 runtime pack、无 NativeAOT 支持（ILCompiler 无 linux-loongarch64 产物），故以 **JIT 冒烟 + 全量单元测试** 覆盖该平台行为；其中 `aot.yml` 的 JIT 冒烟为观察期（continue-on-error，失败不阻断），`test.yml` 的全量单测为阻断门禁；受解释器模式限制，仿真下只运行 IL 产物（x64 编译），不在仿真内跑 MSBuild/csc/vstest；有龙芯真机后可接 self-hosted runner 升级为原生执行；
 - **观察期结果回填**：各观察期 RID 的首次运行结果由 CI 结论回填本表（不预填）。
 
 ### 6.2 LA64 仿真覆盖范围与限制
@@ -174,7 +174,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 | vstest 不支持 loongarch64 | `ProcessHelper.GetCurrentProcessArchitecture()` 抛 `NotSupportedException` | 单测改用 xunit 独立控制台运行器（`xunit.runner.console` net6.0 纯 IL + `DOTNET_ROLL_FORWARD=LatestMajor`） |
 | 部分测试类触发运行时内部缺陷 | 段错误 / `AccessViolationException` / `ExecutionEngineException: Illegal instruction`；栈顶多见反射调用桩（`InvokeStub_...`、`ReflectionAttributeInfo.GetNamedArgument`），与库代码无关，且同一命令存在偶发失败 | 按"已实测稳定"的粒度分批执行（每批一个独立进程），每批最多重试 3 次兜底偶发崩溃，连续 3 次失败才判失败；未纳入的类待运行时修复或接入真机 runner 后回收 |
 
-**LA64 当前覆盖（CI 阻断）**：38 个批次共 638 个测试用例 + `AotSmoke` 全场景冒烟，覆盖协议编解码、传输层（TCP/WS/UDP/QUIC 会话与客户端）、会话与补发、路由与规则引擎、集群（模型/服务器/连接聚合/分层/分片快照/降级）、集成与端到端场景；分片路由 E2E 与 QUIC E2E 仍在 x64/arm64 runner 原生执行。
+**LA64 当前覆盖（全量单测阻断，AOT 冒烟观察期）**：38 个批次共 638 个测试用例 + `AotSmoke` 全场景冒烟，覆盖协议编解码、传输层（TCP/WS/UDP/QUIC 会话与客户端）、会话与补发、路由与规则引擎、集群（模型/服务器/连接聚合/分层/分片快照/降级）、集成与端到端场景；分片路由 E2E 与 QUIC E2E 仍在 x64/arm64 runner 原生执行。
 
 **暂未纳入 LA64 的测试类**（其余平台正常执行）：
 
@@ -195,7 +195,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 | Dashboard HttpListener | `Handlers/MqttDashboard.cs` | 实测 AOT 可用，不改造 |
 | HttpClient/HttpListener 等 BCL 路径 | `Handlers/MqttDashboard.cs` | 实测通过，不改造 |
 | 分片路由环不含自身 | `Clusters/TopicRouter.cs` | 不处理。路由环语义为"主题的转发目标节点"，逐节点计算且天然排除自身（本地投递另行处理）；`ShardRoutingE2ETests` 已按该语义固化验证。 |
-| LA64 无 NativeAOT 支持 | `.github/workflows/aot.yml` | 官方/龙芯均无 linux-loongarch64 的 ILCompiler 产物；以 JIT 冒烟 + 全量单测覆盖平台行为，有真机后再评估升级。 |
+| LA64 无 NativeAOT 支持 | `.github/workflows/aot.yml` | 官方/龙芯均无 linux-loongarch64 的 ILCompiler 产物；以 JIT 冒烟 + 全量单测覆盖平台行为；因仿真环境不稳定，aot.yml 的 LA64 冒烟列为观察期（continue-on-error，失败不阻断），有真机后再评估升级。 |
 | LA64 仿真下不跑 MSBuild/csc/vstest | `.github/actions/setup-la64`、`test.yml` | 龙芯运行时为解释器模式，MSBuild 任务反射调用与 Roslyn 在仿真下会崩溃（实测 MSB4018 / FailFast），官方 vstest 亦不支持 loongarch64；固定为「x64 编译 IL + LA64 执行」，不追修复。 |
 | LA64 部分测试类在仿真下不可运行 | `test.yml`（test-la64 批次清单） | 解释器在反射调用桩上存在缺陷（段错误/AccessViolation/ExecutionEngineException），与库代码无关，且偶发；按已实测稳定粒度分批覆盖 638 个用例、每批最多重试 3 次，其余类待运行时修复或真机 runner 回收，明细见 §6.2。 |
 
