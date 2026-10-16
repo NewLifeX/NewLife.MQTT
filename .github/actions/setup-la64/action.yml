@@ -1,0 +1,95 @@
+name: Setup linux-loongarch64 (LA64)
+description: 在 x64 runner 上准备 linux-loongarch64 仿真运行环境：QEMU binfmt + loong64 sysroot（Debian sid 原生包）+ 龙芯 .NET SDK。产物：可运行 LA64 程序的 dotnet 与 QEMU_LD_PREFIX
+
+runs:
+  using: composite
+  steps:
+  - name: Install QEMU (loongarch64 binfmt)
+    shell: bash
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y qemu-user-static binfmt-support
+      sudo update-binfmts --enable qemu-loongarch64 || true
+      if [ ! -e /proc/sys/fs/binfmt_misc/qemu-loongarch64 ]; then
+        # 镜像未注册 binfmt 时用官方 multiarch 镜像兜底注册
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      fi
+      test -e /proc/sys/fs/binfmt_misc/qemu-loongarch64
+      cat /proc/sys/fs/binfmt_misc/qemu-loongarch64
+
+  # 宿主 x64 没有 loong64 原生 libc，需要一个 loong64 sysroot 供 QEMU 的 ELF 解释器（QEMU_LD_PREFIX）使用。
+  # 直接取 Debian sid 的 loong64 原生包组装：glibc 2.43 满足龙芯 .NET 10 运行时要求
+  # （Ubuntu 自带的 libc6-loong64-cross 2.39 太旧，libcoreclr 会因无法识别的重定位而加载失败）。
+  - name: Build loong64 sysroot (Debian sid native packages)
+    shell: bash
+    run: |
+      set -euo pipefail
+      mirror=https://deb.debian.org/debian
+      root="$HOME/la64root"
+      mkdir -p "$root"
+
+      # 1) 解析索引（含完整性校验与重试，避免截断的 Packages.gz 导致漏包）
+      idx="$HOME/la64-packages.gz"
+      for i in 1 2 3 4 5; do
+        rm -f "$idx"
+        if curl -fsSL --retry 5 --retry-all-errors -o "$idx" "$mirror/dists/sid/main/binary-loong64/Packages.gz" \
+           && gzip -t "$idx"; then break; fi
+        echo "index retry $i"; sleep 3
+      done
+      gzip -t "$idx"
+
+      # 2) 运行时所需包：libc6 / libstdc++ / libgcc / OpenSSL 及其依赖（zlib、zstd）
+      zcat "$idx" | awk 'BEGIN{RS="";FS="\n"} {
+        pkg="";
+        for (i=1;i<=NF;i++) { if ($i ~ /^Package: /) pkg=substr($i,10) }
+        if (pkg=="libc6"||pkg=="libgcc-s1"||pkg=="libstdc++6"||pkg=="libssl3t64"||pkg=="zlib1g"||pkg=="libzstd1"||pkg=="libicu76"||pkg=="libcrypt1"||pkg=="liblzma5") {
+          for (i=1;i<=NF;i++) { if ($i ~ /^Filename: /) print substr($i,11) }
+        }
+      }' | sort -u > "$HOME/la64-pkgs.txt"
+      cat "$HOME/la64-pkgs.txt"
+
+      # 3) 下载并解包进同一个前缀，保留 Debian 的 merged-usr 软链布局
+      while read -r f; do
+        n=$(basename "$f")
+        curl -fsSL --retry 3 -o "$HOME/$n" "$mirror/$f"
+        dpkg -x "$HOME/$n" "$root"
+      done < "$HOME/la64-pkgs.txt"
+
+      # 4) 顶层 /lib、/lib64 在 Debian 里由 base-files 提供（merged-usr），这里手工补上，
+      #    否则 ELF 解释器路径 /lib64/ld-linux-loongarch-lp64d.so.1 无法解析
+      ln -sfn usr/lib   "$root/lib"
+      ln -sfn usr/lib64 "$root/lib64"
+
+      test -e "$root/lib64/ld-linux-loongarch-lp64d.so.1"
+      echo "QEMU_LD_PREFIX=$root" >> "$GITHUB_ENV"
+
+  - name: Download Loongson .NET SDK (linux-loongarch64)
+    shell: bash
+    run: |
+      set -euo pipefail
+      curl -fL --retry 3 -o "$HOME/la64-sdk.tar.gz" \
+        https://github.com/loongson/dotnet/releases/download/v10.0.112-loongarch64/dotnet-sdk-10.0.112-linux-loongarch64.tar.gz
+      mkdir -p "$HOME/la64"
+      tar -xzf "$HOME/la64-sdk.tar.gz" -C "$HOME/la64"
+      echo "$HOME/la64" >> "$GITHUB_PATH"
+      echo "DOTNET_ROOT=$HOME/la64" >> "$GITHUB_ENV"
+
+  - name: Setup emulation environment
+    shell: bash
+    run: |
+      {
+        # 宿主没有 loong64 原生 ICU，测试与冒烟以 invariant 模式运行
+        echo "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1"
+        echo "DOTNET_CLI_TELEMETRY_OPTOUT=1"
+        # xunit.runner.console 面向 net6.0，需要靠 10.0 运行时承载
+        echo "DOTNET_ROLL_FORWARD=LatestMajor"
+      } >> "$GITHUB_ENV"
+
+  - name: Verify LA64 runtime
+    shell: bash
+    run: |
+      set -euo pipefail
+      # 仿真下真实执行 LA64 版 dotnet；RID 必须为 linux-loongarch64，否则后续测试结果不可信
+      dotnet --info | tee /tmp/la64-info.txt
+      grep -q 'RID:[[:space:]]*linux-loongarch64' /tmp/la64-info.txt
+      grep -q 'Architecture:[[:space:]]*loongarch64' /tmp/la64-info.txt

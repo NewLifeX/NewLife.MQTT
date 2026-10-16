@@ -1,0 +1,149 @@
+name: aot
+
+# AOT 兼容测试：分析器 0 告警门禁 + NativeAOT 冒烟矩阵 + LA64（龙芯，必选）仿真冒烟。
+# 必选覆盖：win-x64 / linux-x64 / linux-arm64 / linux-la64（阻断）；win-arm64 / osx / musl 为观察期
+# （continue-on-error，稳定全绿后逐项转阻断）。边缘 RID（win-x86 / linux-arm32）见 edge.yml（手动触发）。
+# NativeAOT 官方不支持跨 OS 编译，每个 RID 使用原生 runner 发布运行（LA64 无官方支持，走 QEMU + 龙芯 SDK）。
+# 详见 Doc/AOT兼容性分析.md「多 RID 支持矩阵与 CI」。
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+    branches: [ '*' ]
+  workflow_dispatch:
+
+jobs:
+  # 分析器 0 告警硬约束：库工程 net8.0+ 常驻启用 IsAotCompatible（AOT/裁剪分析器，见 NewLife.MQTT.csproj）。
+  # 既有基线含大量与本任务无关的 CS/CA 告警，故不用全局 -warnaserror（会误伤），改为对构建日志做 IL 告警门禁。
+  aot-analyzer:
+    name: aot analyzer check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup dotNET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.x
+    - name: AOT Analyzer Check
+      env:
+        DOTNET_CLI_UI_LANGUAGE: en
+      run: |
+        set -eo pipefail
+        for tfm in net8.0 net9.0 net10.0; do
+          echo "==== $tfm ===="
+          dotnet build NewLife.MQTT/NewLife.MQTT.csproj -f $tfm -c Release 2>&1 | tee analyzer-$tfm.log
+          if grep -E 'warning IL[0-9]+' analyzer-$tfm.log; then
+            echo "发现 AOT/裁剪分析器告警（$tfm）：0 告警硬约束失败"
+            exit 1
+          fi
+        done
+
+  # NativeAOT 冒烟矩阵：win-x64 / linux-x64 / linux-arm64 为必选阻断基线；
+  # win-arm64 / osx 双架构为观察期（continue-on-error）。
+  aot:
+    name: aot (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            bin: AotSmoke.exe
+          - rid: linux-x64
+            os: ubuntu-latest
+            bin: AotSmoke
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+            bin: AotSmoke
+          - rid: win-arm64
+            os: windows-11-arm
+            bin: AotSmoke.exe
+            experimental: true
+          - rid: osx-arm64
+            os: macos-latest
+            bin: AotSmoke
+            experimental: true
+          - rid: osx-x64
+            os: macos-15-intel
+            bin: AotSmoke
+            experimental: true
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup dotNET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.x
+    - name: Install NativeAOT Prerequisites (Linux)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+    - name: JIT Baseline
+      # 同一冒烟工程以 JIT 运行，为 AOT 结果提供对照；平台问题与 AOT 问题由此可区分
+      run: dotnet run -c Release --project AotSmoke/AotSmoke.csproj
+    - name: Publish NativeAOT Smoke
+      run: dotnet publish AotSmoke/AotSmoke.csproj -c Release -r ${{ matrix.rid }} -o AotSmoke/bin/aot-out
+    - name: Run NativeAOT Smoke
+      # 任一场景失败即非 0 退出码
+      shell: bash
+      run: ./AotSmoke/bin/aot-out/${{ matrix.bin }}
+
+  # LA64（linux-loongarch64，必选）：官方无 runner / 无 runtime pack，ILCompiler 也不支持该目标，
+  # 故 NativeAOT 无法用于 loongarch64；本作业以「x64 编译 IL → LA64 运行时执行」验证同一套冒烟场景，
+  # 覆盖该平台上库的真实协议栈行为（与 aot 矩阵同源同断言）。
+  aot-la64:
+    name: aot (linux-loongarch64 qemu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup dotNET (x64 build host)
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.x
+    - name: Build smoke on x64 (IL)
+      # 龙芯运行时是解释器模式，仿真下不能跑 MSBuild/csc，冒烟程序集必须在 x64 上编译
+      run: dotnet build -c Release AotSmoke/AotSmoke.csproj
+    - name: Setup LA64 Toolchain
+      uses: ./.github/actions/setup-la64
+    - name: JIT Smoke (LA64)
+      # 仿真下真实执行 LA64 版 dotnet：冒烟全部场景通过即退出码 0
+      run: dotnet AotSmoke/bin/Release/net10.0/AotSmoke.dll
+
+  # NativeAOT 冒烟（musl，观察期）：alpine 容器内原生发布运行。
+  # 容器内 actions/setup-dotnet 不可用，改用 dotnet-install.sh；官方要求 alpine 3.15+ 且安装 clang/build-base/zlib-dev
+  aot-musl:
+    name: aot (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-musl-x64
+            os: ubuntu-latest
+          - rid: linux-musl-arm64
+            os: ubuntu-24.04-arm
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Publish & Run NativeAOT Smoke (alpine)
+      run: |
+        docker run --rm -v "$PWD:/src" -w /src alpine:3.20 sh -c '
+          set -e
+          apk add --no-cache bash curl clang build-base zlib-dev icu-libs >/dev/null
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/share/dotnet >/dev/null
+          ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+          export DOTNET_CLI_TELEMETRY_OPTOUT=1
+          dotnet run -c Release --project AotSmoke/AotSmoke.csproj
+          dotnet publish AotSmoke/AotSmoke.csproj -c Release -r ${{ matrix.rid }} -o AotSmoke/bin/aot-out
+          ./AotSmoke/bin/aot-out/AotSmoke
+        '

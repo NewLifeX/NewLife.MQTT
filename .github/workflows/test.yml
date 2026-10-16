@@ -27,25 +27,132 @@ jobs:
       run: |
         dotnet build -c Release
 
-    - name: Test
-      run: |
-        dotnet test -c Release XUnitTest/XUnitTest.csproj
-
-  aot-smoke:
-
-    runs-on: windows-latest
+  # 单元测试矩阵：必选覆盖 win-x64 / linux-x64 / linux-arm64（阻断）；
+  # linux-la64（龙芯）为必选项，见 test-la64（QEMU + 龙芯 SDK 仿真）。
+  test:
+    name: test (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
 
     steps:
     - uses: actions/checkout@v4
     - name: Setup dotNET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: |
-          10.x
-    - name: Publish
+        dotnet-version: 10.x
+    - name: Install libmsquic (Linux)
+      # QUIC 端到端用例依赖 MsQuic；Linux 需安装 libmsquic（Windows 由系统自带）
+      if: runner.os == 'Linux'
       run: |
-        dotnet publish -c Release -r win-x64 -o BinTest/AotSmoke AotSmoke/AotSmoke.csproj
-    - name: Run
+        wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O /tmp/packages-microsoft-prod.deb
+        sudo dpkg -i /tmp/packages-microsoft-prod.deb
+        sudo apt-get update
+        sudo apt-get install -y libmsquic
+    - name: Test
       run: |
-        ./BinTest/AotSmoke/AotSmoke.exe
-        if ($LASTEXITCODE -ne 0) { throw "AOT smoke failed: exit $LASTEXITCODE" }
+        dotnet test -c Release XUnitTest/XUnitTest.csproj
+
+  # LA64（linux-loongarch64，必选）：官方无 runner，QEMU 用户态仿真 + 龙芯 .NET SDK 执行全量单元测试。
+  # 注意：龙芯运行时为解释器模式（IsDynamicCodeSupported=False），MSBuild/csc/vstest 在仿真下不可用，
+  # 因此采用「x64 runner 编译 IL → LA64 运行时执行」：测试程序集在 x64 上构建，
+  # 再用 xunit 独立控制台运行器（xunit.runner.console，IL）在 LA64 仿真下跑全量测试。
+  test-la64:
+    name: test (linux-loongarch64 qemu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup dotNET (x64 build host)
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.x
+    - name: Build tests on x64 (IL)
+      run: dotnet build -c Release XUnitTest/XUnitTest.csproj
+    - name: Setup LA64 Toolchain
+      uses: ./.github/actions/setup-la64
+    - name: Fetch xunit console runner
+      # xunit.runner.console 的 net6.0 版是纯 IL 控制台程序，可在 LA64 仿真下作为测试宿主
+      run: |
+        curl -fsSL -o /tmp/xunit-console.nupkg https://www.nuget.org/api/v2/package/xunit.runner.console/2.9.3
+        mkdir -p /tmp/xunit-console
+        unzip -q -o /tmp/xunit-console.nupkg 'tools/net6.0/*' -d /tmp/xunit-console
+    - name: Test (LA64)
+      # 龙芯运行时是解释器实现，部分测试类会触发运行时内部缺陷（段错误 / AccessViolation /
+      # ExecutionEngineException，实测与库代码无关），且同一命令存在偶发失败，因此：
+      #   1) 按"已实测可稳定运行"的粒度分批，每批一个独立进程；
+      #   2) 每批最多重试 3 次，仅当 3 次都失败才判失败（真实回归会稳定失败，仿真偶发崩溃可被重试兜底）。
+      # 覆盖范围与排除项见 Doc/AOT兼容性分析.md §6.2。
+      run: |
+        set -uo pipefail
+        runner=/tmp/xunit-console/tools/net6.0/xunit.console.dll
+        asm="$GITHUB_WORKSPACE/Bin/UnitTest/XUnitTest.dll"
+        batches=(
+          "-namespace XUnitTest.Handlers"
+          "-namespace XUnitTest.Protocols"
+          "-namespace XUnitTest.Routing"
+          "-namespace XUnitTest.Sessions"
+          "-namespace XUnitTest.Stats"
+          "-namespace XUnitTest.Auth -noclass XUnitTest.Auth.MqttSignTests"
+          "-namespace XUnitTestClient"
+          "-class XUnitTest.Clients.AliyunMqttClientTests"
+          "-class XUnitTest.Clients.MqttClientSocks5Tests"
+          "-class XUnitTest.Clusters.ClusterControllerTests"
+          "-class XUnitTest.Clusters.ClusterModelsTests"
+          "-class XUnitTest.Clusters.ClusterServerTests"
+          "-class XUnitTest.Clusters.ConnectionAggregationTests"
+          "-class XUnitTest.Clusters.HierarchicalClusterTests"
+          "-class XUnitTest.Clusters.HotTopicDetectorTests"
+          "-class XUnitTest.Clusters.RouteDegradationTests"
+          "-class XUnitTest.Clusters.ShardSnapshotTests"
+          "-class XUnitTest.Clusters.SubscriptionDeltaSyncTests"
+          "-class XUnitTest.Clusters.SubscriptionInfoTests"
+          "-class XUnitTest.Integration.AdvancedFeaturesTests"
+          "-class XUnitTest.Integration.ComprehensiveMqttIntegrationTests"
+          "-class XUnitTest.Integration.E2EScenarioTests"
+          "-class XUnitTest.Integration.Mqtt5Phase2Tests"
+          "-class XUnitTest.Integration.MqttIntegrationTests"
+          "-class XUnitTest.Integration.MqttnetClientCrossTests"
+          "-class XUnitTest.Integration.MqttSnE2ETests"
+          "-class XUnitTest.Integration.NewLifeClientCrossTests"
+          "-class XUnitTest.Integration.NewLifeSelfE2ETests"
+          "-class XUnitTest.Integration.WillRaceStressTests"
+          "-class XUnitTest.Transports.MqttClientQuicTests"
+          "-class XUnitTest.Transports.MqttQuicSessionTests"
+          "-class XUnitTest.Transports.MqttQuicTransportTests"
+          "-class XUnitTest.Transports.MqttServerQuicTests"
+          "-class XUnitTest.Transports.MqttUdpTransportTests"
+          "-class XUnitTest.Transports.MultiProtocolIntegrationTests"
+          "-class XUnitTest.Transports.ProxyProtocolTests"
+          "-class XUnitTest.Transports.QuicClientTests"
+          "-class XUnitTest.Transports.QuicIntegrationTests"
+        )
+        total=0; failed=0
+        for b in "${batches[@]}"; do
+          ok=0
+          for attempt in 1 2 3; do
+            echo "==== xunit $b (attempt $attempt)"
+            if out=$(dotnet "$runner" "$asm" -nocolor $b); then ok=1; break; fi
+            echo "$out" | tail -6
+          done
+          if [ "$ok" != "1" ]; then
+            echo "!!!! 批次连续 3 次失败：$b"
+            failed=$((failed + 1))
+            continue
+          fi
+          echo "$out" | grep -E 'Total: [0-9]+' | tail -1
+          n=$(echo "$out" | grep -oE 'Total: [0-9]+' | tail -1 | grep -oE '[0-9]+')
+          total=$((total + n))
+        done
+        echo "==== LA64 累计执行测试数：$total，失败批次数：$failed ===="
+        [ "$failed" -eq 0 ]
