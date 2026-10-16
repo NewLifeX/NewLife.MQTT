@@ -63,9 +63,14 @@ public class ClusterController : IHttpController
 
         var endpoint = info.EndPoint;
 
+        var isNew = !_cluster.Nodes.ContainsKey(endpoint);
+
         var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k, Secret = _cluster.ClusterSecret });
         node.Times = 1;
         node.LastActive = DateTime.Now;
+
+        // 新节点同步进分片路由环，否则该节点不参与分片路由
+        if (isNew) _cluster.TopicRouter?.OnNodeJoined(endpoint);
 
         _cluster.WriteLog("节点[{0}]加入集群，来自：{1}", node, Context?.Connection?.Remote);
 
@@ -78,9 +83,15 @@ public class ClusterController : IHttpController
     public NodeInfo Ping(NodeInfo info)
     {
         var endpoint = info.EndPoint;
+
+        var isNew = !_cluster.Nodes.ContainsKey(endpoint);
+
         var node = _cluster.Nodes.GetOrAdd(endpoint, k => new ClusterNode { EndPoint = k, Secret = _cluster.ClusterSecret });
         node.Times++;
         node.LastActive = DateTime.Now;
+
+        // 心跳发现的节点同样同步进分片路由环，保持 Nodes 与路由环一致
+        if (isNew) _cluster.TopicRouter?.OnNodeJoined(endpoint);
 
         return _cluster.GetNodeInfo();
     }
@@ -94,6 +105,9 @@ public class ClusterController : IHttpController
 
         if (_cluster.Nodes.TryRemove(endpoint, out var node))
         {
+            // 节点离开同步出分片路由环，避免继续把消息路由到已离线节点
+            _cluster.TopicRouter?.OnNodeLeft(endpoint);
+
             _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Context?.Connection?.Remote);
             // 延迟销毁，避免在 RPC 响应返回前关闭 Session 导致客户端超时
             _ = Task.Run(() => { try { node.TryDispose(); } catch (Exception ex) { _cluster?.WriteLog("节点[{0}]延迟销毁异常: {1}", node, ex.Message); } });
