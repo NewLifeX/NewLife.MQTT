@@ -19,7 +19,7 @@
 | [CLUS-集群架构](Doc/CLUS-集群架构.md) | 集群四阶段演进路线、Raft 共识、主题分片、多层拓扑 |
 | [竞品分析](Doc/竞品分析.md) | MQTT 生态全景对比（EMQX/MQTTnet/Mosquitto 等）、SWOT |
 | [CLUS-集群竞品分析](Doc/CLUS-集群竞品分析.md) | 集群能力专项对标（EMQX/HiveMQ/VerneMQ） |
-| [集成测试说明](Doc/集成测试说明.md) | 测试架构、运行方法、测试分类 |
+| [集成测试说明](Doc/集成测试说明.md) | 测试架构、运行方法、测试分类、交叉兼容测试（NewLife ↔ MQTTnet，CI 必选） |
 | [AOT兼容性分析](Doc/AOT兼容性分析.md) | NativeAOT 实测：主链路 19 场景 JIT/AOT 双跑通过、主流 RID 矩阵（win/linux × x64/arm64 + 龙芯 LA64，CI 见 aot.yml/test.yml）、已实施保根方案、复现方法（冒烟工程 AotSmoke 已入库） |
 | [更新日志](Doc/更新日志.md) | 版本发布记录与提交明细 |
 
