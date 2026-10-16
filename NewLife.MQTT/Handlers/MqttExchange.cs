@@ -427,12 +427,12 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
                 _retainMessages[message.Topic] = message;
             }
             // $SYS 内部保留消息不计入用户保留消息统计
-            if (!message.Topic.StartsWith("$SYS/"))
-                Stats.RetainedMessages = _retainMessages.Count(e => !e.Key.StartsWith("$SYS/"));
+            if (!message.Topic.StartsWith("$SYS/", StringComparison.Ordinal))
+                Stats.RetainedMessages = _retainMessages.Count(e => !e.Key.StartsWith("$SYS/", StringComparison.Ordinal));
         }
 
         // $SYS 主题不对普通通配符订阅者分发
-        if (message.Topic.StartsWith("$SYS/")) return;
+        if (message.Topic.StartsWith("$SYS/", StringComparison.Ordinal)) return;
 
         // 检查消息是否已过期，过期消息不分发
         if (IsMessageExpired(message)) return;
@@ -456,7 +456,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         }
 
         // 通配符开头的过滤器不与 $ 开头的主题匹配
-        if (!topic.StartsWith("$"))
+        if (topic.Length == 0 || topic[0] != '$')
         {
             foreach (var filter in _wildcardFilters.Snapshot())
             {
@@ -476,7 +476,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
         if (!_topics.TryGetValue(topicFilter, out var subs)) return;
 
         // 检查是否为共享订阅（$share/{group}/{topic}）
-        var isShared = topicFilter.StartsWith("$share/");
+        var isShared = topicFilter.StartsWith("$share/", StringComparison.Ordinal);
         if (isShared)
         {
             // 共享订阅：轮询选择一个在线订阅者

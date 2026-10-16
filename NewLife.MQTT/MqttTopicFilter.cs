@@ -16,7 +16,7 @@ public class MqttTopicFilter
             return topicFilter;
         
         // 检查是否是共享订阅格式: $share/{group}/{topic}
-        if (topicFilter.StartsWith("$share/"))
+        if (topicFilter.StartsWith("$share/", StringComparison.Ordinal))
         {
             // 跳过 $share/ 和组名，找到第二个 / 之后的内容
             var firstSlash = topicFilter.IndexOf('/', 7); // 7 是 "$share/" 的长度
