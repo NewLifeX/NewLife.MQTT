@@ -42,22 +42,22 @@ public class MqttTopicFilterBenchmark
     }
 
     #region 字面量精确匹配
-    [Benchmark(Baseline = true, OperationsPerInvoke = 1000, Description = "旧实现：字面量精确匹配")]
+    [Benchmark(Baseline = true, OperationsPerInvoke = 10000, Description = "旧实现：字面量精确匹配")]
     public Int32 Legacy_Literal()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (LegacyTopicMatcher.IsMatch(_topicLiteral, _filterLiteral)) count++;
         }
         return count;
     }
 
-    [Benchmark(OperationsPerInvoke = 1000, Description = "新实现：字面量精确匹配")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "新实现：字面量精确匹配")]
     public Int32 Current_Literal()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (MqttTopicFilter.IsMatch(_topicLiteral, _filterLiteral)) count++;
         }
@@ -66,22 +66,22 @@ public class MqttTopicFilterBenchmark
     #endregion
 
     #region 单层通配符 +
-    [Benchmark(OperationsPerInvoke = 1000, Description = "旧实现：单层通配符 +")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "旧实现：单层通配符 +")]
     public Int32 Legacy_SingleWildcard()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (LegacyTopicMatcher.IsMatch(_topicSingleWildcard, _filterSingleWildcard)) count++;
         }
         return count;
     }
 
-    [Benchmark(OperationsPerInvoke = 1000, Description = "新实现：单层通配符 +")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "新实现：单层通配符 +")]
     public Int32 Current_SingleWildcard()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (MqttTopicFilter.IsMatch(_topicSingleWildcard, _filterSingleWildcard)) count++;
         }
@@ -90,22 +90,22 @@ public class MqttTopicFilterBenchmark
     #endregion
 
     #region 多层通配符 #
-    [Benchmark(OperationsPerInvoke = 1000, Description = "旧实现：多层通配符 #")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "旧实现：多层通配符 #")]
     public Int32 Legacy_MultiWildcard()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (LegacyTopicMatcher.IsMatch(_topicSingleWildcard, _filterMultiWildcard)) count++;
         }
         return count;
     }
 
-    [Benchmark(OperationsPerInvoke = 1000, Description = "新实现：多层通配符 #")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "新实现：多层通配符 #")]
     public Int32 Current_MultiWildcard()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (MqttTopicFilter.IsMatch(_topicSingleWildcard, _filterMultiWildcard)) count++;
         }
@@ -114,22 +114,22 @@ public class MqttTopicFilterBenchmark
     #endregion
 
     #region 深层主题不匹配
-    [Benchmark(OperationsPerInvoke = 1000, Description = "旧实现：深层主题不匹配")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "旧实现：深层主题不匹配")]
     public Int32 Legacy_DeepNoMatch()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (LegacyTopicMatcher.IsMatch(_topicDeep, _filterDeepNoMatch)) count++;
         }
         return count;
     }
 
-    [Benchmark(OperationsPerInvoke = 1000, Description = "新实现：深层主题不匹配")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "新实现：深层主题不匹配")]
     public Int32 Current_DeepNoMatch()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (MqttTopicFilter.IsMatch(_topicDeep, _filterDeepNoMatch)) count++;
         }
@@ -138,22 +138,22 @@ public class MqttTopicFilterBenchmark
     #endregion
 
     #region 共享订阅
-    [Benchmark(OperationsPerInvoke = 1000, Description = "旧实现：共享订阅匹配")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "旧实现：共享订阅匹配")]
     public Int32 Legacy_Shared()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (LegacyTopicMatcher.IsMatch(_topicSingleWildcard, _filterShared)) count++;
         }
         return count;
     }
 
-    [Benchmark(OperationsPerInvoke = 1000, Description = "新实现：共享订阅匹配")]
+    [Benchmark(OperationsPerInvoke = 10000, Description = "新实现：共享订阅匹配")]
     public Int32 Current_Shared()
     {
         var count = 0;
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 10000; i++)
         {
             if (MqttTopicFilter.IsMatch(_topicSingleWildcard, _filterShared)) count++;
         }

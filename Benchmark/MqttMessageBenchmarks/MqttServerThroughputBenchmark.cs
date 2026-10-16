@@ -21,6 +21,8 @@ public class MqttServerThroughputBenchmark
     private MqttClient[] _publishers = null!;
     private MqttClient _subscriber = null!;
     private Int64 _receivedCount;
+    private Int64 _targetCount;
+    private SemaphoreSlim? _receivedEvent;
 
     /// <summary>每批次发布的消息数</summary>
     [Params(1000, 5000)]
@@ -67,7 +69,12 @@ public class MqttServerThroughputBenchmark
             Log = Logger.Null,
         };
         _subscriber.ConnectAsync().GetAwaiter().GetResult();
-        _subscriber.Received += (s, e) => Interlocked.Increment(ref _receivedCount);
+        _subscriber.Received += (s, e) =>
+        {
+            // 达到目标数立即唤醒等待方，避免轮询等待引入毫秒级误差
+            if (Interlocked.Increment(ref _receivedCount) >= Volatile.Read(ref _targetCount))
+                _receivedEvent?.Release();
+        };
         _subscriber.SubscribeAsync("bench/#").GetAwaiter().GetResult();
 
         // 创建发布者
@@ -104,28 +111,33 @@ public class MqttServerThroughputBenchmark
     [Benchmark(Description = "QoS0 端到端吞吐")]
     public async Task QoS0_Throughput()
     {
-        Interlocked.Exchange(ref _receivedCount, 0);
-        var messagesPerPublisher = MessageCount / PublisherCount;
+        var signal = BeginMeasure();
 
-        var tasks = new Task[PublisherCount];
-        for (var i = 0; i < PublisherCount; i++)
+        try
         {
-            var pub = _publishers[i];
-            var idx = i;
-            tasks[i] = Task.Run(async () =>
-            {
-                for (var j = 0; j < messagesPerPublisher; j++)
-                {
-                    await pub.PublishAsync($"bench/qos0/{idx}", $"{{\"v\":{j}}}", QualityOfService.AtMostOnce);
-                }
-            });
-        }
-        await Task.WhenAll(tasks);
+            var messagesPerPublisher = MessageCount / PublisherCount;
 
-        // 等待投递完成（最长 5 秒）
-        var deadline = Environment.TickCount64 + 5000;
-        while (Interlocked.Read(ref _receivedCount) < MessageCount && Environment.TickCount64 < deadline)
-            await Task.Delay(10);
+            var tasks = new Task[PublisherCount];
+            for (var i = 0; i < PublisherCount; i++)
+            {
+                var pub = _publishers[i];
+                var idx = i;
+                tasks[i] = Task.Run(async () =>
+                {
+                    for (var j = 0; j < messagesPerPublisher; j++)
+                    {
+                        await pub.PublishAsync($"bench/qos0/{idx}", $"{{\"v\":{j}}}", QualityOfService.AtMostOnce);
+                    }
+                });
+            }
+            await Task.WhenAll(tasks);
+
+            await WaitDeliveryAsync(signal);
+        }
+        finally
+        {
+            _receivedEvent = null;
+        }
     }
     #endregion
 
@@ -133,27 +145,60 @@ public class MqttServerThroughputBenchmark
     [Benchmark(Description = "QoS1 端到端吞吐")]
     public async Task QoS1_Throughput()
     {
-        Interlocked.Exchange(ref _receivedCount, 0);
-        var messagesPerPublisher = MessageCount / PublisherCount;
+        var signal = BeginMeasure();
 
-        var tasks = new Task[PublisherCount];
-        for (var i = 0; i < PublisherCount; i++)
+        try
         {
-            var pub = _publishers[i];
-            var idx = i;
-            tasks[i] = Task.Run(async () =>
-            {
-                for (var j = 0; j < messagesPerPublisher; j++)
-                {
-                    await pub.PublishAsync($"bench/qos1/{idx}", $"{{\"v\":{j}}}", QualityOfService.AtLeastOnce);
-                }
-            });
-        }
-        await Task.WhenAll(tasks);
+            var messagesPerPublisher = MessageCount / PublisherCount;
 
-        var deadline = Environment.TickCount64 + 5000;
-        while (Interlocked.Read(ref _receivedCount) < MessageCount && Environment.TickCount64 < deadline)
-            await Task.Delay(10);
+            var tasks = new Task[PublisherCount];
+            for (var i = 0; i < PublisherCount; i++)
+            {
+                var pub = _publishers[i];
+                var idx = i;
+                tasks[i] = Task.Run(async () =>
+                {
+                    for (var j = 0; j < messagesPerPublisher; j++)
+                    {
+                        await pub.PublishAsync($"bench/qos1/{idx}", $"{{\"v\":{j}}}", QualityOfService.AtLeastOnce);
+                    }
+                });
+            }
+            await Task.WhenAll(tasks);
+
+            await WaitDeliveryAsync(signal);
+        }
+        finally
+        {
+            _receivedEvent = null;
+        }
+    }
+    #endregion
+
+    #region 辅助
+    /// <summary>开始一次测量：重置接收计数并登记唤醒信号</summary>
+    /// <returns></returns>
+    private SemaphoreSlim BeginMeasure()
+    {
+        var signal = new SemaphoreSlim(0);
+        Volatile.Write(ref _targetCount, MessageCount);
+        _receivedEvent = signal;
+        Interlocked.Exchange(ref _receivedCount, 0);
+
+        return signal;
+    }
+
+    /// <summary>等待全部消息投递完成（最长 5 秒）</summary>
+    /// <param name="signal">接收完成信号</param>
+    /// <returns></returns>
+    private static async Task WaitDeliveryAsync(SemaphoreSlim signal)
+    {
+        using var cts = new CancellationTokenSource(5000);
+        try
+        {
+            await signal.WaitAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
     }
     #endregion
 }
