@@ -262,31 +262,15 @@ public class MqttServer : NetServer<MqttSession>
         {
             WriteLog("QUIC 新连接: {0}", e.Connection.RemoteEndPoint);
 
-            var handler = provider.GetService<IMqttHandler>();
-            if (handler == null) return;
-
-            if (handler is MqttHandler mqttHandler)
-            {
-                mqttHandler.Encoder = Encoder;
-                mqttHandler.Authenticator = Authenticator;
-                mqttHandler.ConnectionRateLimiter = ConnectionRateLimiter;
-                mqttHandler.MessageRateLimiter = MessageRateLimiter;
-            }
-
+            // 处理器可空，由协议会话按默认规则创建；交换机/集群/认证等由 MqttSession 统一注入
             var session = new MqttQuicSession(e.Connection, e.Stream)
             {
-                Handler = handler,
+                Handler = provider.GetService<IMqttHandler>(),
                 Log = Log,
                 Tracer = Tracer,
             };
 
-            session.Closed += (s, _) =>
-            {
-                if (s is MqttQuicSession qs && qs.Handler is IMqttHandler h)
-                    h.Close("QUIC 连接已关闭");
-            };
-
-            session.Start();
+            session.Start(this);
         };
 
         _ = listener.StartAsync().ConfigureAwait(false);
@@ -401,6 +385,30 @@ public class MqttSession : NetSession<MqttServer>
         // 速率超限时 InitHandler 已经关闭会话
         return MqttHandler != null;
     }
+
+#if NET7_0_OR_GREATER
+    /// <summary>为 QUIC 桥接初始化会话。没有协议泵，发送写 QUIC 流，配对由会话自行完成</summary>
+    /// <param name="host">MQTT 服务端</param>
+    /// <param name="remote">远端地址，用于会话标识与速率限制</param>
+    /// <param name="send">发送委托，把 MQTT 帧写到 QUIC 流</param>
+    /// <returns>是否初始化成功，连接速率超限时为false</returns>
+    public Boolean AttachQuic(MqttServer host, String? remote, Func<IMessage, Int32> send)
+    {
+        _wsId = -Interlocked.Increment(ref _wsSeed);
+        SendTransport = send;
+
+        Remote = !remote.IsNullOrEmpty() ? new NetUri($"udp://{remote}") : new NetUri();
+
+        Log = host.SessionLog;
+
+        // 走 NetSession 标准启动流程，交换机注销与资源回收依赖 _running 闸门
+        Host = host;
+        Start();
+
+        // 速率超限时 InitHandler 已经关闭会话
+        return MqttHandler != null;
+    }
+#endif
 
     /// <summary>准备指令处理器</summary>
     /// <param name="host">MQTT 服务端</param>

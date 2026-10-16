@@ -1,7 +1,9 @@
 #if NET7_0_OR_GREATER
 using System.Net.Quic;
+using NewLife;
 using NewLife.Data;
 using NewLife.Log;
+using NewLife.Messaging;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 
@@ -9,9 +11,9 @@ namespace NewLife.MQTT.Quic;
 
 /// <summary>MQTT over QUIC 服务端会话</summary>
 /// <remarks>
-/// 为每个 QUIC 连接创建一个会话实例，负责从 QUIC 流中读取 MQTT 报文、
-/// 交给 MqttHandler 处理，并将响应写回 QUIC 流。
-/// 不支持 MQTT 集群消息转发（仅处理单连接消息）。
+/// <para>为每个 QUIC 连接创建一个会话实例，负责从 QUIC 流中定界 MQTT 帧、交给协议会话处理，并将响应写回 QUIC 流。</para>
+/// <para>协议处理复用 <see cref="MqttSession"/> 桥接模式（与 WebSocket 桥接一致）：没有协议泵，发送走 QUIC 流，
+/// 请求-响应配对由协议会话自行完成，交换机/集群交换/认证等能力与 TCP 接入完全一致。</para>
 /// </remarks>
 public class MqttQuicSession : DisposeBase
 {
@@ -31,8 +33,18 @@ public class MqttQuicSession : DisposeBase
     /// <summary>是否处于活动状态</summary>
     public Boolean Active => !Disposed && _receiveCts != null && !_receiveCts.IsCancellationRequested;
 
-    /// <summary>指令处理器</summary>
-    public IMqttHandler? Handler { get; set; }
+    private IMqttHandler? _handler;
+
+    /// <summary>指令处理器。可为空，未指定时由协议会话按默认规则创建</summary>
+    public IMqttHandler? Handler
+    {
+        get => _handler;
+        set
+        {
+            _handler = value;
+            if (_session != null) _session.MqttHandler = value!;
+        }
+    }
 
     /// <summary>性能跟踪</summary>
     public ITracer? Tracer { get; set; }
@@ -43,9 +55,10 @@ public class MqttQuicSession : DisposeBase
     /// <summary>会话关闭时触发</summary>
     public event EventHandler? Closed;
 
-    private readonly MqttFactory _factory = new();
+    private readonly MqttCodec _codec = new();
+    private MqttFrameDeframer? _deframer;
+    private MqttSession? _session;
     private CancellationTokenSource? _receiveCts;
-    private Int32 _nextId;
     #endregion
 
     #region 构造
@@ -68,25 +81,45 @@ public class MqttQuicSession : DisposeBase
         _receiveCts?.Dispose();
         _receiveCts = null;
 
-        Handler?.Close("会话已销毁");
+        // 协议会话关闭会级联关闭处理器（交换机注销等）
+        var session = _session;
+        _session = null;
+        session.TryDispose();
 
-        try
-        {
-            Stream.DisposeAsync().AsTask().Wait(1000);
-            Connection.DisposeAsync().AsTask().Wait(1000);
-        }
-        catch { }
+        CloseTransport();
+    }
+
+    /// <summary>关闭传输层。幂等，重复调用安全</summary>
+    private void CloseTransport()
+    {
+        try { Stream.DisposeAsync().AsTask().Wait(1000); } catch { }
+        try { Connection.DisposeAsync().AsTask().Wait(1000); } catch { }
     }
     #endregion
 
     #region 方法
     /// <summary>启动会话处理</summary>
+    /// <param name="host">MQTT 服务端。协议会话经其注入交换机、集群交换与认证等能力</param>
     /// <param name="cancellationToken"></param>
-    public void Start(CancellationToken cancellationToken = default)
+    public void Start(MqttServer host, CancellationToken cancellationToken = default)
     {
         _receiveCts?.Cancel();
         _receiveCts?.Dispose();
         _receiveCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        // 协议会话：桥接 QUIC 流，与 WebSocket 桥接同一模型
+        var session = new MqttSession();
+        if (_handler != null) session.MqttHandler = _handler;
+        if (!session.AttachQuic(host, Connection.RemoteEndPoint + "", SendFrame))
+        {
+            WriteLog("连接速率超限，拒绝 QUIC 连接");
+            CloseTransport();
+            return;
+        }
+
+        _session = session;
+        _handler ??= session.MqttHandler;
+        session.OnDisposed += (s, e) => CloseTransport();
 
         _ = ReceiveLoopAsync(_receiveCts.Token);
 
@@ -126,11 +159,29 @@ public class MqttQuicSession : DisposeBase
                     break;
                 }
 
+                var deframer = _deframer ??= new MqttFrameDeframer();
                 var pk = new ArrayPacket(buffer, 0, bytesRead);
-                ProcessReceivedData(pk);
+                if (!deframer.Process(_codec, pk, frame => _session?.Process(frame)) && deframer.Overflow)
+                {
+                    WriteLog("QUIC 报文残余超限，断开连接");
+                    break;
+                }
+
+                // CONNECT 解码后同步协议版本与客户端标识，供日志与诊断使用
+                var session = _session;
+                if (session != null)
+                {
+                    ProtocolVersion = session.ProtocolLevel;
+                    ClientId ??= (session.MqttHandler as MqttHandler)?.ClientId;
+                }
             }
             catch (OperationCanceledException)
             {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                // 会话关闭过程中流已被释放，属正常生命周期，静默退出
                 break;
             }
             catch (QuicException ex) when (ex.QuicError == QuicError.ConnectionAborted)
@@ -155,66 +206,26 @@ public class MqttQuicSession : DisposeBase
             }
         }
 
-        Handler?.Close("连接已断开");
+        _session?.Close("连接已断开");
         Closed?.Invoke(this, EventArgs.Empty);
+
+        // 接收循环结束即整个会话生命周期结束，自行释放传输资源
+        Dispose();
     }
 
-    /// <summary>处理接收到的数据</summary>
-    private void ProcessReceivedData(IPacket pk)
+    /// <summary>把协议会话产出的帧写到 QUIC 流</summary>
+    /// <param name="frame">MQTT 协议帧</param>
+    /// <returns>写入字节数</returns>
+    private Int32 SendFrame(IMessage frame)
     {
+        var data = _codec.Build(frame)!;
         try
         {
-            var msg = _factory.ReadMessage(pk, ProtocolVersion);
-            if (msg == null) return;
-
-            // 从 CONNECT 消息中更新协议版本
-            if (msg is ConnectMessage connect)
-            {
-                ProtocolVersion = connect.ProtocolLevel;
-                ClientId = connect.ClientId;
-            }
-
-            // 分配消息 ID（用于需要响应的消息）
-            if (msg is MqttIdMessage idm && idm.Id == 0 && (msg.Type != MqttType.Publish || msg.QoS > 0))
-                idm.Id = (UInt16)Interlocked.Increment(ref _nextId);
-
-            if (Log != null && Log.Level <= LogLevel.Debug)
-            {
-                if (msg is PublishMessage pm)
-                    WriteLog("<={0} {1}", msg, pm.Payload?.ToStr());
-                else
-                    WriteLog("<={0}", msg);
-            }
-
-            // 处理消息
-            var handler = Handler;
-            if (handler != null)
-            {
-                var result = handler.Process(msg);
-
-                // 匹配响应 ID
-                if (result is MqttIdMessage response && response.Id == 0 && msg is MqttIdMessage request)
-                    response.Id = request.Id;
-
-                if (result != null)
-                {
-                    if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("=> {0}", result);
-                    SendMessage(result);
-                }
-            }
-
-            // 客户端断开
-            if (msg.Type == MqttType.Disconnect)
-            {
-                WriteLog("客户端主动断开: {0}", ClientId ?? "(未知)");
-                Handler?.Close("客户端主动断开");
-                Dispose();
-            }
+            var total = data.Total;
+            Stream.Write(data.GetSpan());
+            return total;
         }
-        catch (Exception ex)
-        {
-            WriteLog("处理 MQTT 消息异常: {0}", ex.Message);
-        }
+        finally { data.TryDispose(); }
     }
     #endregion
 

@@ -79,6 +79,9 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>客户端标识</summary>
     private String? _clientId;
 
+    /// <summary>客户端标识。CONNECT 完成后由客户端提供或服务端分配</summary>
+    public String? ClientId => _clientId;
+
     /// <summary>遗嘱消息。客户端异常断开时需要发布</summary>
     private PublishMessage? _willMessage;
 

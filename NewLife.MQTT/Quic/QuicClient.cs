@@ -55,6 +55,9 @@ public class QuicClient : DisposeBase
     private readonly MqttFactory _factory = new();
     private Int32 _nextId;
     private readonly ConcurrentDictionary<UInt16, TaskCompletionSource<MqttMessage?>> _pendingRequests = new();
+
+    /// <summary>按响应类型配对的待响应请求。CONNECT→CONNACK 不携带报文标识符，按类型匹配</summary>
+    private readonly ConcurrentDictionary<MqttType, TaskCompletionSource<MqttMessage?>> _pendingByType = new();
     #endregion
 
     #region 事件
@@ -145,7 +148,7 @@ public class QuicClient : DisposeBase
     /// <param name="message">MQTT 消息</param>
     /// <param name="cancellationToken"></param>
     /// <returns>响应消息，无响应则返回 null</returns>
-    public Task<MqttMessage?> SendMessageAsync(MqttMessage message, CancellationToken cancellationToken = default)
+    public async Task<MqttMessage?> SendMessageAsync(MqttMessage message, CancellationToken cancellationToken = default)
     {
         if (_stream == null) throw new InvalidOperationException("未建立 QUIC 连接");
 
@@ -155,7 +158,7 @@ public class QuicClient : DisposeBase
 
         var tcs = new TaskCompletionSource<MqttMessage?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // 注册待响应请求
+        // 注册待响应请求：带报文标识符的按 ID 匹配；CONNECT 无标识符，按响应类型（CONNACK）匹配
         if (message is MqttIdMessage idm2 && idm2.Id > 0)
         {
             _pendingRequests[idm2.Id] = tcs;
@@ -164,6 +167,16 @@ public class QuicClient : DisposeBase
             cancellationToken.Register(() =>
             {
                 if (_pendingRequests.TryRemove(idm2.Id, out var pending))
+                    pending.TrySetCanceled(cancellationToken);
+            });
+        }
+        else if (message.Type == MqttType.Connect)
+        {
+            _pendingByType[MqttType.ConnAck] = tcs;
+
+            cancellationToken.Register(() =>
+            {
+                if (_pendingByType.TryRemove(MqttType.ConnAck, out var pending))
                     pending.TrySetCanceled(cancellationToken);
             });
         }
@@ -176,6 +189,7 @@ public class QuicClient : DisposeBase
         catch (Exception ex)
         {
             _pendingRequests.TryRemove((message as MqttIdMessage)?.Id ?? 0, out _);
+            _pendingByType.TryRemove(MqttType.ConnAck, out _);
             tcs.TrySetException(ex);
             throw;
         }
@@ -184,9 +198,19 @@ public class QuicClient : DisposeBase
         if (message.Type == MqttType.Publish && message.QoS == QualityOfService.AtMostOnce)
         {
             tcs.TrySetResult(null!);
+            return null;
         }
 
-        return tcs.Task;
+        // 等待响应，超时避免对端无响应时无限挂起
+        var winner = await Task.WhenAny(tcs.Task, Task.Delay(Timeout, cancellationToken)).ConfigureAwait(false);
+        if (winner != tcs.Task)
+        {
+            _pendingRequests.TryRemove((message as MqttIdMessage)?.Id ?? 0, out _);
+            _pendingByType.TryRemove(MqttType.ConnAck, out _);
+            throw new TimeoutException($"等待服务器响应超时：{message.Type}");
+        }
+
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>关闭 QUIC 连接</summary>
@@ -203,6 +227,12 @@ public class QuicClient : DisposeBase
             item.Value.TrySetCanceled();
         }
         _pendingRequests.Clear();
+
+        foreach (var item in _pendingByType)
+        {
+            item.Value.TrySetCanceled();
+        }
+        _pendingByType.Clear();
 
         if (_stream != null)
         {
@@ -245,6 +275,12 @@ public class QuicClient : DisposeBase
         }
         _pendingRequests.Clear();
 
+        foreach (var item in _pendingByType)
+        {
+            item.Value.TrySetCanceled();
+        }
+        _pendingByType.Clear();
+
         _stream?.DisposeAsync().AsTask().Wait(1000);
         _connection?.DisposeAsync().AsTask().Wait(1000);
         _stream = null;
@@ -279,6 +315,11 @@ public class QuicClient : DisposeBase
             }
             catch (OperationCanceledException)
             {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                // 连接关闭过程中流已被释放，属正常生命周期，静默退出
                 break;
             }
             catch (QuicException ex) when (ex.QuicError == QuicError.ConnectionAborted)
@@ -341,12 +382,16 @@ public class QuicClient : DisposeBase
                         tcs.TrySetResult(msg);
                 }
 
-                // 部分响应消息没有 Id（如 ConnAck），需要特殊匹配
-                if (!matched)
+                // 部分响应消息没有 Id（如 ConnAck），按响应类型匹配
+                if (!matched && _pendingByType.TryRemove(msg.Type, out var tcs2))
                 {
-                    // 尝试匹配最近的未匹配请求（类型前后配对）
-                    MatchPendingRequest(msg);
+                    tcs2.TrySetResult(msg);
+                    matched = true;
                 }
+
+                // 兜底：按消息类型的前后配对
+                if (!matched)
+                    MatchPendingRequest(msg);
             }
             else
             {
@@ -367,18 +412,6 @@ public class QuicClient : DisposeBase
     /// </remarks>
     private void MatchPendingRequest(MqttMessage response)
     {
-        // CONNECT → CONNACK
-        if (response.Type == MqttType.ConnAck)
-        {
-            // ConnAck 通过类型匹配（而不是 ID）
-            foreach (var item in _pendingRequests)
-            {
-                item.Value.TrySetResult(response);
-                _pendingRequests.Clear();
-                return;
-            }
-        }
-
         // DISCONNECT 不期望响应，但可能触发清理
         if (response.Type == MqttType.Disconnect)
         {
