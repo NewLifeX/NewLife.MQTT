@@ -11,6 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- LoadBench 是独立压测工具项目（独立进程运行），源码不并入本基准项目 -->
+    <Compile Remove="LoadBench/**" />
+    <None Remove="LoadBench/**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="NewLife.Core" Version="12.0.2026.1013-beta0732" />
   </ItemGroup>
