@@ -1,0 +1,25 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Other/">
+    <File Path=".github/workflows/publish-beta.yml" />
+    <File Path=".github/workflows/publish.yml" />
+    <File Path=".github/workflows/test.yml" />
+    <File Path="Doc/MQTT协议实现分析报告.md" />
+    <File Path="Doc/架构设计.md" />
+    <File Path="Doc/需求文档.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Samples/" />
+  <Project Path="AotSmoke/AotSmoke.csproj" />
+  <Project Path="Benchmark/Benchmark.csproj" />
+  <Project Path="Benchmark/LoadBench/LoadBench.csproj" />
+  <Project Path="NewLife.MQTT.Storage/NewLife.MQTT.Storage.csproj" />
+  <Project Path="NewLife.MQTT/NewLife.MQTT.csproj" />
+  <Project Path="NewLife.MqttServer/NewLife.MqttServer.csproj" />
+  <Project Path="Test/Test.csproj" />
+  <Project Path="XUnitTest/XUnitTest.csproj" />
+</Solution>
