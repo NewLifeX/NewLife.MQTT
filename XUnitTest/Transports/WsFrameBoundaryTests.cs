@@ -14,7 +14,6 @@ using Xunit;
 namespace XUnitTest.Transports;
 
 /// <summary>WebSocket 帧边界测试。一条 WS 消息可能承载半个或多个 MQTT 帧，两种边界都必须正确恢复</summary>
-[Collection("IntegrationTests")]
 public class WsFrameBoundaryTests
 {
     private static MqttServer CreateServer() => new()

@@ -15,7 +15,6 @@ namespace XUnitTest.Clusters;
 /// 真实启动 16 个 ClusterServer 并经 AddNode 组网，逐节点校验：
 /// 所有分片恰好 3 个互异副本、路由目标均在集群内、主题分片索引跨节点一致、节点进出时路由环同步收敛。
 /// </remarks>
-[Collection("IntegrationTests")]
 public class ShardRoutingE2ETests
 {
     private const Int32 NodeCount = 16;

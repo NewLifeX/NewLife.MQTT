@@ -15,7 +15,6 @@ using Xunit;
 namespace XUnitTest.Transports;
 
 /// <summary>WSS 传输集成测试。验证配置 WebSocketCertificate 后 wss:// 的连接、订阅、发布与接收</summary>
-[Collection("IntegrationTests")]
 public class WssIntegrationTests
 {
     /// <summary>生成自签名服务器证书</summary>

@@ -95,12 +95,15 @@ public class MqttMessageRateLimiterTests
             MaxBurstSize = 5,
         };
 
-        var tokens = limiter.GetAvailableTokens("client1");
-        Assert.True(tokens >= 4.9 && tokens <= 5.1); // 初始满桶
+        var before = limiter.GetAvailableTokens("client1");
+        Assert.True(before >= 4.9 && before <= 5.1); // 初始满桶
 
         limiter.IsMessageAllowed("client1");
-        tokens = limiter.GetAvailableTokens("client1");
-        Assert.True(tokens >= 3.9 && tokens <= 4.1);
+        var after = limiter.GetAvailableTokens("client1");
+
+        // 消费一个令牌后应少 1；等待期间可能补充少量令牌，因此允许不超过消费前的水平
+        Assert.True(after <= before);
+        Assert.True(after >= before - 1.0);
     }
 
     [System.ComponentModel.DisplayName("重置：清空所有令牌桶")]

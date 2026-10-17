@@ -73,7 +73,7 @@ public class ProxyProtocolTests
 
         using var server = new MqttServer
         {
-            Port = 2883,
+            Port = 0,
             ServiceProvider = services.BuildServiceProvider(),
 
             Log = XTrace.Log,
@@ -96,12 +96,14 @@ public class ProxyProtocolTests
             EnableProxyProtocol = true,
         };
 
+        var received = new TaskCompletionSource<String>(TaskCreationOptions.RunContinuationsAsynchronously);
         client.Received += (s, e) =>
         {
             var pm = e.Arg;
             var msg = pm.Payload.ToStr();
 
             XTrace.WriteLine("接收：[{0}] {1}", pm.Topic, msg);
+            received.TrySetResult(msg);
         };
 
         await client.ConnectAsync();
@@ -111,11 +113,14 @@ public class ProxyProtocolTests
             XTrace.WriteLine("消费消息：[{0}] {1}", pm.Topic, pm.Payload.ToStr());
         });
 
-        await Task.Delay(1_000);
+        await Task.Delay(100);
 
         await client.PublishAsync("/test", "Hello MQTT");
 
-        await Task.Delay(3_000);
+        var winner = await Task.WhenAny(received.Task, Task.Delay(5000));
+        Assert.True(winner == received.Task, "5秒内未收到自发布消息");
+        Assert.Equal("Hello MQTT", await received.Task);
+
         XTrace.WriteLine("finish");
     }
 }

@@ -560,8 +560,12 @@ public class E2EScenarioTests : IDisposable
             await Task.Delay(30);
         }
 
-        // 等待所有消息分发完成
-        await Task.Delay(1000);
+        // 等待所有消息分发完成（按实际到达轮询，避免固定空等）
+        var deadline = DateTime.Now.AddSeconds(5);
+        while (sub1Count + sub2Count < total && DateTime.Now < deadline)
+        {
+            await Task.Delay(20);
+        }
 
         var totalReceived = sub1Count + sub2Count;
         Assert.Equal(total, totalReceived); // 总收到数 = 总发送数

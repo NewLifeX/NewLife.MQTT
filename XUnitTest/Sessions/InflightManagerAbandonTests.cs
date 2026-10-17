@@ -26,10 +26,25 @@ public class InflightManagerAbandonTests : IDisposable
         {
             RetryTimeout = 50,   // 50ms 超时，加速测试
             MaxRetries = 1,      // 最多重试 1 次（两次定时器触发后 abandon）
+            CheckInterval = 20,  // 20ms 检查周期，避免测试空等定时器
         };
     }
 
     public void Dispose() => _manager.TryDispose();
+
+    /// <summary>轮询等待条件成立，避免固定时长空等</summary>
+    private static async Task<Boolean> WaitUntil(Func<Boolean> condition, Int32 milliseconds = 10000)
+    {
+        var deadline = DateTime.Now.AddMilliseconds(milliseconds);
+        while (DateTime.Now < deadline)
+        {
+            if (condition()) return true;
+
+            await Task.Delay(10);
+        }
+
+        return condition();
+    }
 
     [Fact]
     [DisplayName("InflightManager 放弃消息时触发 OnMessageAbandoned 回调")]
@@ -41,13 +56,8 @@ public class InflightManagerAbandonTests : IDisposable
         var msg = new PublishMessage { Topic = "test", QoS = QualityOfService.AtLeastOnce };
         _manager.Add(1, msg);
 
-        // 等待超时 + 最大重试次数到达
-        // CheckRetry 定时器每 1000ms 触发一次；MaxRetries=1 需要两个周期：
-        //   t=1000ms: 第一次超时，RetryCount=0 → 重发，RetryCount=1
-        //   t=2000ms: 第二次超时，RetryCount=1 >= MaxRetries=1 → 放弃
-        await Task.Delay(2500);
-
-        Assert.Contains((UInt16)1, abandonedIds);
+        // 等待超时 + 最大重试次数到达：RetryTimeout=50ms、CheckInterval=20ms
+        Assert.True(await WaitUntil(() => abandonedIds.Contains(1)), "超时未触发放弃回调");
     }
 
     [Fact]
@@ -63,8 +73,8 @@ public class InflightManagerAbandonTests : IDisposable
         // 正常 ACK，不等超时
         _manager.Acknowledge(2);
 
-        // 等待 2 个定时器周期，确认没有 abandon 回调
-        await Task.Delay(2200);
+        // 等待多个检查周期，确认没有 abandon 回调
+        await Task.Delay(300);
 
         Assert.Empty(abandonedIds);
     }
@@ -78,7 +88,7 @@ public class InflightManagerAbandonTests : IDisposable
         _manager.Add(3, msg);
 
         // 等待超时并放弃
-        await Task.Delay(2500);
+        await Task.Delay(300);
 
         // 无异常即通过
     }

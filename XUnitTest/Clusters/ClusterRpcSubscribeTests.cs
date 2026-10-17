@@ -9,7 +9,6 @@ using Xunit;
 namespace XUnitTest.Clusters;
 
 /// <summary>集群订阅 RPC 测试。覆盖订阅/退订经 HTTP RPC 的数组参数绑定与远端登记/移除（FIX-CLUS-1：参数绑定把 JSON 数组解码为对象列表后无法直接强转）</summary>
-[Collection("IntegrationTests")]
 public class ClusterRpcSubscribeTests
 {
     [Fact(DisplayName = "集群RPC：订阅/退订数组参数绑定并在远端交换机登记/移除")]

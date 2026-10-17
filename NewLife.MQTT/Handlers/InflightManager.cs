@@ -18,6 +18,9 @@ public class InflightManager : DisposeBase
     /// <summary>最大重发次数。默认3次</summary>
     public Int32 MaxRetries { get; set; } = 3;
 
+    /// <summary>检查超时的定时器周期（毫秒）。默认1000ms</summary>
+    public Int32 CheckInterval { get; set; } = 1_000;
+
     /// <summary>消息超过最大重发次数后被放弃时的回调。参数为 PacketId</summary>
     public Action<UInt16>? OnMessageAbandoned { get; set; }
 
@@ -58,7 +61,7 @@ public class InflightManager : DisposeBase
             SendTime = DateTime.Now,
         };
 
-        _timer ??= new TimerX(CheckRetry, null, 1000, 1000);
+        _timer ??= new TimerX(CheckRetry, null, CheckInterval, CheckInterval);
     }
 
     /// <summary>确认消息（收到ACK/COMP后移除）</summary>

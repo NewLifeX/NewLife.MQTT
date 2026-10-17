@@ -73,14 +73,14 @@ public class MqttConnectionRateLimiterConcurrencyTests
         var limiter = new MqttConnectionRateLimiter
         {
             MaxConnectionsPerWindow = 100,
-            WindowDuration = TimeSpan.FromSeconds(1),
+            WindowDuration = TimeSpan.FromMilliseconds(200),
         };
 
         Assert.True(limiter.IsConnectionAllowed("192.168.1.200"));
         Assert.Equal(1, limiter.GetConnectionCount("192.168.1.200"));
 
-        // 等待窗口过期
-        System.Threading.Thread.Sleep(1100);
+        // 等待窗口过期（Thread.Sleep 至少等待指定时长）
+        System.Threading.Thread.Sleep(300);
 
         Assert.Equal(0, limiter.GetConnectionCount("192.168.1.200"));
     }

@@ -10,7 +10,6 @@ using Xunit;
 namespace XUnitTest.Transports;
 
 /// <summary>WebSocket 会话生命周期测试。桥接会话必须走 NetSession 标准启动流程，断开后才能从交换机注销</summary>
-[Collection("IntegrationTests")]
 public class WsSessionLifecycleTests
 {
     private static MqttServer CreateServer() => new()

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RunSettings>
   <RunConfiguration>
-    <MaxCpuCount>1</MaxCpuCount>
+    <!-- 0 表示按 CPU 自动决定并行度；程序集内部由 xUnit 按测试集合并行 -->
+    <MaxCpuCount>0</MaxCpuCount>
+    <!-- 防止个别用例挂起导致 dotnet test 永久等待（20 分钟） -->
+    <TestSessionTimeout>1200000</TestSessionTimeout>
   </RunConfiguration>
 </RunSettings>

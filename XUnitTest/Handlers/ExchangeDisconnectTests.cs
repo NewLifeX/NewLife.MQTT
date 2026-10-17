@@ -14,7 +14,6 @@ using Xunit;
 namespace XUnitTest.Handlers;
 
 /// <summary>管理 API 断开客户端：断开必须是“关连接”，而不是只清交换机登记（否则客户端仍在线却收不到消息）</summary>
-[Collection("IntegrationTests")]
 public class ExchangeDisconnectTests : IDisposable
 {
     private readonly MqttServer _server;

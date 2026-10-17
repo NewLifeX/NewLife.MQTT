@@ -22,7 +22,6 @@ namespace XUnitTest.Transports;
 /// QUIC 依赖操作系统的 MsQuic（Windows 11+ / 安装 libmsquic 的 Linux）。
 /// 宿主不支持时用例提前返回并在日志说明；CI 的 Linux 作业安装 libmsquic 后真实执行。
 /// </remarks>
-[Collection("IntegrationTests")]
 public class QuicIntegrationTests
 {
     /// <summary>生成自签名服务器证书</summary>

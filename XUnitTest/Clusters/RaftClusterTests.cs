@@ -12,7 +12,8 @@ public class RaftClusterTests
     #region 辅助：创建最小化 Raft 环境
     private static RaftCluster CreateRaft(Int32 nodeCount = 3)
     {
-        var services = ObjectContainer.Current;
+        // 独立容器：避免并行测试类同时修改全局 ObjectContainer.Current
+        var services = new ObjectContainer();
         services.AddTransient<ClusterController>();
 
         var cluster = new ClusterServer

@@ -10,14 +10,13 @@ using Xunit;
 namespace XUnitTest.Clusters;
 
 /// <summary>集群共享密钥测试。覆盖带密钥组建、密钥热更新同步与密钥不匹配拒绝</summary>
-[Collection("IntegrationTests")]
 public class ClusterSecretTests
 {
     private static ClusterServer CreateServer(String? secret) => new()
     {
         Port = 0,
         ClusterSecret = secret,
-        ServiceProvider = ObjectContainer.Current.BuildServiceProvider(),
+        ServiceProvider = new ObjectContainer().BuildServiceProvider(),
         Log = XTrace.Log,
     };
 
@@ -87,7 +86,8 @@ public class ClusterSecretTests
         var endpoint = c.GetNodeInfo().EndPoint;
         Assert.True(c.AddNode(a.GetNodeInfo().EndPoint));
 
-        await Task.Delay(3000);
+        // 心跳初始延迟 1s，等待两个心跳周期足以确认加入被拒
+        await Task.Delay(1500);
 
         Assert.False(a.Nodes.ContainsKey(endpoint), "密钥不匹配的节点不应加入集群");
     }

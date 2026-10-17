@@ -14,7 +14,6 @@ namespace XUnitTest.Integration;
 
 /// <summary>大载荷端到端测试：载荷超过接收缓冲（默认 8KB）时帧体跨多轮到达，
 /// v12 消息泵把体绑定为流式体（头部先行交付），会话须经匹配队列在交付前物化为内存体，供同步解码</summary>
-[Collection("IntegrationTests")]
 public class LargePayloadTests : IDisposable
 {
     private readonly MqttServer _server;
@@ -22,7 +21,8 @@ public class LargePayloadTests : IDisposable
 
     public LargePayloadTests()
     {
-        var services = ObjectContainer.Current;
+        // 独立容器：避免并行测试类同时修改全局 ObjectContainer.Current
+        var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
 
         _server = new MqttServer

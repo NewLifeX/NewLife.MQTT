@@ -17,7 +17,6 @@ using Xunit;
 namespace XUnitTest.Transports;
 
 /// <summary>多协议版本集成测试。验证同一服务端同时兼容 MQTT 3.1.1 (V311) 与 MQTT 5.0 (V500) 客户端</summary>
-[Collection("IntegrationTests")]
 public class MultiProtocolIntegrationTests : IClassFixture<MqttServerFixture>
 {
     private readonly Int32 _port;

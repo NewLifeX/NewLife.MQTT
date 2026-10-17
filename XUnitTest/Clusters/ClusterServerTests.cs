@@ -20,14 +20,15 @@ public class ClusterServerTests
 
     public ClusterServerTests()
     {
-        var services = ObjectContainer.Current;
+        // 独立容器：避免并行测试类同时修改全局 ObjectContainer.Current
+        var services = new ObjectContainer();
         services.AddTransient<ClusterController>();
 
         if (_server == null)
         {
             _server = new ClusterServer
             {
-                Port = 2883,
+                Port = 0,
                 ServiceProvider = services.BuildServiceProvider(),
 
                 Log = XTrace.Log

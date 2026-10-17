@@ -19,12 +19,13 @@ public class MqttClusterTests
 
     public MqttClusterTests()
     {
-        var services = ObjectContainer.Current;
+        // 独立容器：避免并行测试类同时修改全局 ObjectContainer.Current
+        var services = new ObjectContainer();
         services.AddTransient<ClusterController>();
 
         _server ??= new MqttServer
         {
-            Port = 61883,
+            Port = 0,
             ServiceProvider = services.BuildServiceProvider(),
 
             Log = XTrace.Log
@@ -46,8 +47,8 @@ public class MqttClusterTests
         {
             servers[i] = new ClusterServer
             {
-                // 使用不与 ClusterServerTests 冲突的独立端口段
-                Port = 62884 + i,
+                // 端口交给系统分配，避免固定端口段在并行/CI 下冲突
+                Port = 0,
                 ServiceProvider = _server.ServiceProvider,
 
                 Log = XTrace.Log
@@ -60,7 +61,7 @@ public class MqttClusterTests
         server.ClusterNodes = [.. endpoints];
         server.Cluster = new ClusterServer
         {
-            Port = 62883,
+            Port = 0,
         };
 
         server.Start();

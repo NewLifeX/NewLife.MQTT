@@ -27,7 +27,6 @@ public class MqttClientTests
         var mc = new MqttClient
         {
             Log = XTrace.Log,
-            Server = "tcp://127.0.0.1:1883",
 
             ClientId = Environment.MachineName,
             UserName = "stone",
@@ -53,14 +52,18 @@ public class MqttClientTests
     [Fact]
     public void TestServer()
     {
+        if (_server != null && _server.Active) return;
+
         // 独立容器：避免把单例处理器注册进全局 ObjectContainer.Current，被并行用例的服务器解析后串用连接
         var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
         //services.AddSingleton<IMqttHandler, MqttHandler>();
         services.AddSingleton<IMqttHandler, MqttController>();
 
+        // 端口交给系统分配，避免与并行用例或本机已占用端口冲突
         _server = new MqttServer
         {
+            Port = 0,
             ServiceProvider = services.BuildServiceProvider(),
             Log = XTrace.Log,
             SessionLog = XTrace.Log,
@@ -73,7 +76,11 @@ public class MqttClientTests
     [Fact]
     public async Task TestConnect()
     {
+        // 单独运行本用例时也能自备服务端
+        if (_server == null || !_server.Active) TestServer();
+
         // 连接
+        _client.Server = $"tcp://127.0.0.1:{_server.Port}";
         var rs = await _client.ConnectAsync();
         Assert.NotNull(rs);
         //Assert.True(rs.SessionPresent);

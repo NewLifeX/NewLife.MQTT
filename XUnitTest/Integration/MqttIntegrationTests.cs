@@ -15,7 +15,6 @@ using Xunit;
 namespace XUnitTest.Integration;
 
 /// <summary>客户端/服务端集成测试。覆盖QoS全路径、遗嘱消息、Retain消息、会话持久化</summary>
-[Collection("IntegrationTests")]
 public class MqttIntegrationTests : IDisposable
 {
     private readonly MqttServer _server;
@@ -24,7 +23,8 @@ public class MqttIntegrationTests : IDisposable
     public MqttIntegrationTests()
     {
         // 使用 Port=0 让系统自动分配随机端口，避免端口冲突
-        var services = ObjectContainer.Current;
+        // 独立容器：避免并行测试类同时修改全局 ObjectContainer.Current
+        var services = new ObjectContainer();
         services.AddSingleton(XTrace.Log);
 
         _server = new MqttServer
@@ -272,34 +272,37 @@ public class MqttIntegrationTests : IDisposable
             Reconnect = false,
         };
 
-        const Int32 messageCount = 7;
         var receivedCount = 0;
-        var allReceived = new TaskCompletionSource<Boolean>(TaskCreationOptions.RunContinuationsAsynchronously);
-        subscriber.Received += (s, e) =>
-        {
-            if (Interlocked.Increment(ref receivedCount) >= messageCount)
-                allReceived.TrySetResult(true);
-        };
+        subscriber.Received += (s, e) => Interlocked.Increment(ref receivedCount);
 
         await publisher.ConnectAsync();
         await subscriber.ConnectAsync();
         await subscriber.SubscribeAsync("mix/keepalive/test");
         await Task.Delay(100);
 
-        for (var i = 0; i < messageCount; i++)
+        // 自动心跳定时器初始延迟 5s：持续发布直到观察到心跳，覆盖“发布期间心跳”场景，
+        // 相比固定发 7 条再空等，可提前结束并减少空转
+        var published = 0;
+        var deadline = DateTime.Now.AddSeconds(15);
+        while (tracker.PingCount == 0 && DateTime.Now < deadline && published < 40)
         {
-            await publisher.PublishAsync("mix/keepalive/test", $"hello_{i}", QualityOfService.AtMostOnce);
-            await Task.Delay(1000);
+            await publisher.PublishAsync("mix/keepalive/test", $"hello_{published}", QualityOfService.AtMostOnce);
+            published++;
+
+            if (tracker.PingCount == 0) await Task.Delay(200);
         }
 
-        var winner = await Task.WhenAny(allReceived.Task, Task.Delay(12_000));
-        Assert.True(winner == allReceived.Task, "12秒内未收齐全部发布消息");
-        Assert.Equal(messageCount, Volatile.Read(ref receivedCount));
-
-        await Task.Delay(1500);
-
+        Assert.True(published > 0, "未发布任何消息");
         Assert.True(tracker.PingCount > 0, "订阅端在持续发布期间未触发自动心跳");
         Assert.True(subscriber.IsConnected);
+
+        // 等待已发布消息全部到达
+        var waitDeadline = DateTime.Now.AddSeconds(5);
+        while (Volatile.Read(ref receivedCount) < published && DateTime.Now < waitDeadline)
+        {
+            await Task.Delay(50);
+        }
+        Assert.Equal(published, Volatile.Read(ref receivedCount));
 
         var ping = await subscriber.PingAsync();
         Assert.NotNull(ping);

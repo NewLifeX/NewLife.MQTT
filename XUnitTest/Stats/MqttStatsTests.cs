@@ -63,13 +63,15 @@ public class MqttStatsTests
     [System.ComponentModel.DisplayName("Stats：Uptime 随时间增加")]
     public void UptimeIncreases()
     {
-        var stats = new MqttStats();
+        var stats = new MqttStats { StartTime = DateTime.Now.AddSeconds(-2) };
         var uptime1 = stats.Uptime;
 
-        Thread.Sleep(1100);
-
+        // 回溯启动时间，直接验证运行时长计算，避免空等墙钟
+        stats.StartTime = DateTime.Now.AddSeconds(-3);
         var uptime2 = stats.Uptime;
 
+        Assert.True(uptime1 >= 2);
+        Assert.True(uptime2 >= 3);
         Assert.True(uptime2 > uptime1);
     }
 
