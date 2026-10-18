@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.XCode" Version="12.2.2026.1017-beta1246" />
-    <PackageReference Include="NewLife.Redis" Version="6.6.2026.1016-beta0908" />
+    <PackageReference Include="NewLife.Redis" Version="6.6.2026.1017-beta1441" />
   </ItemGroup>
 
 </Project>
