@@ -1,6 +1,7 @@
 ﻿using NewLife.Buffers;
 using NewLife.Data;
 using NewLife.Serialization;
+using NewLife;
 
 namespace NewLife.MQTT.Messaging;
 
@@ -88,7 +89,7 @@ public abstract class MqttMessage : ISpanSerializable
         Retain = ((flag & 0b0000_0001) >> 0) > 0;
 
         var len = Length = reader.ReadEncodedInt();
-        if (len > 0 && reader.Available < len) throw new InvalidDataException("消息负载的数据长度不足！");
+        if (len > 0 && reader.Available < len) throw new InvalidDataException(L.T("The message payload length is insufficient."));
 
         return OnRead(ref reader, context);
     }

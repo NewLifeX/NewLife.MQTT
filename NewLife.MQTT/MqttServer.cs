@@ -13,6 +13,7 @@ using NewLife.MQTT.ProxyProtocol;
 using NewLife.MQTT.Quic;
 using NewLife.Net;
 using NewLife.Serialization;
+using NewLife;
 
 namespace NewLife.MQTT;
 
@@ -109,7 +110,7 @@ public class MqttServer : NetServer<MqttSession>
     /// <summary>启动</summary>
     protected override void OnStart()
     {
-        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
+        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
 
         if (Name.IsNullOrEmpty() || Name == "Mqtt") Name = $"Mqtt{Port}";
 
@@ -167,8 +168,8 @@ public class MqttServer : NetServer<MqttSession>
 
         if (cluster != null)
         {
-            var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
-            var exchange = Exchange ?? throw new NotSupportedException("未配置消息交换机Exchange");
+            var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
+            var exchange = Exchange ?? throw new NotSupportedException(L.T("Message exchange is not configured."));
 
             WriteLog("创建MQTT集群 {0}，端口 {1}", cluster.Name, cluster.Port);
 
@@ -229,7 +230,7 @@ public class MqttServer : NetServer<MqttSession>
     {
         if (!EnableWebSocket && WebSocketPort <= 0) return;
 
-        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
+        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
 
         WriteLog("创建WebSocket桥接，端口 {0}，路径 {1}", WebSocketPort, WebSocketPath);
 
@@ -261,12 +262,12 @@ public class MqttServer : NetServer<MqttSession>
     {
         if (QuicPort <= 0) return;
 
-        if (QuicCertificate == null) throw new InvalidOperationException("启动 QUIC 监听必须指定 QuicCertificate，QUIC 强制 TLS");
+        if (QuicCertificate == null) throw new InvalidOperationException(L.T("QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS."));
 
         WriteLog("创建 QUIC 监听器，端口 {0}", QuicPort);
 
-        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException("未配置服务提供者ServiceProvider");
-        var exchange = Exchange ?? throw new NotSupportedException("未配置消息交换机Exchange");
+        var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
+        var exchange = Exchange ?? throw new NotSupportedException(L.T("Message exchange is not configured."));
 
         var listener = new MqttQuicListener
         {

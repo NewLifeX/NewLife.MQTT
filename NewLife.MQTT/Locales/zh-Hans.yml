@@ -1,0 +1,10 @@
+# 简体中文译文。键为英文源文，缺失时运行期回退英文。
+"The cluster shared secret does not match.": "集群共享密钥不匹配"
+"Message exchange is not configured.": "未配置消息交换机 Exchange"
+"Invalid management token.": "无效的管理令牌"
+"The message payload length is insufficient.": "消息负载的数据长度不足！"
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "当前平台不支持 QUIC，需要 Windows 11 或安装 msquic 的 Linux"
+"For SSL connections, the address must start with tcp://.": "使用SSL连接，地址需设置为tcp://开头"
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT 协议不支持头部与帧体分段发送"
+"ServiceProvider is not configured.": "未配置服务提供者ServiceProvider"
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "启动 QUIC 监听必须指定 QuicCertificate，QUIC 强制 TLS"

@@ -4,6 +4,7 @@ using NewLife.Log;
 using NewLife.Model;
 using NewLife.Net;
 using NewLife.Remoting;
+using NewLife;
 
 namespace NewLife.MQTT.Handlers;
 
@@ -67,7 +68,7 @@ public class MqttManagementServer : DisposeBase, IServer, ILogFeature, ITracerFe
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods, typeof(MqttManagementController))]
     public void Start()
     {
-        if (Exchange == null) throw new InvalidOperationException("未配置消息交换机 Exchange");
+        if (Exchange == null) throw new InvalidOperationException(L.T("Message exchange is not configured."));
 
         // 控制器单例经容器解析，构造时注入本管理服务
         var container = new ObjectContainer();
@@ -150,7 +151,7 @@ internal sealed class MqttManagementHandler : IHttpHandler
     public async Task ProcessRequestAsync(IHttpContext context)
     {
         var token = _server.Token;
-        if (!token.IsNullOrEmpty() && HttpTokenHelper.GetToken(context) != token) throw new ApiException(ApiCode.Unauthorized, "无效的管理令牌");
+        if (!token.IsNullOrEmpty() && HttpTokenHelper.GetToken(context) != token) throw new ApiException(ApiCode.Unauthorized, L.T("Invalid management token."));
 
         if (Inner != null) await Inner.ProcessRequestAsync(context).ConfigureAwait(false);
     }

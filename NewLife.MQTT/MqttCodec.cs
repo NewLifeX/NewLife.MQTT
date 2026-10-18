@@ -3,6 +3,7 @@ using NewLife.Data;
 using NewLife.Messaging;
 using NewLife.MQTT.Messaging;
 using NewLife.MQTT.ProxyProtocol;
+using NewLife;
 
 namespace NewLife.MQTT;
 
@@ -170,7 +171,7 @@ public class MqttCodec : IMessageCodec, IMessageMatcher
     /// <param name="message">消息</param>
     /// <param name="bodyLength">消息体字节数</param>
     /// <returns></returns>
-    public virtual IOwnerPacket BuildHeader(IMessage message, Int64 bodyLength) => throw new NotSupportedException("MQTT 协议不支持头部与帧体分段发送");
+    public virtual IOwnerPacket BuildHeader(IMessage message, Int64 bodyLength) => throw new NotSupportedException(L.T("The MQTT protocol does not support sending headers and bodies separately."));
     #endregion
 
     #region 配对

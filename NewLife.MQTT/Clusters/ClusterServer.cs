@@ -11,6 +11,7 @@ using NewLife.Net;
 using NewLife.Remoting;
 using NewLife.Serialization;
 using NewLife.Threading;
+using NewLife;
 
 namespace NewLife.MQTT.Clusters;
 
@@ -467,7 +468,7 @@ internal sealed class ClusterSecretHandler : IHttpHandler
             var token = HttpTokenHelper.GetToken(context);
 
             // 密钥轮换过渡窗口内继续接受旧密钥，避免各节点更新进度不一致时相互拒绝
-            if (token != secret && !_server.IsPreviousSecretValid(token)) throw new ApiException(ApiCode.Unauthorized, "集群共享密钥不匹配");
+            if (token != secret && !_server.IsPreviousSecretValid(token)) throw new ApiException(ApiCode.Unauthorized, L.T("The cluster shared secret does not match."));
         }
 
         if (Inner != null) await Inner.ProcessRequestAsync(context).ConfigureAwait(false);

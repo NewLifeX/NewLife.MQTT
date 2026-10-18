@@ -14,6 +14,7 @@ using NewLife.Messaging;
 using NewLife.Net;
 using NewLife.Serialization;
 using NewLife.Threading;
+using NewLife;
 
 namespace NewLife.MQTT;
 
@@ -318,7 +319,7 @@ public class MqttClient : DisposeBase
             if (isQuic)
             {
                 if (!QuicClient.IsSupported)
-                    throw new NotSupportedException("当前平台不支持 QUIC，需要 Windows 11 或安装 msquic 的 Linux");
+                    throw new NotSupportedException(L.T("QUIC is not supported on this platform; Windows 11 or Linux with msquic is required."));
 
                 // quic://host:port 解析（NetUri 不支持 quic 方案，使用 System.Uri 解析）
                 var quicUri = new Uri(Server);
@@ -419,7 +420,7 @@ public class MqttClient : DisposeBase
             if (Certificate != null)
             {
                 if (client is not TcpSession tcp2)
-                    throw new ArgumentException("使用SSl连接，地址需设置为tcp://开头");
+                    throw new ArgumentException(L.T("For SSL connections, the address must start with tcp://."));
 
                 tcp2.SslProtocol = SslProtocol;
                 tcp2.Certificate = Certificate;
