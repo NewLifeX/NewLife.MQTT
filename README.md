@@ -1,10 +1,19 @@
 # NewLife.MQTT — 纯国产 MQTT 协议完整实现
 
 ![GitHub top language](https://img.shields.io/github/languages/top/newlifex/newlife.mqtt?logo=github)
-![GitHub License](https://img.shields.io/github/license/newlifex/newlife.mqtt?logo=github)
-![Nuget Downloads](https://img.shields.io/nuget/dt/newlife.mqtt?logo=nuget)
-![Nuget](https://img.shields.io/nuget/v/newlife.mqtt?logo=nuget)
-![Nuget (with prereleases)](https://img.shields.io/nuget/vpre/newlife.mqtt?label=dev%20nuget&logo=nuget)
+
+
+![GitHub License](https://img.shields.io/github/license/NewLifeX/NewLife.MQTT?logo=github)
+![NuGet Downloads](https://img.shields.io/nuget/dt/NewLife.MQTT?logo=nuget)
+![NuGet](https://img.shields.io/nuget/v/NewLife.MQTT?logo=nuget)
+![NuGet prerelease](https://img.shields.io/nuget/vpre/NewLife.MQTT?label=dev%20nuget&logo=nuget)
+[![test](https://github.com/NewLifeX/NewLife.MQTT/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/NewLifeX/NewLife.MQTT/actions/workflows/test.yml)
+![platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)
+[![contributors](https://img.shields.io/github/contributors/NewLifeX/NewLife.MQTT?logo=github)](https://github.com/NewLifeX/NewLife.MQTT/graphs/contributors)
+
+<!-- lang:start -->
+🌐 [繁體中文](README.zh-TW.md) | [English](README.en.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Português](README.pt.md) | [Русский](README.ru.md) | [한국어](README.ko.md) | [العربية](README.ar.md)
+<!-- lang:end -->
 
 **NewLife.MQTT** 是一款**纯国产自主研发、零第三方依赖、MIT 开源**的 MQTT 完整协议实现，以单一 NuGet 包同时提供功能完整的 `MqttClient` 客户端和高性能 `MqttServer` 服务端（Broker），覆盖 .NET Framework 4.5 至 .NET 10 全部主流运行时。
 
@@ -324,8 +333,6 @@ await client.PublishPropertyAsync(new { temperature = 25.6 });
 
 ---
 
-
-
 ## 核心特点
 
 | 特点 | 说明 |
@@ -588,8 +595,6 @@ Lease离开集群，调用N-1次。
 |          [SmartA2](https://github.com/NewLifeX/SmartA2)          | 2019  | 嵌入式工业计算机，物联网边缘网关，高性能.NET8主机，应用于工业、农业、交通、医疗             |
 |                          FIoT物联网平台                          | 2020  | 物联网整体解决方案，建筑、环保、农业，软硬件及大数据分析一体化，单机十万级点位项目验证      |
 |                        UWB高精度室内定位                         | 2020  | 厘米级（10~20cm）高精度室内定位，软硬件一体化，与其它系统联动，大型展厅项目验证             |
-
-
 
 ## 新生命开发团队
 ![XCode](https://newlifex.com/logo.png)  
