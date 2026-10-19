@@ -399,7 +399,7 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     public void LogEvent(String eventType, String format, params Object?[] args)
     {
         var msg = L.T(format, args);
-        WriteLog($"[{eventType}] {msg}");
+        Log?.InfoPrefixed($"[{Name}]", "[{0}] {1}", eventType, msg);
     }
     private void PublishMetrics(Object? state)
     {

@@ -62,7 +62,7 @@ public class MqttSnClient : DisposeBase
     public async Task<Boolean> ConnectAsync()
     {
         if (Connected) return true;
-        if (Gateway == null) throw new InvalidOperationException("Gateway not set, call SearchGatewayAsync first");
+        if (Gateway == null) throw new InvalidOperationException(L.T("Gateway not set, call SearchGatewayAsync first"));
 
         _udpClient ??= new UdpClient(LocalPort);
         _cts = new CancellationTokenSource();
@@ -121,7 +121,7 @@ public class MqttSnClient : DisposeBase
     #region Messaging
     public async Task SubscribeAsync(String topicFilter, Action<String, Byte[]> callback)
     {
-        if (!Connected) throw new InvalidOperationException("Not connected");
+        if (!Connected) throw new InvalidOperationException(L.T("Not connected"));
 
         var msgId = NextMessageId();
         var msg = new MqttSnSubscribeMessage { Flags = 0, MessageId = msgId, TopicName = topicFilter };
@@ -135,7 +135,7 @@ public class MqttSnClient : DisposeBase
 
     public async Task PublishAsync(UInt16 topicId, Byte[] data, QualityOfService qos = QualityOfService.AtMostOnce)
     {
-        if (!Connected) throw new InvalidOperationException("Not connected");
+        if (!Connected) throw new InvalidOperationException(L.T("Not connected"));
 
         var flags = (Byte)(((Int32)qos << 5) | (Int32)MqttSnTopicIdType.Normal);
         var msg = new MqttSnPublishMessage { Flags = flags, TopicId = topicId, Data = data };
@@ -152,7 +152,7 @@ public class MqttSnClient : DisposeBase
 
     public async Task<UInt16> RegisterTopicAsync(String topicName)
     {
-        if (!Connected) throw new InvalidOperationException("Not connected");
+        if (!Connected) throw new InvalidOperationException(L.T("Not connected"));
 
         var msgId = NextMessageId();
         var msg = new RegisterMessage { TopicId = 0, MessageId = msgId, TopicName = topicName };

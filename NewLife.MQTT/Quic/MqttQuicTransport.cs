@@ -86,7 +86,7 @@ public class MqttQuicClient : DisposeBase
     /// <returns></returns>
     public async Task<MqttMessage?> ReceiveAsync(CancellationToken cancellationToken = default)
     {
-        var stream = _stream ?? throw new InvalidOperationException("No QUIC connection has been established.");
+        var stream = _stream ?? throw new InvalidOperationException(L.T("No QUIC connection has been established."));
 
         using var pk = new OwnerPacket(64 * 1024);
         var bytesRead = await stream.ReadAsync(pk.GetMemory(), cancellationToken).ConfigureAwait(false);

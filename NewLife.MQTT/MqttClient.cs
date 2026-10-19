@@ -1246,13 +1246,13 @@ public class MqttClient : DisposeBase
         proxySession.Send(authMethods);
 
         var pk = await proxySession.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-        if (pk == null || pk.Length < 2 || pk[0] != 0x05) throw new InvalidOperationException("SOCKS5 proxy negotiation failed");
+        if (pk == null || pk.Length < 2 || pk[0] != 0x05) throw new InvalidOperationException(L.T("SOCKS5 proxy negotiation failed"));
 
         var chosen = pk[1];
         // 用户名密码认证（如需）
         if (chosen == 0x02)
         {
-            if (Socks5UserName.IsNullOrEmpty()) throw new InvalidOperationException("SOCKS5 proxy requires authentication");
+            if (Socks5UserName.IsNullOrEmpty()) throw new InvalidOperationException(L.T("SOCKS5 proxy requires authentication"));
 
             var userBytes = Socks5UserName.GetBytes();
             var passBytes = (Socks5Password ?? "").GetBytes();
@@ -1265,11 +1265,11 @@ public class MqttClient : DisposeBase
             proxySession.Send(authData);
 
             pk = await proxySession.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-            if (pk == null || pk.Length < 2 || pk[1] != 0x00) throw new InvalidOperationException("SOCKS5 proxy authentication failed");
+            if (pk == null || pk.Length < 2 || pk[1] != 0x00) throw new InvalidOperationException(L.T("SOCKS5 proxy authentication failed"));
         }
         else if (chosen != 0x00 && chosen != 0x02)
         {
-            throw new InvalidOperationException($"SOCKS5 proxy requires auth method 0x{chosen:X2}");
+            throw new InvalidOperationException(L.T("SOCKS5 proxy requires auth method 0x{0:X2}", chosen));
         }
 
         // 发出连接请求：CMD_CONNECT，端口转网络字节序
@@ -1293,7 +1293,7 @@ public class MqttClient : DisposeBase
         if (pk == null || pk.Length < 2 || pk[0] != 0x05 || pk[1] != 0x00)
         {
             var repCode = pk != null && pk.Length > 1 ? pk[1] : -1;
-            throw new InvalidOperationException($"SOCKS5 proxy connect failed: rep={repCode}");
+            throw new InvalidOperationException(L.T("SOCKS5 proxy connect failed: rep={0}", repCode));
         }
 
         WriteLog("SOCKS5 proxy connected to [{0}]", targetUri);

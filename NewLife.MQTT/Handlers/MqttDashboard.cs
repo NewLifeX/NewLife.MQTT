@@ -1,4 +1,5 @@
-﻿using System.Net;
+using System.Globalization;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using NewLife.Log;
@@ -179,7 +180,8 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
                 }
                 catch
                 {
-                    var err = Encoding.UTF8.GetBytes("{\"code\":500,\"message\":\"API \u8bf7\u6c42\u5931\u8d25\"}");
+                    var message = JsonEscape(L.T("API request failed"));
+                    var err = Encoding.UTF8.GetBytes("{\"code\":500,\"message\":\"" + message + "\"}");
                     resp.StatusCode = 500;
                     resp.ContentType = "application/json; charset=utf-8";
                     resp.ContentLength64 = err.Length;
@@ -202,11 +204,18 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
     #endregion
 
     #region Dashboard HTML
-    private static String GetDashboardHtml() => @"<!DOCTYPE html>
-<html lang=""zh-cn"">
+    private static String GetDashboardHtml()
+    {
+        var culture = Localization.Culture ?? CultureInfo.CurrentUICulture;
+        var lang = culture.Name;
+        if (lang.IsNullOrEmpty()) lang = "en";
+
+        return $$"""
+<!DOCTYPE html>
+<html lang="{{lang}}">
 <head>
-<meta charset=""UTF-8"">
-<meta name=""viewport"" content=""width=device-width,initial-scale=1"">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MQTT Broker Dashboard</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -239,38 +248,42 @@ tr:hover td{background:#f8faff}
 <body>
 <header>
   <h1>&#x1F6F0; MQTT Broker Dashboard</h1>
-  <div class=""hs"" id=""hs"">连接中…</div>
+  <div class="hs" id="hs">{{L.T("Connecting…")}}</div>
 </header>
-<div class=""wrap"">
-  <div class=""bar""><span id=""dot"" class=""dot off""></span><span id=""rl"">未连接</span></div>
-  <div class=""cards"">
-    <div class=""card""><div class=""lbl"">在线客户端</div><div class=""val"" id=""c1"">—</div><div class=""sub"">峰值 <span id=""c1m"">—</span></div></div>
-    <div class=""card""><div class=""lbl"">接收速率</div><div class=""val"" id=""c2"">—</div><div class=""sub"">条/秒</div></div>
-    <div class=""card""><div class=""lbl"">发送速率</div><div class=""val"" id=""c3"">—</div><div class=""sub"">条/秒</div></div>
-    <div class=""card""><div class=""lbl"">活跃订阅</div><div class=""val"" id=""c4"">—</div><div class=""sub"">主题数 <span id=""c4t"">—</span></div></div>
-    <div class=""card""><div class=""lbl"">保留消息</div><div class=""val"" id=""c5"">—</div><div class=""sub"">条</div></div>
-    <div class=""card""><div class=""lbl"">累计消息</div><div class=""val"" id=""c6"">—</div><div class=""sub"">收 <span id=""c6r"">—</span> 发 <span id=""c6s"">—</span></div></div>
+<div class="wrap">
+  <div class="bar"><span id="dot" class="dot off"></span><span id="rl">{{L.T("Not connected")}}</span></div>
+  <div class="cards">
+    <div class="card"><div class="lbl">{{L.T("Online clients")}}</div><div class="val" id="c1">—</div><div class="sub">{{L.T("Peak")}} <span id="c1m">—</span></div></div>
+    <div class="card"><div class="lbl">{{L.T("Received per second")}}</div><div class="val" id="c2">—</div><div class="sub">{{L.T("messages/s")}}</div></div>
+    <div class="card"><div class="lbl">{{L.T("Sent per second")}}</div><div class="val" id="c3">—</div><div class="sub">{{L.T("messages/s")}}</div></div>
+    <div class="card"><div class="lbl">{{L.T("Active subscriptions")}}</div><div class="val" id="c4">—</div><div class="sub">{{L.T("Topics")}} <span id="c4t">—</span></div></div>
+    <div class="card"><div class="lbl">{{L.T("Retained messages")}}</div><div class="val" id="c5">—</div><div class="sub">{{L.T("messages")}}</div></div>
+    <div class="card"><div class="lbl">{{L.T("Total messages")}}</div><div class="val" id="c6">—</div><div class="sub">{{L.T("RX")}} <span id="c6r">—</span> {{L.T("TX")}} <span id="c6s">—</span></div></div>
   </div>
-  <div class=""grid2"">
-    <div class=""sec"">
-      <h2>已连接客户端 <span class=""bdg"" id=""cCnt"">0</span></h2>
-      <table><thead><tr><th>#</th><th>Client ID</th></tr></thead><tbody id=""cTb""></tbody></table>
+  <div class="grid2">
+    <div class="sec">
+      <h2>{{L.T("Connected clients")}} <span class="bdg" id="cCnt">0</span></h2>
+      <table><thead><tr><th>#</th><th>Client ID</th></tr></thead><tbody id="cTb"></tbody></table>
     </div>
-    <div class=""sec"">
-      <h2>主题订阅 <span class=""bdg"" id=""tCnt"">0</span></h2>
-      <table><thead><tr><th>主题</th><th style=""width:70px;text-align:right"">订阅数</th></tr></thead><tbody id=""tTb""></tbody></table>
+    <div class="sec">
+      <h2>{{L.T("Topic subscriptions")}} <span class="bdg" id="tCnt">0</span></h2>
+      <table><thead><tr><th>{{L.T("Topic")}}</th><th style="width:70px;text-align:right">{{L.T("Subscriptions")}}</th></tr></thead><tbody id="tTb"></tbody></table>
     </div>
   </div>
-  <div class=""sec"">
-    <h2>保留消息主题 <span class=""bdg"" id=""rCnt"">0</span></h2>
-    <table><thead><tr><th>#</th><th>主题</th></tr></thead><tbody id=""rTb""></tbody></table>
+  <div class="sec">
+    <h2>{{L.T("Retained message topics")}} <span class="bdg" id="rCnt">0</span></h2>
+    <table><thead><tr><th>#</th><th>{{L.T("Topic")}}</th></tr></thead><tbody id="rTb"></tbody></table>
   </div>
-  <p class=""mt"" id=""ut""></p>
+  <p class="mt" id="ut"></p>
 </div>
 <script>
 var cd=5,cdT=null;
+var TXT_EMPTY='{{Js(L.T("No data"))}}',TXT_STARTED='{{Js(L.T("Started: "))}}',TXT_UPTIME='{{Js(L.T("Uptime: "))}}';
+var TXT_RUNNING='{{Js(L.T("Running · "))}}',TXT_REFRESH='{{Js(L.T("Refresh in {0} seconds"))}}';
+var TXT_FAILED='{{Js(L.T("Connection failed"))}}',TXT_FAILED_PREFIX='{{Js(L.T("Connection failed: "))}}';
 function fmt(n){if(n==null)return'—';if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e4)return(n/1e3).toFixed(0)+'K';return''+n;}
-function tb(id,rows){document.getElementById(id).innerHTML=rows||'<tr><td colspan=""9"" class=""empty"">暂无数据</td></tr>';}
+function refreshText(n){return TXT_REFRESH.replace('{0}',n);}
+function tb(id,rows){document.getElementById(id).innerHTML=rows||'<tr><td colspan="9" class="empty">'+TXT_EMPTY+'</td></tr>';}
 function esc(s){return(''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function g(o,a,b){return o[a]!==undefined?o[a]:(o[b]!==undefined?o[b]:0);}
 async function load(){
@@ -294,30 +307,36 @@ async function load(){
     document.getElementById('c6r').textContent=fmt(rx);
     document.getElementById('c6s').textContent=fmt(tx);
     var ut=g(sd,'uptime','Uptime'),st=g(sd,'startTime','StartTime');
-    document.getElementById('ut').textContent='启动：'+(st||'')+'　运行：'+(ut||'');
+    document.getElementById('ut').textContent=TXT_STARTED+(st||'')+' '+TXT_UPTIME+(ut||'');
     document.getElementById('cCnt').textContent=cld.length;
     tb('cTb',cld.length?cld.map(function(c,i){return'<tr><td>'+(i+1)+'</td><td>'+esc(c)+'</td></tr>';}).join(''):'');
     var tkeys=Object.keys(tpd||{});
     document.getElementById('tCnt').textContent=tkeys.length;
-    tb('tTb',tkeys.length?tkeys.map(function(k){return'<tr><td>'+esc(k)+'</td><td style=""text-align:right""><span class=""bdg"">'+tpd[k]+'</span></td></tr>';}).join(''):'');
+    tb('tTb',tkeys.length?tkeys.map(function(k){return'<tr><td>'+esc(k)+'</td><td style="text-align:right"><span class="bdg">'+tpd[k]+'</span></td></tr>';}).join(''):'');
     document.getElementById('rCnt').textContent=red.length;
     tb('rTb',red.length?red.map(function(r,i){return'<tr><td>'+(i+1)+'</td><td>'+esc(r)+'</td></tr>';}).join(''):'');
     document.getElementById('dot').className='dot';
-    document.getElementById('hs').textContent='运行中 · '+new Date().toLocaleTimeString();
-    document.getElementById('rl').textContent='5秒后刷新';cd=5;
+    document.getElementById('hs').textContent=TXT_RUNNING+new Date().toLocaleTimeString();
+    document.getElementById('rl').textContent=refreshText(5);cd=5;
   }catch(e){
     document.getElementById('dot').className='dot off';
-    document.getElementById('rl').textContent='连接失败：'+e.message;
-    document.getElementById('hs').textContent='连接失败';
+    document.getElementById('rl').textContent=TXT_FAILED_PREFIX+e.message;
+    document.getElementById('hs').textContent=TXT_FAILED;
   }
 }
 window.onload=function(){
   load();
-  cdT=setInterval(function(){cd--;if(cd<=0){cd=5;load();document.getElementById('rl').textContent='5秒后刷新';}else document.getElementById('rl').textContent=cd+'秒后刷新';},1000);
+  cdT=setInterval(function(){cd--;if(cd<=0){cd=5;load();document.getElementById('rl').textContent=refreshText(5);}else document.getElementById('rl').textContent=refreshText(cd);},1000);
 };
 </script>
 </body>
-</html>";
+</html>
+""";
+    }
+
+    private static String Js(String text) => text.Replace("\\", "\\\\").Replace("'", "\\'");
+
+    private static String JsonEscape(String text) => text.Replace("\\", "\\\\").Replace("\"", "\\\"");
     #endregion
 
     #region 日志

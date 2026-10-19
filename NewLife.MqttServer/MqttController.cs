@@ -50,7 +50,7 @@ internal class MqttController : MqttHandler
 
     protected override UnsubAck OnUnsubscribe(UnsubscribeMessage message)
     {
-        _log.InfoPrefixed("[MqttServer] ", "Client [{0}] unsubscribed from topics [{1}]", Session.Remote, String.Join("、", message.TopicFilters));
+        _log.InfoPrefixed("[MqttServer] ", "Client [{0}] unsubscribed from topics [{1}]", Session.Remote, String.Join(", ", message.TopicFilters));
 
         defaultManagedMqttClient.UnSubTopic(Session, message.TopicFilters);
 
@@ -59,7 +59,7 @@ internal class MqttController : MqttHandler
 
     protected override SubAck OnSubscribe(SubscribeMessage message)
     {
-        _log.InfoPrefixed("[MqttServer] ", "Client [{0}] subscribed to topics [{1}]", Session.Remote, String.Join("、", message.Requests.Select(p => p.TopicFilter)));
+        _log.InfoPrefixed("[MqttServer] ", "Client [{0}] subscribed to topics [{1}]", Session.Remote, String.Join(", ", message.Requests.Select(p => p.TopicFilter)));
 
         defaultManagedMqttClient.SubTopic(Session, message.Requests);
 

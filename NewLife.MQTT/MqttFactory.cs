@@ -34,7 +34,7 @@ public class MqttFactory
                 break;
         }
 
-        throw new NotSupportedException($"{type}");
+        throw new NotSupportedException(L.T("Unsupported message type: {0}", type));
         //return null;
     }
 
