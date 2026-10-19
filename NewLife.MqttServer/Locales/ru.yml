@@ -1,0 +1,6 @@
+# ru translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Клиент [{0}] подключен, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Клиент [{0}] отключен"
+"Publish [{0}:qos={1}]: {2}": "Публикация [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Клиент [{0}] отписался от тем [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Клиент [{0}] подписался на темы [{1}]"

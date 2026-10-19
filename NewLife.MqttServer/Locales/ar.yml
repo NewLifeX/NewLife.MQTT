@@ -1,0 +1,6 @@
+# ar translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "العميل [{0}] متصل، user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "تم قطع اتصال العميل [{0}]"
+"Publish [{0}:qos={1}]: {2}": "نشر [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "ألغى العميل [{0}] الاشتراك في المواضيع [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "اشترك العميل [{0}] في المواضيع [{1}]"

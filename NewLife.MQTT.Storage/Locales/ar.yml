@@ -1,0 +1,5 @@
+# ar translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "فشلت عملية التخزين: {0}, {1}"
+"Save persistent session [{0}]": "حفظ الجلسة الدائمة [{0}]"
+"Clear persistent session [{0}]": "مسح الجلسة الدائمة [{0}]"
+"Enqueue offline message [{0}]": "إضافة رسالة غير متصلة [{0}] إلى قائمة الانتظار"

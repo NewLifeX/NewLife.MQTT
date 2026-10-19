@@ -1,2 +1,5 @@
 # 繁體中文譯文。鍵為英文源文，缺失時執行期回退英文。
 "Storage operation failed: {0}, {1}": "存儲失敗：{0}，{1}"
+"Save persistent session [{0}]": "儲存持久會話[{0}]"
+"Clear persistent session [{0}]": "清除持久會話[{0}]"
+"Enqueue offline message [{0}]": "離線訊息入列[{0}]"

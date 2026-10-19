@@ -1,3 +1,6 @@
 # 简体中文译文。键为英文源文，缺失时运行期回退英文。
 # MQTT 存储日志
 "Storage operation failed: {0}, {1}": "存储失败：{0}，{1}"
+"Save persistent session [{0}]": "保存持久会话[{0}]"
+"Clear persistent session [{0}]": "清除持久会话[{0}]"
+"Enqueue offline message [{0}]": "离线消息入队[{0}]"

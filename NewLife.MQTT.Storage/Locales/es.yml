@@ -1,0 +1,5 @@
+# es translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Error en la operación de almacenamiento: {0}, {1}"
+"Save persistent session [{0}]": "Guardar sesión persistente [{0}]"
+"Clear persistent session [{0}]": "Borrar sesión persistente [{0}]"
+"Enqueue offline message [{0}]": "Encolar mensaje sin conexión [{0}]"

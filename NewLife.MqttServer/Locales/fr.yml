@@ -1,0 +1,6 @@
+# fr translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Client [{0}] connecté, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Client [{0}] déconnecté"
+"Publish [{0}:qos={1}]: {2}": "Publication [{0}:qos={1}] : {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Le client [{0}] s'est désabonné des rubriques [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Le client [{0}] s'est abonné aux rubriques [{1}]"

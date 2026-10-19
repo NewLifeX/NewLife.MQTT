@@ -1,0 +1,5 @@
+# de translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Speichervorgang fehlgeschlagen: {0}, {1}"
+"Save persistent session [{0}]": "Persistente Sitzung [{0}] speichern"
+"Clear persistent session [{0}]": "Persistente Sitzung [{0}] löschen"
+"Enqueue offline message [{0}]": "Offline-Nachricht [{0}] einreihen"

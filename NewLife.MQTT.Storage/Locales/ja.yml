@@ -1,0 +1,5 @@
+# ja translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "ストレージ操作に失敗しました: {0}, {1}"
+"Save persistent session [{0}]": "永続セッション [{0}] を保存"
+"Clear persistent session [{0}]": "永続セッション [{0}] を削除"
+"Enqueue offline message [{0}]": "オフラインメッセージ [{0}] をキューに追加"

@@ -1,0 +1,5 @@
+# ko translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "스토리지 작업 실패: {0}, {1}"
+"Save persistent session [{0}]": "영구 세션 [{0}] 저장"
+"Clear persistent session [{0}]": "영구 세션 [{0}] 지우기"
+"Enqueue offline message [{0}]": "오프라인 메시지 [{0}] 대기열에 추가"

@@ -1,0 +1,5 @@
+# ru translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Ошибка операции хранилища: {0}, {1}"
+"Save persistent session [{0}]": "Сохранить постоянный сеанс [{0}]"
+"Clear persistent session [{0}]": "Очистить постоянный сеанс [{0}]"
+"Enqueue offline message [{0}]": "Поставить офлайн-сообщение [{0}] в очередь"
