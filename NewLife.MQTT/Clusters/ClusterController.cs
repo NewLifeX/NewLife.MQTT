@@ -125,7 +125,7 @@ public class ClusterController : IHttpController
     {
         var items = ToSubscriptionInfos(infos);
 
-        _cluster.WriteLog("Node [{0}] subscribed: {1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        _cluster.WriteLog("Node [{0}] subscribed: {1}", Context?.Connection?.Remote, items.Join(",", e => L.T("{0}(client={1})", e.Topic, e.ClientId)));
 
         // 集群订阅3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
@@ -147,7 +147,7 @@ public class ClusterController : IHttpController
     {
         var items = ToSubscriptionInfos(infos);
 
-        _cluster.WriteLog("Node [{0}] unsubscribed: {1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        _cluster.WriteLog("Node [{0}] unsubscribed: {1}", Context?.Connection?.Remote, items.Join(",", e => L.T("{0}(client={1})", e.Topic, e.ClientId)));
 
         // 集群退订3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;

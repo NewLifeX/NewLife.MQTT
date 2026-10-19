@@ -97,7 +97,7 @@ public class ProxyMessageV2
                     //var src_addr = reader.ReadBytes(16);
                     //var dst_addr = reader.ReadBytes(16);
 
-                    throw new NotSupportedException();
+                    throw new NotSupportedException(L.T("The PROXY protocol does not support Unix domain sockets."));
                 }
                 //break;
         }

@@ -216,7 +216,7 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MQTT Broker Dashboard</title>
+<title>{{Html(L.T("MQTT Broker Dashboard"))}}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#333}
@@ -247,32 +247,32 @@ tr:hover td{background:#f8faff}
 </head>
 <body>
 <header>
-  <h1>&#x1F6F0; MQTT Broker Dashboard</h1>
-  <div class="hs" id="hs">{{L.T("Connecting…")}}</div>
+  <h1>&#x1F6F0; {{Html(L.T("MQTT Broker Dashboard"))}}</h1>
+  <div class="hs" id="hs">{{Html(L.T("Connecting…"))}}</div>
 </header>
 <div class="wrap">
-  <div class="bar"><span id="dot" class="dot off"></span><span id="rl">{{L.T("Not connected")}}</span></div>
+  <div class="bar"><span id="dot" class="dot off"></span><span id="rl">{{Html(L.T("Not connected"))}}</span></div>
   <div class="cards">
-    <div class="card"><div class="lbl">{{L.T("Online clients")}}</div><div class="val" id="c1">—</div><div class="sub">{{L.T("Peak")}} <span id="c1m">—</span></div></div>
-    <div class="card"><div class="lbl">{{L.T("Received per second")}}</div><div class="val" id="c2">—</div><div class="sub">{{L.T("messages/s")}}</div></div>
-    <div class="card"><div class="lbl">{{L.T("Sent per second")}}</div><div class="val" id="c3">—</div><div class="sub">{{L.T("messages/s")}}</div></div>
-    <div class="card"><div class="lbl">{{L.T("Active subscriptions")}}</div><div class="val" id="c4">—</div><div class="sub">{{L.T("Topics")}} <span id="c4t">—</span></div></div>
-    <div class="card"><div class="lbl">{{L.T("Retained messages")}}</div><div class="val" id="c5">—</div><div class="sub">{{L.T("messages")}}</div></div>
-    <div class="card"><div class="lbl">{{L.T("Total messages")}}</div><div class="val" id="c6">—</div><div class="sub">{{L.T("RX")}} <span id="c6r">—</span> {{L.T("TX")}} <span id="c6s">—</span></div></div>
+    <div class="card"><div class="lbl">{{Html(L.T("Online clients"))}}</div><div class="val" id="c1">—</div><div class="sub">{{Html(L.T("Peak"))}} <span id="c1m">—</span></div></div>
+    <div class="card"><div class="lbl">{{Html(L.T("Received per second"))}}</div><div class="val" id="c2">—</div><div class="sub">{{Html(L.T("messages/s"))}}</div></div>
+    <div class="card"><div class="lbl">{{Html(L.T("Sent per second"))}}</div><div class="val" id="c3">—</div><div class="sub">{{Html(L.T("messages/s"))}}</div></div>
+    <div class="card"><div class="lbl">{{Html(L.T("Active subscriptions"))}}</div><div class="val" id="c4">—</div><div class="sub">{{Html(L.T("Topics"))}} <span id="c4t">—</span></div></div>
+    <div class="card"><div class="lbl">{{Html(L.T("Retained messages"))}}</div><div class="val" id="c5">—</div><div class="sub">{{Html(L.T("messages"))}}</div></div>
+    <div class="card"><div class="lbl">{{Html(L.T("Total messages"))}}</div><div class="val" id="c6">—</div><div class="sub">{{Html(L.T("RX"))}} <span id="c6r">—</span> {{Html(L.T("TX"))}} <span id="c6s">—</span></div></div>
   </div>
   <div class="grid2">
     <div class="sec">
-      <h2>{{L.T("Connected clients")}} <span class="bdg" id="cCnt">0</span></h2>
-      <table><thead><tr><th>#</th><th>Client ID</th></tr></thead><tbody id="cTb"></tbody></table>
+      <h2>{{Html(L.T("Connected clients"))}} <span class="bdg" id="cCnt">0</span></h2>
+      <table><thead><tr><th>#</th><th>{{Html(L.T("Client ID"))}}</th></tr></thead><tbody id="cTb"></tbody></table>
     </div>
     <div class="sec">
-      <h2>{{L.T("Topic subscriptions")}} <span class="bdg" id="tCnt">0</span></h2>
-      <table><thead><tr><th>{{L.T("Topic")}}</th><th style="width:70px;text-align:right">{{L.T("Subscriptions")}}</th></tr></thead><tbody id="tTb"></tbody></table>
+      <h2>{{Html(L.T("Topic subscriptions"))}} <span class="bdg" id="tCnt">0</span></h2>
+      <table><thead><tr><th>{{Html(L.T("Topic"))}}</th><th style="width:70px;text-align:right">{{Html(L.T("Subscriptions"))}}</th></tr></thead><tbody id="tTb"></tbody></table>
     </div>
   </div>
   <div class="sec">
-    <h2>{{L.T("Retained message topics")}} <span class="bdg" id="rCnt">0</span></h2>
-    <table><thead><tr><th>#</th><th>{{L.T("Topic")}}</th></tr></thead><tbody id="rTb"></tbody></table>
+    <h2>{{Html(L.T("Retained message topics"))}} <span class="bdg" id="rCnt">0</span></h2>
+    <table><thead><tr><th>#</th><th>{{Html(L.T("Topic"))}}</th></tr></thead><tbody id="rTb"></tbody></table>
   </div>
   <p class="mt" id="ut"></p>
 </div>
@@ -334,9 +334,11 @@ window.onload=function(){
 """;
     }
 
-    private static String Js(String text) => text.Replace("\\", "\\\\").Replace("'", "\\'");
+    private static String Js(String text) => text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\r", "\\r").Replace("\n", "\\n").Replace("</", "<\\/");
 
-    private static String JsonEscape(String text) => text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+    private static String Html(String text) => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+
+    private static String JsonEscape(String text) => text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
     #endregion
 
     #region 日志

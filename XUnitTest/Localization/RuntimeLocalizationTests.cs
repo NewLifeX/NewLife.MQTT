@@ -115,6 +115,8 @@ public class RuntimeLocalizationTests
             var html = (String)method!.Invoke(null, null)!;
             Assert.Contains("lang=\"zh-Hans\"", html);
             Assert.Contains("在线客户端", html);
+            Assert.Contains("MQTT Broker 看板", html);
+            Assert.Contains("客户端 ID", html);
             Assert.DoesNotContain("Online clients", html);
         }
 
@@ -123,6 +125,8 @@ public class RuntimeLocalizationTests
             var html = (String)method!.Invoke(null, null)!;
             Assert.Contains("lang=\"en\"", html);
             Assert.Contains("Online clients", html);
+            Assert.Contains("MQTT Broker Dashboard", html);
+            Assert.Contains("Client ID", html);
             Assert.DoesNotContain("在线客户端", html);
         }
     }

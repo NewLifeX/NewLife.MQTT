@@ -172,7 +172,7 @@ public class RouteDegradation : DisposeBase
                     : ClusterRouteMode.Flat;
                 if (degradeMode < CurrentMode)
                 {
-                    SwitchMode(degradeMode, $"auto-degradation (error rate {ErrorRate:P1} > {DegradationErrorRateThreshold:P1})");
+                    SwitchMode(degradeMode, L.T("auto-degradation (error rate {0:P1} > {1:P1})", ErrorRate, DegradationErrorRateThreshold));
                     return;
                 }
             }
@@ -181,8 +181,8 @@ public class RouteDegradation : DisposeBase
             if (recommended != CurrentMode)
             {
                 var reason = recommended > CurrentMode
-                    ? $"scale up (nodes={NodeCount})"
-                    : $"scale down (nodes={NodeCount})";
+                    ? L.T("scale up (nodes={0})", NodeCount)
+                    : L.T("scale down (nodes={0})", NodeCount);
                 SwitchMode(recommended, reason);
             }
         }
