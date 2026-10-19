@@ -11,10 +11,10 @@
 [![contributors](https://img.shields.io/github/contributors/NewLifeX/NewLife.MQTT?logo=github)](https://github.com/NewLifeX/NewLife.MQTT/graphs/contributors)
 
 <!-- lang:start -->
-🌐 [中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [Español](README.es.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Português](README.pt.md) | [Русский](README.ru.md) | [한국어](README.ko.md) | [العربية](README.ar.md)
+🌐 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [日本語](README.ja.md) | [Français](README.fr.md) | [Português](README.pt.md) | [Русский](README.ru.md) | [한국어](README.ko.md) | [العربية](README.ar.md)
 <!-- lang:end -->
 
-> Diese Übersetzung kann hinter der chinesischen Version zurückliegen.
+> Diese Übersetzung kann hinter dem [English README](README.md) zurückliegen.
 
 NewLife.MQTT ist ein rein verwalteter MQTT-3.1/3.1.1/5.0-Client und -Server mit QoS, Retained Messages, Will, Shared Subscriptions und TLS.
 
