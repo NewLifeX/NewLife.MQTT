@@ -1,6 +1,13 @@
-# 繁體中文譯文。鍵為英文源文，缺失時執行期回退英文。
+# zh-Hant translations. Keys are English source; missing entries fall back to English.
 "Client [{0}] connected, user={1} pass={2} clientId={3}": "客戶端[{0}]連接 user={1} pass={2} clientId={3}"
 "Client [{0}] disconnected": "客戶端[{0}]斷開"
 "Publish [{0}:qos={1}]: {2}": "發布[{0}:qos={1}]: {2}"
 "Client [{0}] unsubscribed from topics [{1}]": "客戶端[{0}]取消訂閱主題[{1}]"
 "Client [{0}] subscribed to topics [{1}]": "客戶端[{0}]訂閱主題[{1}]"
+"Debug switch. Default false.": "偵錯開關。預設 false"
+"Port. Default 1883.": "連接埠。預設 1883"
+"Cluster port. Default 0; 2883 is recommended.": "叢集連接埠。預設 0，建議 2883"
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "叢集節點，格式 ip1:port1,ip2:port2，可以包含目前節點"
+"Enable WebSocket. Default true.": "是否啟用 WebSocket。預設 true"
+"WebSocket port. Default 8083.": "WebSocket 連接埠。預設 8083"
+"WebSocket path. Default /mqtt.": "WebSocket 路徑。預設 /mqtt"

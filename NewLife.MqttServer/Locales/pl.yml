@@ -1,0 +1,13 @@
+# pl translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Klient [{0}] połączony, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Klient [{0}] rozłączony"
+"Publish [{0}:qos={1}]: {2}": "Publikuj [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Klient [{0}] anulował subskrypcję tematów [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Klient [{0}] subskrybował tematy [{1}]"
+"Debug switch. Default false.": "Przełącznik debugowania. Domyślnie false."
+"Port. Default 1883.": "Port. Domyślnie 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Port klastra. Domyślnie 0; zalecane 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Węzły klastra, format ip1:port1,ip2:port2. Może obejmować ten węzeł."
+"Enable WebSocket. Default true.": "Włącz WebSocket. Domyślnie true."
+"WebSocket port. Default 8083.": "Port WebSocket. Domyślnie 8083."
+"WebSocket path. Default /mqtt.": "Ścieżka WebSocket. Domyślnie /mqtt."

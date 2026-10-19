@@ -1,0 +1,5 @@
+# bn translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "স্টোরেজ অপারেশন ব্যর্থ: {0}, {1}"
+"Save persistent session [{0}]": "স্থায়ী সেশন [{0}] সংরক্ষণ করুন"
+"Clear persistent session [{0}]": "স্থায়ী সেশন [{0}] সাফ করুন"
+"Enqueue offline message [{0}]": "অফলাইন বার্তা [{0}] সারিতে যোগ করুন"

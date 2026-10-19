@@ -1,0 +1,13 @@
+# hi translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "क्लाइंट [{0}] कनेक्ट हुआ, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "क्लाइंट [{0}] डिस्कनेक्ट हुआ"
+"Publish [{0}:qos={1}]: {2}": "प्रकाशित करें [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "क्लाइंट [{0}] ने विषयों [{1}] की सदस्यता छोड़ी"
+"Client [{0}] subscribed to topics [{1}]": "क्लाइंट [{0}] ने विषयों [{1}] की सदस्यता ली"
+"Debug switch. Default false.": "डिबग स्विच। डिफ़ॉल्ट false।"
+"Port. Default 1883.": "पोर्ट। डिफ़ॉल्ट 1883।"
+"Cluster port. Default 0; 2883 is recommended.": "क्लस्टर पोर्ट। डिफ़ॉल्ट 0; 2883 अनुशंसित है।"
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "क्लस्टर नोड्स, प्रारूप ip1:port1,ip2:port2। इसमें यह नोड शामिल हो सकता है।"
+"Enable WebSocket. Default true.": "WebSocket सक्षम करें। डिफ़ॉल्ट true।"
+"WebSocket port. Default 8083.": "WebSocket पोर्ट। डिफ़ॉल्ट 8083।"
+"WebSocket path. Default /mqtt.": "WebSocket पथ। डिफ़ॉल्ट /mqtt।"

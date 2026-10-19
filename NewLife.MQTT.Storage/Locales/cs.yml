@@ -1,0 +1,5 @@
+# cs translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Operace úložiště selhala: {0}, {1}"
+"Save persistent session [{0}]": "Uložit trvalou relaci [{0}]"
+"Clear persistent session [{0}]": "Vymazat trvalou relaci [{0}]"
+"Enqueue offline message [{0}]": "Zařadit offline zprávu [{0}] do fronty"

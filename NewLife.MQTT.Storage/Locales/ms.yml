@@ -1,0 +1,5 @@
+# ms translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Operasi storan gagal: {0}, {1}"
+"Save persistent session [{0}]": "Simpan sesi berterusan [{0}]"
+"Clear persistent session [{0}]": "Kosongkan sesi berterusan [{0}]"
+"Enqueue offline message [{0}]": "Masukkan mesej luar talian [{0}] ke dalam baris gilir"

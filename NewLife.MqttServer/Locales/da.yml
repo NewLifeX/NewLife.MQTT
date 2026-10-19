@@ -1,0 +1,13 @@
+# da translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Klient [{0}] forbundet, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Klient [{0}] afbrudt"
+"Publish [{0}:qos={1}]: {2}": "Publicer [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Klient [{0}] afmeldte emnerne [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Klient [{0}] tilmeldte emnerne [{1}]"
+"Debug switch. Default false.": "Fejlfindingskontakt. Standard false."
+"Port. Default 1883.": "Port. Standard 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Klyngeport. Standard 0; 2883 anbefales."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Klyngenoder, format ip1:port1,ip2:port2. Kan omfatte denne node."
+"Enable WebSocket. Default true.": "Aktiver WebSocket. Standard true."
+"WebSocket port. Default 8083.": "WebSocket-port. Standard 8083."
+"WebSocket path. Default /mqtt.": "WebSocket-sti. Standard /mqtt."

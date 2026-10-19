@@ -1,0 +1,13 @@
+# fa translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "کلاینت [{0}] متصل شد، user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "کلاینت [{0}] قطع شد"
+"Publish [{0}:qos={1}]: {2}": "انتشار [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "کلاینت [{0}] از موضوعات [{1}] لغو اشتراک کرد"
+"Client [{0}] subscribed to topics [{1}]": "کلاینت [{0}] در موضوعات [{1}] مشترک شد"
+"Debug switch. Default false.": "کلید اشکال‌زدایی. پیش‌فرض false."
+"Port. Default 1883.": "پورت. پیش‌فرض 1883."
+"Cluster port. Default 0; 2883 is recommended.": "پورت خوشه. پیش‌فرض 0؛ 2883 توصیه می‌شود."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "گره‌های خوشه، قالب ip1:port1,ip2:port2. ممکن است شامل این گره باشد."
+"Enable WebSocket. Default true.": "فعال‌سازی WebSocket. پیش‌فرض true."
+"WebSocket port. Default 8083.": "پورت WebSocket. پیش‌فرض 8083."
+"WebSocket path. Default /mqtt.": "مسیر WebSocket. پیش‌فرض /mqtt."

@@ -1,0 +1,13 @@
+# he translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "הלקוח [{0}] התחבר, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "הלקוח [{0}] התנתק"
+"Publish [{0}:qos={1}]: {2}": "פרסום [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "הלקוח [{0}] ביטל את המנוי לנושאים [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "הלקוח [{0}] נרשם לנושאים [{1}]"
+"Debug switch. Default false.": "מתג ניפוי. ברירת מחדל false."
+"Port. Default 1883.": "יציאה. ברירת מחדל 1883."
+"Cluster port. Default 0; 2883 is recommended.": "יציאת האשכול. ברירת מחדל 0; מומלץ 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "צמתי האשכול, תבנית ip1:port1,ip2:port2. עשוי לכלול צומת זו."
+"Enable WebSocket. Default true.": "הפעל WebSocket. ברירת מחדל true."
+"WebSocket port. Default 8083.": "יציאת WebSocket. ברירת מחדל 8083."
+"WebSocket path. Default /mqtt.": "נתיב WebSocket. ברירת מחדל /mqtt."

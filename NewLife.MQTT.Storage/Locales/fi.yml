@@ -1,0 +1,5 @@
+# fi translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Tallennustoiminto epäonnistui: {0}, {1}"
+"Save persistent session [{0}]": "Tallenna pysyvä istunto [{0}]"
+"Clear persistent session [{0}]": "Tyhjennä pysyvä istunto [{0}]"
+"Enqueue offline message [{0}]": "Lisää offline-viesti [{0}] jonoon"

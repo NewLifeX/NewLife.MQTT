@@ -1,0 +1,13 @@
+# sv translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Klient [{0}] ansluten, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Klient [{0}] frånkopplad"
+"Publish [{0}:qos={1}]: {2}": "Publicera [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Klient [{0}] avprenumererade ämnena [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Klient [{0}] prenumererade på ämnena [{1}]"
+"Debug switch. Default false.": "Felsökningsväxlare. Standard false."
+"Port. Default 1883.": "Port. Standard 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Klusterport. Standard 0; 2883 rekommenderas."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Klusternoder, format ip1:port1,ip2:port2. Kan inkludera denna nod."
+"Enable WebSocket. Default true.": "Aktivera WebSocket. Standard true."
+"WebSocket port. Default 8083.": "WebSocket-port. Standard 8083."
+"WebSocket path. Default /mqtt.": "WebSocket-sökväg. Standard /mqtt."

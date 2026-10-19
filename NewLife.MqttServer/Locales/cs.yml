@@ -1,0 +1,13 @@
+# cs translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Klient [{0}] připojen, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Klient [{0}] odpojen"
+"Publish [{0}:qos={1}]: {2}": "Publikace [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Klient [{0}] se odhlásil z témat [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Klient [{0}] se přihlásil k tématům [{1}]"
+"Debug switch. Default false.": "Přepínač ladění. Výchozí false."
+"Port. Default 1883.": "Port. Výchozí 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Port clusteru. Výchozí 0; doporučuje se 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Uzly clusteru, formát ip1:port1,ip2:port2. Může zahrnovat tento uzel."
+"Enable WebSocket. Default true.": "Povolit WebSocket. Výchozí true."
+"WebSocket port. Default 8083.": "Port WebSocket. Výchozí 8083."
+"WebSocket path. Default /mqtt.": "Cesta WebSocket. Výchozí /mqtt."

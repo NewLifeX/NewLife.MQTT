@@ -1,0 +1,5 @@
+# tr translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Depolama işlemi başarısız: {0}, {1}"
+"Save persistent session [{0}]": "Kalıcı oturumu kaydet [{0}]"
+"Clear persistent session [{0}]": "Kalıcı oturumu temizle [{0}]"
+"Enqueue offline message [{0}]": "Çevrimdışı mesajı [{0}] kuyruğa al"

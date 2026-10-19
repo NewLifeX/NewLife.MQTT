@@ -1,0 +1,13 @@
+# vi translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Máy khách [{0}] đã kết nối, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Máy khách [{0}] đã ngắt kết nối"
+"Publish [{0}:qos={1}]: {2}": "Xuất bản [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Máy khách [{0}] đã hủy đăng ký các chủ đề [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Máy khách [{0}] đã đăng ký các chủ đề [{1}]"
+"Debug switch. Default false.": "Công tắc gỡ lỗi. Mặc định false."
+"Port. Default 1883.": "Cổng. Mặc định 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Cổng cụm. Mặc định 0; khuyến nghị 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Nút cụm, định dạng ip1:port1,ip2:port2. Có thể bao gồm nút này."
+"Enable WebSocket. Default true.": "Bật WebSocket. Mặc định true."
+"WebSocket port. Default 8083.": "Cổng WebSocket. Mặc định 8083."
+"WebSocket path. Default /mqtt.": "Đường dẫn WebSocket. Mặc định /mqtt."

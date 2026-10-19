@@ -1,0 +1,13 @@
+# ro translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Clientul [{0}] conectat, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Clientul [{0}] deconectat"
+"Publish [{0}:qos={1}]: {2}": "Publicare [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Clientul [{0}] s-a dezabonat de la subiectele [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Clientul [{0}] s-a abonat la subiectele [{1}]"
+"Debug switch. Default false.": "Comutator de depanare. Implicit false."
+"Port. Default 1883.": "Port. Implicit 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Portul clusterului. Implicit 0; se recomandă 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Noduri de cluster, format ip1:port1,ip2:port2. Poate include acest nod."
+"Enable WebSocket. Default true.": "Activează WebSocket. Implicit true."
+"WebSocket port. Default 8083.": "Port WebSocket. Implicit 8083."
+"WebSocket path. Default /mqtt.": "Cale WebSocket. Implicit /mqtt."

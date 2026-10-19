@@ -1,7 +1,13 @@
-# 简体中文译文。键为英文源文，缺失时运行期回退英文。
-# MQTT 服务端示例日志
+# zh-Hans translations. Keys are English source; missing entries fall back to English.
 "Client [{0}] connected, user={1} pass={2} clientId={3}": "客户端[{0}]连接 user={1} pass={2} clientId={3}"
 "Client [{0}] disconnected": "客户端[{0}]断开"
 "Publish [{0}:qos={1}]: {2}": "发布[{0}:qos={1}]: {2}"
 "Client [{0}] unsubscribed from topics [{1}]": "客户端[{0}]取消订阅主题[{1}]"
 "Client [{0}] subscribed to topics [{1}]": "客户端[{0}]订阅主题[{1}]"
+"Debug switch. Default false.": "调试开关。默认 false"
+"Port. Default 1883.": "端口。默认 1883"
+"Cluster port. Default 0; 2883 is recommended.": "集群端口。默认 0，建议 2883"
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "集群节点，格式 ip1:port1,ip2:port2，可以包含当前节点"
+"Enable WebSocket. Default true.": "是否启用 WebSocket。默认 true"
+"WebSocket port. Default 8083.": "WebSocket 端口。默认 8083"
+"WebSocket path. Default /mqtt.": "WebSocket 路径。默认 /mqtt"

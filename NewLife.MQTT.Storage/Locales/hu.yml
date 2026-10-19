@@ -1,0 +1,5 @@
+# hu translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "A tárolási művelet sikertelen: {0}, {1}"
+"Save persistent session [{0}]": "Állandó munkamenet mentése [{0}]"
+"Clear persistent session [{0}]": "Állandó munkamenet törlése [{0}]"
+"Enqueue offline message [{0}]": "Offline üzenet [{0}] sorba állítása"

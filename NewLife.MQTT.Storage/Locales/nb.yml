@@ -1,0 +1,5 @@
+# nb translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Lagringsoperasjonen mislyktes: {0}, {1}"
+"Save persistent session [{0}]": "Lagre vedvarende økt [{0}]"
+"Clear persistent session [{0}]": "Fjern vedvarende økt [{0}]"
+"Enqueue offline message [{0}]": "Sett offline-melding [{0}] i kø"

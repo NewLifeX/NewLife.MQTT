@@ -1,0 +1,5 @@
+# uk translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Операція сховища не вдалася: {0}, {1}"
+"Save persistent session [{0}]": "Зберегти постійний сеанс [{0}]"
+"Clear persistent session [{0}]": "Очистити постійний сеанс [{0}]"
+"Enqueue offline message [{0}]": "Поставити офлайн-повідомлення [{0}] в чергу"

@@ -1,0 +1,5 @@
+# id translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Operasi penyimpanan gagal: {0}, {1}"
+"Save persistent session [{0}]": "Simpan sesi persisten [{0}]"
+"Clear persistent session [{0}]": "Hapus sesi persisten [{0}]"
+"Enqueue offline message [{0}]": "Antrekan pesan offline [{0}]"

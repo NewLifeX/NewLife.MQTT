@@ -1,0 +1,13 @@
+# fi translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Asiakas [{0}] yhdistetty, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Asiakas [{0}] irrotettu"
+"Publish [{0}:qos={1}]: {2}": "Julkaise [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Asiakas [{0}] peruutti aiheiden [{1}] tilauksen"
+"Client [{0}] subscribed to topics [{1}]": "Asiakas [{0}] tilasi aiheet [{1}]"
+"Debug switch. Default false.": "Virheenkorjauskytkin. Oletus false."
+"Port. Default 1883.": "Portti. Oletus 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Klusterin portti. Oletus 0; 2883 on suositeltu."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Klusterin solmut, muoto ip1:port1,ip2:port2. Voi sisältää tämän solmun."
+"Enable WebSocket. Default true.": "Ota WebSocket käyttöön. Oletus true."
+"WebSocket port. Default 8083.": "WebSocket-portti. Oletus 8083."
+"WebSocket path. Default /mqtt.": "WebSocket-polku. Oletus /mqtt."

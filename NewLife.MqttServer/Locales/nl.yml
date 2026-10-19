@@ -1,0 +1,13 @@
+# nl translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Client [{0}] verbonden, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Client [{0}] verbroken"
+"Publish [{0}:qos={1}]: {2}": "Publiceren [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Client [{0}] heeft zich afgemeld voor onderwerpen [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Client [{0}] heeft zich aangemeld voor onderwerpen [{1}]"
+"Debug switch. Default false.": "Foutopsporingsschakelaar. Standaard false."
+"Port. Default 1883.": "Poort. Standaard 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Clusterpoort. Standaard 0; 2883 wordt aanbevolen."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Clusternodes, indeling ip1:port1,ip2:port2. Kan dit knooppunt bevatten."
+"Enable WebSocket. Default true.": "WebSocket inschakelen. Standaard true."
+"WebSocket port. Default 8083.": "WebSocket-poort. Standaard 8083."
+"WebSocket path. Default /mqtt.": "WebSocket-pad. Standaard /mqtt."

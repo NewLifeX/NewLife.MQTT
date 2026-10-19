@@ -1,0 +1,13 @@
+# el translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Ο πελάτης [{0}] συνδέθηκε, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Ο πελάτης [{0}] αποσυνδέθηκε"
+"Publish [{0}:qos={1}]: {2}": "Δημοσίευση [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Ο πελάτης [{0}] απεγγράφηκε από τα θέματα [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Ο πελάτης [{0}] εγγράφηκε στα θέματα [{1}]"
+"Debug switch. Default false.": "Διακόπτης αποσφαλμάτωσης. Προεπιλογή false."
+"Port. Default 1883.": "Θύρα. Προεπιλογή 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Θύρα συμπλέγματος. Προεπιλογή 0; συνιστάται 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Κόμβοι συμπλέγματος, μορφή ip1:port1,ip2:port2. Μπορεί να περιλαμβάνει αυτόν τον κόμβο."
+"Enable WebSocket. Default true.": "Ενεργοποίηση WebSocket. Προεπιλογή true."
+"WebSocket port. Default 8083.": "Θύρα WebSocket. Προεπιλογή 8083."
+"WebSocket path. Default /mqtt.": "Διαδρομή WebSocket. Προεπιλογή /mqtt."

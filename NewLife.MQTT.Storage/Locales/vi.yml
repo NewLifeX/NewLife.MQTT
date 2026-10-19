@@ -1,0 +1,5 @@
+# vi translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Thao tác lưu trữ thất bại: {0}, {1}"
+"Save persistent session [{0}]": "Lưu phiên liên tục [{0}]"
+"Clear persistent session [{0}]": "Xóa phiên liên tục [{0}]"
+"Enqueue offline message [{0}]": "Đưa tin nhắn ngoại tuyến [{0}] vào hàng đợi"

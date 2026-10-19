@@ -1,0 +1,5 @@
+# fa translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "عملیات ذخیره‌سازی ناموفق بود: {0}, {1}"
+"Save persistent session [{0}]": "ذخیره نشست پایدار [{0}]"
+"Clear persistent session [{0}]": "پاک کردن نشست پایدار [{0}]"
+"Enqueue offline message [{0}]": "قرار دادن پیام آفلاین [{0}] در صف"

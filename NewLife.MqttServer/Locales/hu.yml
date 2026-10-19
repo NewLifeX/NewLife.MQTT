@@ -1,0 +1,13 @@
+# hu translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Ügyfél [{0}] csatlakozva, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Ügyfél [{0}] leválasztva"
+"Publish [{0}:qos={1}]: {2}": "Közzététel [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Ügyfél [{0}] leiratkozott a következő témákról: [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Ügyfél [{0}] feliratkozott a következő témákra: [{1}]"
+"Debug switch. Default false.": "Hibakeresési kapcsoló. Alapértelmezett false."
+"Port. Default 1883.": "Port. Alapértelmezett 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Fürtport. Alapértelmezett 0; a 2883 ajánlott."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Fürtcsomópontok, formátum ip1:port1,ip2:port2. Tartalmazhatja ezt a csomópontot."
+"Enable WebSocket. Default true.": "WebSocket engedélyezése. Alapértelmezett true."
+"WebSocket port. Default 8083.": "WebSocket-port. Alapértelmezett 8083."
+"WebSocket path. Default /mqtt.": "WebSocket-útvonal. Alapértelmezett /mqtt."

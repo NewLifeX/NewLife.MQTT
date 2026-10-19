@@ -1,0 +1,13 @@
+# id translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Klien [{0}] terhubung, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Klien [{0}] terputus"
+"Publish [{0}:qos={1}]: {2}": "Publikasikan [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Klien [{0}] berhenti berlangganan topik [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Klien [{0}] berlangganan topik [{1}]"
+"Debug switch. Default false.": "Sakelar debug. Default false."
+"Port. Default 1883.": "Port. Default 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Port klaster. Default 0; 2883 disarankan."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Node klaster, format ip1:port1,ip2:port2. Dapat mencakup node ini."
+"Enable WebSocket. Default true.": "Aktifkan WebSocket. Default true."
+"WebSocket port. Default 8083.": "Port WebSocket. Default 8083."
+"WebSocket path. Default /mqtt.": "Jalur WebSocket. Default /mqtt."

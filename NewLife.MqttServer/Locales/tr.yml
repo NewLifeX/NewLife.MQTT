@@ -1,0 +1,13 @@
+# tr translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "İstemci [{0}] bağlandı, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "İstemci [{0}] bağlantısı kesildi"
+"Publish [{0}:qos={1}]: {2}": "Yayınla [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "İstemci [{0}], [{1}] konularından aboneliği iptal etti"
+"Client [{0}] subscribed to topics [{1}]": "İstemci [{0}], [{1}] konularına abone oldu"
+"Debug switch. Default false.": "Hata ayıklama anahtarı. Varsayılan false."
+"Port. Default 1883.": "Bağlantı noktası. Varsayılan 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Küme bağlantı noktası. Varsayılan 0; 2883 önerilir."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Küme düğümleri, biçim ip1:port1,ip2:port2. Bu düğümü içerebilir."
+"Enable WebSocket. Default true.": "WebSocket'i etkinleştir. Varsayılan true."
+"WebSocket port. Default 8083.": "WebSocket bağlantı noktası. Varsayılan 8083."
+"WebSocket path. Default /mqtt.": "WebSocket yolu. Varsayılan /mqtt."

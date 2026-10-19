@@ -1,0 +1,13 @@
+# th translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "ไคลเอนต์ [{0}] เชื่อมต่อแล้ว, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "ไคลเอนต์ [{0}] ตัดการเชื่อมต่อแล้ว"
+"Publish [{0}:qos={1}]: {2}": "เผยแพร่ [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "ไคลเอนต์ [{0}] ยกเลิกการสมัครรับหัวข้อ [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "ไคลเอนต์ [{0}] สมัครรับหัวข้อ [{1}]"
+"Debug switch. Default false.": "สวิตช์ดีบัก ค่าเริ่มต้น false"
+"Port. Default 1883.": "พอร์ต ค่าเริ่มต้น 1883"
+"Cluster port. Default 0; 2883 is recommended.": "พอร์ตคลัสเตอร์ ค่าเริ่มต้น 0; แนะนำ 2883"
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "โหนดคลัสเตอร์ รูปแบบ ip1:port1,ip2:port2 อาจรวมโหนดนี้"
+"Enable WebSocket. Default true.": "เปิดใช้ WebSocket ค่าเริ่มต้น true"
+"WebSocket port. Default 8083.": "พอร์ต WebSocket ค่าเริ่มต้น 8083"
+"WebSocket path. Default /mqtt.": "พาธ WebSocket ค่าเริ่มต้น /mqtt"

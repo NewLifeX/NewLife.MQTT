@@ -1,0 +1,5 @@
+# el translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Η λειτουργία αποθήκευσης απέτυχε: {0}, {1}"
+"Save persistent session [{0}]": "Αποθήκευση μόνιμης συνεδρίας [{0}]"
+"Clear persistent session [{0}]": "Εκκαθάριση μόνιμης συνεδρίας [{0}]"
+"Enqueue offline message [{0}]": "Ουρά μηνύματος εκτός σύνδεσης [{0}]"

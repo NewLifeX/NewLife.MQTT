@@ -1,0 +1,5 @@
+# nl translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Opslagbewerking mislukt: {0}, {1}"
+"Save persistent session [{0}]": "Permanente sessie [{0}] opslaan"
+"Clear persistent session [{0}]": "Permanente sessie [{0}] wissen"
+"Enqueue offline message [{0}]": "Offlinebericht [{0}] in wachtrij plaatsen"

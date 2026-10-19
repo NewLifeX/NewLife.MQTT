@@ -1,0 +1,13 @@
+# uk translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "Клієнт [{0}] підключено, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "Клієнт [{0}] відключено"
+"Publish [{0}:qos={1}]: {2}": "Публікація [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "Клієнт [{0}] скасував підписку на теми [{1}]"
+"Client [{0}] subscribed to topics [{1}]": "Клієнт [{0}] підписався на теми [{1}]"
+"Debug switch. Default false.": "Перемикач налагодження. Типово false."
+"Port. Default 1883.": "Порт. Типово 1883."
+"Cluster port. Default 0; 2883 is recommended.": "Порт кластера. Типово 0; рекомендовано 2883."
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "Вузли кластера, формат ip1:port1,ip2:port2. Може включати цей вузол."
+"Enable WebSocket. Default true.": "Увімкнути WebSocket. Типово true."
+"WebSocket port. Default 8083.": "Порт WebSocket. Типово 8083."
+"WebSocket path. Default /mqtt.": "Шлях WebSocket. Типово /mqtt."

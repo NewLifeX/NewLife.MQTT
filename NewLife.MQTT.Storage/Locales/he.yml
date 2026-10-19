@@ -1,0 +1,5 @@
+# he translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "פעולת האחסון נכשלה: {0}, {1}"
+"Save persistent session [{0}]": "שמור הפעלה מתמשכת [{0}]"
+"Clear persistent session [{0}]": "נקה הפעלה מתמשכת [{0}]"
+"Enqueue offline message [{0}]": "הוסף הודעת לא מקוונת [{0}] לתור"

@@ -1,0 +1,5 @@
+# da translations. Keys are English source; missing entries fall back to English.
+"Storage operation failed: {0}, {1}": "Lagringsoperation mislykkedes: {0}, {1}"
+"Save persistent session [{0}]": "Gem vedvarende session [{0}]"
+"Clear persistent session [{0}]": "Ryd vedvarende session [{0}]"
+"Enqueue offline message [{0}]": "Sæt offlinebesked [{0}] i kø"

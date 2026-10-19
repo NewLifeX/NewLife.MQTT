@@ -1,0 +1,13 @@
+# bn translations. Keys are English source; missing entries fall back to English.
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "ক্লায়েন্ট [{0}] সংযুক্ত, user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "ক্লায়েন্ট [{0}] সংযোগ বিচ্ছিন্ন"
+"Publish [{0}:qos={1}]: {2}": "প্রকাশ [{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "ক্লায়েন্ট [{0}] বিষয় [{1}] থেকে আনসাবস্ক্রাইব করেছে"
+"Client [{0}] subscribed to topics [{1}]": "ক্লায়েন্ট [{0}] বিষয় [{1}] সাবস্ক্রাইব করেছে"
+"Debug switch. Default false.": "ডিবাগ সুইচ। ডিফল্ট false।"
+"Port. Default 1883.": "পোর্ট। ডিফল্ট 1883।"
+"Cluster port. Default 0; 2883 is recommended.": "ক্লাস্টার পোর্ট। ডিফল্ট 0; 2883 সুপারিশ করা হয়।"
+"Cluster nodes, format ip1:port1,ip2:port2. May include this node.": "ক্লাস্টার নোড, ফরম্যাট ip1:port1,ip2:port2। এই নোড অন্তর্ভুক্ত থাকতে পারে।"
+"Enable WebSocket. Default true.": "WebSocket সক্রিয় করুন। ডিফল্ট true।"
+"WebSocket port. Default 8083.": "WebSocket পোর্ট। ডিফল্ট 8083।"
+"WebSocket path. Default /mqtt.": "WebSocket পাথ। ডিফল্ট /mqtt।"
