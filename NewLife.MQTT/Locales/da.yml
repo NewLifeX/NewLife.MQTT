@@ -1,0 +1,10 @@
+# Dansk 词表（da）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Klyngens delte hemmelighed stemmer ikke."
+"Message exchange is not configured.": "Meddelelsesudveksling er ikke konfigureret."
+"Invalid management token.": "Ugyldigt administrationstoken."
+"The message payload length is insufficient.": "Meddelelsens nyttelast er for kort."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC understøttes ikke på denne platform; der kræves Windows 11 eller Linux med msquic."
+"For SSL connections, the address must start with tcp://.": "For SSL-forbindelser skal adressen begynde med tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT-protokollen understøtter ikke at sende headere og brødtekst separat."
+"ServiceProvider is not configured.": "ServiceProvider er ikke konfigureret."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QuicCertificate skal angives for at starte en QUIC-listener; QUIC kræver TLS."

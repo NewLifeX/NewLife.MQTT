@@ -1,0 +1,10 @@
+# Magyar 词表（hu）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "A fürt közös titka nem egyezik."
+"Message exchange is not configured.": "Az üzenetváltás nincs beállítva."
+"Invalid management token.": "Érvénytelen felügyeleti token."
+"The message payload length is insufficient.": "Az üzenet hasznos terhelésének hossza nem elegendő."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "A QUIC nem támogatott ezen a platformon; Windows 11 vagy msquic-et tartalmazó Linux szükséges."
+"For SSL connections, the address must start with tcp://.": "SSL-kapcsolatoknál a címnek tcp:// előtaggal kell kezdődnie."
+"The MQTT protocol does not support sending headers and bodies separately.": "Az MQTT protokoll nem támogatja a fejlécek és a törzs külön küldését."
+"ServiceProvider is not configured.": "A ServiceProvider nincs beállítva."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "A QUIC-figyelő indításához meg kell adni a QuicCertificate értéket; a QUIC TLS-t igényel."

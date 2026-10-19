@@ -1,0 +1,10 @@
+# Română 词表（ro）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Secretul partajat al clusterului nu corespunde."
+"Message exchange is not configured.": "Schimbul de mesaje nu este configurat."
+"Invalid management token.": "Token de administrare nevalid."
+"The message payload length is insufficient.": "Lungimea încărcăturii mesajului este insuficientă."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC nu este acceptat pe această platformă; este necesar Windows 11 sau Linux cu msquic."
+"For SSL connections, the address must start with tcp://.": "Pentru conexiunile SSL, adresa trebuie să înceapă cu tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Protocolul MQTT nu acceptă trimiterea separată a antetelor și a corpului."
+"ServiceProvider is not configured.": "ServiceProvider nu este configurat."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QuicCertificate trebuie specificat pentru a porni un receptor QUIC; QUIC necesită TLS."

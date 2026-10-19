@@ -1,0 +1,10 @@
+# Ελληνικά 词表（el）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Το κοινόχρηστο μυστικό του cluster δεν ταιριάζει."
+"Message exchange is not configured.": "Η ανταλλαγή μηνυμάτων δεν έχει ρυθμιστεί."
+"Invalid management token.": "Μη έγκυρο διακριτικό διαχείρισης."
+"The message payload length is insufficient.": "Το μήκος του φορτίου του μηνύματος είναι ανεπαρκές."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "Το QUIC δεν υποστηρίζεται σε αυτή την πλατφόρμα· απαιτείται Windows 11 ή Linux με msquic."
+"For SSL connections, the address must start with tcp://.": "Για συνδέσεις SSL, η διεύθυνση πρέπει να ξεκινά με tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Το πρωτόκολλο MQTT δεν υποστηρίζει αποστολή κεφαλίδων και σώματος χωριστά."
+"ServiceProvider is not configured.": "Το ServiceProvider δεν έχει ρυθμιστεί."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "Πρέπει να καθοριστεί QuicCertificate για την εκκίνηση ακροατή QUIC· το QUIC απαιτεί TLS."

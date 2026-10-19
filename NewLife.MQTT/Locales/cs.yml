@@ -1,0 +1,10 @@
+# Čeština 词表（cs）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Sdílené tajemství clusteru nesouhlasí."
+"Message exchange is not configured.": "Výměna zpráv není nakonfigurována."
+"Invalid management token.": "Neplatný token správy."
+"The message payload length is insufficient.": "Délka datové části zprávy je nedostatečná."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC není na této platformě podporováno; vyžaduje se Windows 11 nebo Linux s msquic."
+"For SSL connections, the address must start with tcp://.": "U připojení SSL musí adresa začínat na tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Protokol MQTT nepodporuje samostatné odesílání hlaviček a těl."
+"ServiceProvider is not configured.": "ServiceProvider není nakonfigurován."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "Pro spuštění listeneru QUIC je nutné zadat QuicCertificate; QUIC vyžaduje TLS."

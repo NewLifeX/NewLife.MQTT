@@ -1,0 +1,10 @@
+# Русский 词表（ru）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Общий секрет кластера не совпадает."
+"Message exchange is not configured.": "Обмен сообщениями не настроен."
+"Invalid management token.": "Недопустимый токен управления."
+"The message payload length is insufficient.": "Длина полезной нагрузки сообщения недостаточна."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC не поддерживается на этой платформе; требуется Windows 11 или Linux с msquic."
+"For SSL connections, the address must start with tcp://.": "Для SSL-подключений адрес должен начинаться с tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Протокол MQTT не поддерживает раздельную отправку заголовков и тела."
+"ServiceProvider is not configured.": "ServiceProvider не настроен."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "Для запуска прослушивателя QUIC необходимо указать QuicCertificate; QUIC требует TLS."

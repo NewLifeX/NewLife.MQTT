@@ -1,0 +1,10 @@
+# Українська 词表（uk）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Спільний секрет кластера не збігається."
+"Message exchange is not configured.": "Обмін повідомленнями не налаштовано."
+"Invalid management token.": "Недійсний токен керування."
+"The message payload length is insufficient.": "Довжина корисного навантаження повідомлення недостатня."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC не підтримується на цій платформі; потрібен Windows 11 або Linux з msquic."
+"For SSL connections, the address must start with tcp://.": "Для SSL-з'єднань адреса має починатися з tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Протокол MQTT не підтримує роздільне надсилання заголовків і тіла."
+"ServiceProvider is not configured.": "ServiceProvider не налаштовано."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "Для запуску прослуховувача QUIC потрібно вказати QuicCertificate; QUIC вимагає TLS."

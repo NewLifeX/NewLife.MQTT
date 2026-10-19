@@ -1,0 +1,10 @@
+# Bahasa Indonesia 词表（id）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Rahasia bersama klaster tidak cocok."
+"Message exchange is not configured.": "Pertukaran pesan belum dikonfigurasi."
+"Invalid management token.": "Token manajemen tidak valid."
+"The message payload length is insufficient.": "Panjang muatan pesan tidak mencukupi."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC tidak didukung pada platform ini; diperlukan Windows 11 atau Linux dengan msquic."
+"For SSL connections, the address must start with tcp://.": "Untuk koneksi SSL, alamat harus diawali dengan tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Protokol MQTT tidak mendukung pengiriman header dan isi secara terpisah."
+"ServiceProvider is not configured.": "ServiceProvider belum dikonfigurasi."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QuicCertificate harus ditentukan untuk memulai pendengar QUIC; QUIC memerlukan TLS."

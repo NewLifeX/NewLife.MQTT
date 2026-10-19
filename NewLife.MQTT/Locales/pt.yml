@@ -1,0 +1,10 @@
+# Português 词表（pt）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "O segredo compartilhado do cluster não corresponde."
+"Message exchange is not configured.": "A troca de mensagens não está configurada."
+"Invalid management token.": "Token de gerenciamento inválido."
+"The message payload length is insufficient.": "O comprimento da carga útil da mensagem é insuficiente."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "O QUIC não é suportado nesta plataforma; é necessário Windows 11 ou Linux com msquic."
+"For SSL connections, the address must start with tcp://.": "Para conexões SSL, o endereço deve começar com tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "O protocolo MQTT não permite enviar cabeçalhos e corpos separadamente."
+"ServiceProvider is not configured.": "ServiceProvider não está configurado."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QuicCertificate deve ser especificado para iniciar um ouvinte QUIC; o QUIC exige TLS."

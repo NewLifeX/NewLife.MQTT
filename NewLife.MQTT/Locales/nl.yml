@@ -1,0 +1,10 @@
+# Nederlands 词表（nl）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Het gedeelde geheim van het cluster komt niet overeen."
+"Message exchange is not configured.": "Berichtuitwisseling is niet geconfigureerd."
+"Invalid management token.": "Ongeldig beheertoken."
+"The message payload length is insufficient.": "De lengte van de berichtpayload is onvoldoende."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC wordt niet ondersteund op dit platform; Windows 11 of Linux met msquic is vereist."
+"For SSL connections, the address must start with tcp://.": "Voor SSL-verbindingen moet het adres beginnen met tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Het MQTT-protocol ondersteunt niet het apart verzenden van headers en bodies."
+"ServiceProvider is not configured.": "ServiceProvider is niet geconfigureerd."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QuicCertificate moet worden opgegeven om een QUIC-listener te starten; QUIC vereist TLS."

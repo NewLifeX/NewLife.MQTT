@@ -1,0 +1,10 @@
+# العربية 词表（ar）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "السر المشترك للكتلة غير مطابق."
+"Message exchange is not configured.": "تبادل الرسائل غير مُهيّأ."
+"Invalid management token.": "رمز الإدارة غير صالح."
+"The message payload length is insufficient.": "طول حِمل الرسالة غير كافٍ."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC غير مدعوم على هذه المنصة؛ يلزم Windows 11 أو Linux مع msquic."
+"For SSL connections, the address must start with tcp://.": "لاتصالات SSL، يجب أن يبدأ العنوان بـ tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "بروتوكول MQTT لا يدعم إرسال الرؤوس والأجسام بشكل منفصل."
+"ServiceProvider is not configured.": "لم يتم تكوين ServiceProvider."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "يجب تحديد QuicCertificate لبدء مستمع QUIC؛ يتطلب QUIC بروتوكول TLS."

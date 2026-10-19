@@ -1,0 +1,10 @@
+# ไทย 词表（th）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "ข้อมูลลับที่ใช้ร่วมกันของคลัสเตอร์ไม่ตรงกัน"
+"Message exchange is not configured.": "ยังไม่ได้กำหนดค่าการแลกเปลี่ยนข้อความ"
+"Invalid management token.": "โทเค็นการจัดการไม่ถูกต้อง"
+"The message payload length is insufficient.": "ความยาวเพย์โหลดของข้อความไม่เพียงพอ"
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "แพลตฟอร์มนี้ไม่รองรับ QUIC ต้องใช้ Windows 11 หรือ Linux ที่มี msquic"
+"For SSL connections, the address must start with tcp://.": "สำหรับการเชื่อมต่อ SSL ที่อยู่ต้องขึ้นต้นด้วย tcp://"
+"The MQTT protocol does not support sending headers and bodies separately.": "โปรโตคอล MQTT ไม่รองรับการส่งเฮดเดอร์และบอดี้แยกกัน"
+"ServiceProvider is not configured.": "ยังไม่ได้กำหนดค่า ServiceProvider"
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "ต้องระบุ QuicCertificate เพื่อเริ่มตัวรับฟัง QUIC เพราะ QUIC ต้องใช้ TLS"

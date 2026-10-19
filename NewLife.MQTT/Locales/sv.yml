@@ -1,0 +1,10 @@
+# Svenska 词表（sv）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Klustrets delade hemlighet stämmer inte."
+"Message exchange is not configured.": "Meddelandeutbyte är inte konfigurerat."
+"Invalid management token.": "Ogiltig administrationstoken."
+"The message payload length is insufficient.": "Meddelandets nyttolast är för kort."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC stöds inte på denna plattform; Windows 11 eller Linux med msquic krävs."
+"For SSL connections, the address must start with tcp://.": "För SSL-anslutningar måste adressen börja med tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT-protokollet stöder inte att skicka huvuden och brödtext separat."
+"ServiceProvider is not configured.": "ServiceProvider är inte konfigurerad."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QuicCertificate måste anges för att starta en QUIC-lyssnare; QUIC kräver TLS."

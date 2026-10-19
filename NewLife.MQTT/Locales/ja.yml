@@ -1,0 +1,10 @@
+# 日本語 词表（ja）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "クラスターの共有シークレットが一致しません。"
+"Message exchange is not configured.": "メッセージ交換が構成されていません。"
+"Invalid management token.": "管理トークンが無効です。"
+"The message payload length is insufficient.": "メッセージのペイロード長が不足しています。"
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "このプラットフォームでは QUIC はサポートされていません。Windows 11 または msquic 対応の Linux が必要です。"
+"For SSL connections, the address must start with tcp://.": "SSL 接続では、アドレスは tcp:// で始まる必要があります。"
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT プロトコルはヘッダーとボディを別々に送信することをサポートしていません。"
+"ServiceProvider is not configured.": "ServiceProvider が構成されていません。"
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QUIC リスナーを開始するには QuicCertificate を指定する必要があります。QUIC には TLS が必要です。"

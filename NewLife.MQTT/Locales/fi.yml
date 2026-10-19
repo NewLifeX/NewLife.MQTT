@@ -1,0 +1,10 @@
+# Suomi 词表（fi）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Klusterin jaettu salaisuus ei täsmää."
+"Message exchange is not configured.": "Viestien vaihtoa ei ole määritetty."
+"Invalid management token.": "Virheellinen hallintatunnus."
+"The message payload length is insufficient.": "Viestin hyötykuorman pituus ei riitä."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUICia ei tueta tällä alustalla; tarvitaan Windows 11 tai Linux ja msquic."
+"For SSL connections, the address must start with tcp://.": "SSL-yhteyksissä osoitteen on alettava merkkijonolla tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT-protokolla ei tue otsikoiden ja runkojen lähettämistä erikseen."
+"ServiceProvider is not configured.": "ServiceProvideriä ei ole määritetty."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QUIC-kuuntelijan käynnistäminen edellyttää QuicCertificate-asetusta; QUIC vaatii TLS:n."

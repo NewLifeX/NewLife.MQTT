@@ -1,0 +1,10 @@
+# עברית 词表（he）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "הסוד המשותף של האשכול אינו תואם."
+"Message exchange is not configured.": "החלפת הודעות אינה מוגדרת."
+"Invalid management token.": "אסימון ניהול לא חוקי."
+"The message payload length is insufficient.": "אורך המטען של ההודעה אינו מספיק."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC אינו נתמך בפלטפורמה זו; נדרש Windows 11 או Linux עם msquic."
+"For SSL connections, the address must start with tcp://.": "עבור חיבורי SSL, הכתובת חייבת להתחיל ב-tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "פרוטוקול MQTT אינו תומך בשליחת כותרות וגופים בנפרד."
+"ServiceProvider is not configured.": "ServiceProvider אינו מוגדר."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "יש לציין QuicCertificate כדי להפעיל מאזין QUIC; QUIC דורש TLS."

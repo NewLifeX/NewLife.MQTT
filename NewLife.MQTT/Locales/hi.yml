@@ -1,0 +1,10 @@
+# हिन्दी 词表（hi）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "क्लस्टर का साझा रहस्य मेल नहीं खाता।"
+"Message exchange is not configured.": "संदेश विनिमय कॉन्फ़िगर नहीं है।"
+"Invalid management token.": "अमान्य प्रबंधन टोकन।"
+"The message payload length is insufficient.": "संदेश पेलोड की लंबाई अपर्याप्त है।"
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "इस प्लेटफ़ॉर्म पर QUIC समर्थित नहीं है; Windows 11 या msquic वाला Linux आवश्यक है।"
+"For SSL connections, the address must start with tcp://.": "SSL कनेक्शन के लिए पता tcp:// से शुरू होना चाहिए।"
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT प्रोटोकॉल हेडर और बॉडी को अलग-अलग भेजने का समर्थन नहीं करता।"
+"ServiceProvider is not configured.": "ServiceProvider कॉन्फ़िगर नहीं है।"
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QUIC लिसनर शुरू करने के लिए QuicCertificate निर्दिष्ट करना होगा; QUIC के लिए TLS आवश्यक है।"

@@ -1,0 +1,10 @@
+# Türkçe 词表（tr）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Küme ortak gizli anahtarı eşleşmiyor."
+"Message exchange is not configured.": "İleti değişimi yapılandırılmamış."
+"Invalid management token.": "Geçersiz yönetim belirteci."
+"The message payload length is insufficient.": "İleti yükü uzunluğu yetersiz."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC bu platformda desteklenmiyor; Windows 11 veya msquic içeren Linux gerekir."
+"For SSL connections, the address must start with tcp://.": "SSL bağlantılarında adres tcp:// ile başlamalıdır."
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT protokolü başlıkların ve gövdelerin ayrı ayrı gönderilmesini desteklemez."
+"ServiceProvider is not configured.": "ServiceProvider yapılandırılmamış."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QUIC dinleyicisi başlatmak için QuicCertificate belirtilmelidir; QUIC TLS gerektirir."

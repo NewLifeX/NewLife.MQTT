@@ -1,0 +1,10 @@
+# বাংলা 词表（bn）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "ক্লাস্টারের শেয়ার্ড সিক্রেট মেলেনি।"
+"Message exchange is not configured.": "বার্তা বিনিময় কনফিগার করা হয়নি।"
+"Invalid management token.": "ব্যবস্থাপনা টোকেন অবৈধ।"
+"The message payload length is insufficient.": "বার্তার পেলোড দৈর্ঘ্য যথেষ্ট নয়।"
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "এই প্ল্যাটফর্মে QUIC সমর্থিত নয়; Windows 11 বা msquic সহ Linux প্রয়োজন।"
+"For SSL connections, the address must start with tcp://.": "SSL সংযোগের জন্য ঠিকানা অবশ্যই tcp:// দিয়ে শুরু হতে হবে।"
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT প্রোটোকল হেডার ও বডি আলাদাভাবে পাঠানো সমর্থন করে না।"
+"ServiceProvider is not configured.": "ServiceProvider কনফিগার করা হয়নি।"
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QUIC লিসেনার শুরু করতে QuicCertificate নির্দিষ্ট করতে হবে; QUIC-এর জন্য TLS প্রয়োজন।"

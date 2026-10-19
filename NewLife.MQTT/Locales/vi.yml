@@ -1,0 +1,10 @@
+# Tiếng Việt 词表（vi）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "Khóa chia sẻ của cụm không khớp."
+"Message exchange is not configured.": "Trao đổi tin nhắn chưa được cấu hình."
+"Invalid management token.": "Mã quản trị không hợp lệ."
+"The message payload length is insufficient.": "Độ dài tải trọng tin nhắn không đủ."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC không được hỗ trợ trên nền tảng này; cần Windows 11 hoặc Linux có msquic."
+"For SSL connections, the address must start with tcp://.": "Với kết nối SSL, địa chỉ phải bắt đầu bằng tcp://."
+"The MQTT protocol does not support sending headers and bodies separately.": "Giao thức MQTT không hỗ trợ gửi tiêu đề và nội dung riêng biệt."
+"ServiceProvider is not configured.": "ServiceProvider chưa được cấu hình."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "Phải chỉ định QuicCertificate để khởi động trình lắng nghe QUIC; QUIC yêu cầu TLS."

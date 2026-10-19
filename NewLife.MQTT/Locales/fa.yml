@@ -1,0 +1,10 @@
+# فارسی 词表（fa）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "رمز مشترک خوشه مطابقت ندارد."
+"Message exchange is not configured.": "تبادل پیام پیکربندی نشده است."
+"Invalid management token.": "توکن مدیریت نامعتبر است."
+"The message payload length is insufficient.": "طول بار پیام کافی نیست."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "QUIC در این پلتفرم پشتیبانی نمی‌شود؛ Windows 11 یا Linux با msquic لازم است."
+"For SSL connections, the address must start with tcp://.": "برای اتصال‌های SSL، نشانی باید با tcp:// شروع شود."
+"The MQTT protocol does not support sending headers and bodies separately.": "پروتکل MQTT از ارسال جداگانه سرآیندها و بدنه پشتیبانی نمی‌کند."
+"ServiceProvider is not configured.": "ServiceProvider پیکربندی نشده است."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "برای شروع شنونده QUIC باید QuicCertificate مشخص شود؛ QUIC به TLS نیاز دارد."

@@ -1,0 +1,10 @@
+# 한국어 词表（ko）。键为英文源文，与源码字符串逐字一致；缺少的键运行时回退英文。
+"The cluster shared secret does not match.": "클러스터 공유 비밀이 일치하지 않습니다."
+"Message exchange is not configured.": "메시지 교환이 구성되지 않았습니다."
+"Invalid management token.": "관리 토큰이 유효하지 않습니다."
+"The message payload length is insufficient.": "메시지 페이로드 길이가 충분하지 않습니다."
+"QUIC is not supported on this platform; Windows 11 or Linux with msquic is required.": "이 플랫폼에서는 QUIC가 지원되지 않습니다. Windows 11 또는 msquic이 있는 Linux가 필요합니다."
+"For SSL connections, the address must start with tcp://.": "SSL 연결의 경우 주소가 tcp://로 시작해야 합니다."
+"The MQTT protocol does not support sending headers and bodies separately.": "MQTT 프로토콜은 헤더와 본문을 별도로 보내는 것을 지원하지 않습니다."
+"ServiceProvider is not configured.": "ServiceProvider가 구성되지 않았습니다."
+"QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "QUIC 수신기를 시작하려면 QuicCertificate를 지정해야 합니다. QUIC에는 TLS가 필요합니다."
