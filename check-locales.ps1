@@ -9,7 +9,8 @@ param(
     [String]$LocaleDir = "NewLife.Core\Locales",
     [String]$Baseline = "zh-Hans.yml",
     [String[]]$SourceDir = @("NewLife.Core", "NewLife.Core.SourceGenerator"),
-    [Switch]$SkipOrphan
+    [Switch]$SkipOrphan,
+    [Switch]$Strict
 )
 
 $ErrorActionPreference = "Stop"
@@ -94,10 +95,15 @@ foreach ($file in Get-ChildItem $localeDir -Filter *.yml | Sort-Object Name) {
     $locale = Read-Locale $file.FullName
     foreach ($e in $locale.Errors) { $allErrors += "$($file.Name): $e" }
 
+    $missing = 0
     foreach ($key in $reference.Entries.Keys) {
         if (!$locale.Entries.Contains($key)) {
-            $allErrors += "$($file.Name): 缺少键 $key"
+            $missing++
+            if ($Strict) { $allErrors += "$($file.Name): 缺少键 $key" }
         }
+    }
+    if ($missing -gt 0 -and !$Strict) {
+        $allWarnings += "$($file.Name): 缺少 $missing 条译文，运行期回退英文"
     }
     foreach ($key in $locale.Entries.Keys) {
         if (!$reference.Entries.Contains($key)) {
