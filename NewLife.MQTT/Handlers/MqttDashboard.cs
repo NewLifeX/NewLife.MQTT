@@ -278,7 +278,7 @@ tr:hover td{background:#f8faff}
 </div>
 <script>
 var cd=5,cdT=null;
-var TXT_EMPTY='{{Js(L.T("No data"))}}',TXT_STARTED='{{Js(L.T("Started: "))}}',TXT_UPTIME='{{Js(L.T("Uptime: "))}}';
+var TXT_EMPTY='{{Js(Html(L.T("No data")))}}',TXT_STARTED='{{Js(L.T("Started: "))}}',TXT_UPTIME='{{Js(L.T("Uptime: "))}}';
 var TXT_RUNNING='{{Js(L.T("Running · "))}}',TXT_REFRESH='{{Js(L.T("Refresh in {0} seconds"))}}';
 var TXT_FAILED='{{Js(L.T("Connection failed"))}}',TXT_FAILED_PREFIX='{{Js(L.T("Connection failed: "))}}';
 function fmt(n){if(n==null)return'—';if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e4)return(n/1e3).toFixed(0)+'K';return''+n;}
