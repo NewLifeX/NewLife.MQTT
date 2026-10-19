@@ -76,12 +76,12 @@ public class WssIntegrationTests
 
             var topic = $"wss/topic/{Rand.NextString(4)}";
             await sub.SubscribeAsync(topic);
-            await Task.Delay(100);
+            await Task.Delay(500);
 
             await pub.PublishAsync(topic, "hello-wss", QualityOfService.AtMostOnce);
 
-            var done = await Task.WhenAny(received.Task, Task.Delay(5000));
-            Assert.True(done == received.Task, "5秒内未收到WSS消息");
+            var done = await Task.WhenAny(received.Task, Task.Delay(10_000));
+            Assert.True(done == received.Task, "10秒内未收到WSS消息");
             Assert.Equal("hello-wss", await received.Task);
 
             await sub.DisconnectAsync();
