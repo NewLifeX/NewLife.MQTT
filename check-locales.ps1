@@ -20,6 +20,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# 兼容 -SourceDir A,B,C 与 -SourceDir A B C 两种写法
+$SourceDir = @($SourceDir | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
 $root = $PSScriptRoot
 $localeDir = if ([IO.Path]::IsPathRooted($LocaleDir)) { $LocaleDir } else { Join-Path $root $LocaleDir }
 if (!(Test-Path $localeDir)) {
