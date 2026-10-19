@@ -4,15 +4,17 @@
 #   - 多余键、占位符与格式说明符不一致始终为错误
 #
 # 用法：
-#   pwsh -File check-locales.ps1                                      # Core 默认目录
+#   pwsh -File check-locales.ps1                                      # 主库默认目录
 #   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -SourceDir src\Lib
-#   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -SkipOrphan   # 下游只想校验词表内部一致性
+#   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -SkipOrphan   # 只校验词表内部一致性
+#   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -SkipSource   # 跳过源码消息与动态插值检查
 #   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -Strict        # 要求所有语言键集合完全一致
 param(
-    [String]$LocaleDir = "NewLife.Core\Locales",
+    [String]$LocaleDir = "NewLife.MQTT\Locales",
     [String]$Baseline = "zh-Hans.yml",
-    [String[]]$SourceDir = @("NewLife.Core", "NewLife.Core.SourceGenerator"),
+    [String[]]$SourceDir = @("NewLife.MQTT", "NewLife.MQTT.Storage", "NewLife.MqttServer"),
     [Switch]$SkipOrphan,
+    [Switch]$SkipSource,
     [Switch]$Strict
 )
 
@@ -134,19 +136,20 @@ foreach ($file in Get-ChildItem $localeDir -Filter *.yml | Sort-Object Name) {
     }
 }
 
-foreach ($e in $allErrors) { Write-Host $e -ForegroundColor Red }
-foreach ($w in $allWarnings) { Write-Host $w -ForegroundColor Yellow }
+$sourceDirs = @($SourceDir | ForEach-Object {
+    if ([IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $root $_ }
+} | Where-Object { Test-Path $_ })
+$allSourceFiles = @($sourceDirs | ForEach-Object { Get-ChildItem $_ -Recurse -Filter *.cs } |
+    Where-Object { $_.FullName -notmatch '\\(obj|bin|Locales)\\' })
+$sourceFiles = @($allSourceFiles | Where-Object {
+        $_.FullName -notmatch '\\WebSocket\\' -and
+        $_.Name -notin @('PruningRadixTrie.cs', 'SubscriptionManager.cs', 'Trie.cs', 'TrieNode.cs', 'MqttHandler.cs', 'MqttTypeAttribute.cs')
+    })
 
 # 孤儿键：基准表中的键在源码里完全找不到（改文案后遗留的死条目）
 $orphans = @()
 if (!$SkipOrphan) {
-    $sourceDirs = @($SourceDir | ForEach-Object {
-        if ([IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $root $_ }
-    } | Where-Object { Test-Path $_ })
-
-    $sourceText = ($sourceDirs | ForEach-Object { Get-ChildItem $_ -Recurse -Filter *.cs } |
-        Where-Object { $_.FullName -notmatch '\\(obj|bin|Locales)\\' } |
-        ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n"
+    $sourceText = ($allSourceFiles | ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n"
 
     foreach ($key in $reference.Entries.Keys) {
         # 源码中的字面量形式：制表符写作 \t，引号写作 \"
@@ -158,9 +161,48 @@ if (!$SkipOrphan) {
     foreach ($o in $orphans) { $allErrors += "孤儿键（源码中找不到）：$o" }
 }
 
-if ($allErrors.Count -gt 0) {
-    foreach ($o in $orphans) { Write-Host "孤儿键（源码中找不到）：$o" -ForegroundColor Red }
+# 源码消息：L.T 与日志格式串必须在基准词表中，动态插值串无法本地化
+if (!$SkipSource) {
+    $patterns = @(
+        @{ Name = "L.T"; Regex = 'L\.T\(\s*"((?:[^"\\]|\\.)*)"' },
+        @{ Name = "WriteLog"; Regex = '\.WriteLog\(\s*"((?:[^"\\]|\\.)*)"' },
+        @{ Name = "Log"; Regex = '\.(?:Info|Debug|Warn|Error|Fatal)\(\s*"((?:[^"\\]|\\.)*)"' },
+        @{ Name = "PrefixedLog"; Regex = '\.(?:InfoPrefixed|ErrorPrefixed|WritePrefixed)\(\s*"(?:[^"\\]|\\.)*"\s*,\s*"((?:[^"\\]|\\.)*)"' }
+    )
+
+    # 运行时语言表全局可见，源码消息只要存在于任一程序集的基准表即可
+    $knownKeys = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($k in $reference.Entries.Keys) { [void]$knownKeys.Add($k) }
+    foreach ($path in Get-ChildItem $root -Directory | ForEach-Object { Join-Path $_.FullName 'Locales\zh-Hans.yml' } | Where-Object { Test-Path $_ }) {
+        $other = Read-Locale $path
+        foreach ($k in $other.Entries.Keys) { [void]$knownKeys.Add($k) }
+    }
+
+    foreach ($file in $sourceFiles) {
+        $lineNo = 0
+        foreach ($line in Get-Content -LiteralPath $file.FullName -Encoding UTF8) {
+            $lineNo++
+            if ($line.TrimStart().StartsWith("//")) { continue }
+
+            if ($line -match '\.(?:WriteLog|Info|Debug|Warn|Error|Fatal)\(\s*\$"') {
+                $allErrors += "$($file.Name):${lineNo}: 动态插值日志无法本地化，请改用格式串加参数"
+                continue
+            }
+
+            foreach ($p in $patterns) {
+                foreach ($m in [regex]::Matches($line, $p.Regex)) {
+                    $key = Unescape-Yaml $m.Groups[1].Value
+                    if (!$knownKeys.Contains($key)) {
+                        $allErrors += "$($file.Name):${lineNo}: 源码消息缺少基准词条（$($p.Name)）→ $key"
+                    }
+                }
+            }
+        }
+    }
 }
+
+foreach ($e in $allErrors) { Write-Host $e -ForegroundColor Red }
+foreach ($w in $allWarnings) { Write-Host $w -ForegroundColor Yellow }
 
 $count = (Get-ChildItem $localeDir -Filter *.yml).Count
 if ($allErrors.Count -gt 0) {
