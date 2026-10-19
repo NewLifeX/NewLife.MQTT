@@ -1,10 +1,13 @@
 # 多语言词表一致性校验：键集合、占位符、格式说明符
-# 以基准语言文件（默认 zh-Hans.yml）为准，所有语言必须提供完全相同的键集合
+# 以基准语言文件（默认 zh-Hans.yml）为准：
+#   - 缺失键默认仅告警（运行期回退英文），加 -Strict 时视为错误
+#   - 多余键、占位符与格式说明符不一致始终为错误
 #
 # 用法：
 #   pwsh -File check-locales.ps1                                      # Core 默认目录
 #   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -SourceDir src\Lib
 #   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -SkipOrphan   # 下游只想校验词表内部一致性
+#   pwsh -File check-locales.ps1 -LocaleDir src\Lib\Locales -Strict        # 要求所有语言键集合完全一致
 param(
     [String]$LocaleDir = "NewLife.Core\Locales",
     [String]$Baseline = "zh-Hans.yml",
