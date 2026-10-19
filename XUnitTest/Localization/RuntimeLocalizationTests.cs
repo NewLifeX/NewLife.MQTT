@@ -1,8 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using NewLife;
 using NewLife.Log;
 using NewLife.MQTT;
+using NewLife.MQTT.Handlers;
+using NewLife.MQTT.Messaging;
+using NewLife.MQTT.MqttSn;
 using Xunit;
 
 namespace XUnitTest.Runtime;
@@ -56,6 +65,108 @@ public class RuntimeLocalizationTests
         log.InfoPrefixed("[Test]", "Connecting to [{0}]", "tcp://localhost:1883");
 
         Assert.Equal("[Test]Connecting to [tcp://localhost:1883]", log.Last);
+    }
+
+    [Fact(DisplayName = "本地化：zh-CN 自动映射到简体中文")]
+    public void Translate_MapsChineseRegionToSimplified()
+    {
+        using var scope = new CultureScope("zh-CN");
+
+        Assert.Equal("正在连接[tcp://localhost:1883]", Localization.Translate("Connecting to [{0}]", "tcp://localhost:1883"));
+    }
+
+    [Fact(DisplayName = "本地化：格式说明符保持有效")]
+    public void Translate_KeepsFormatSpecifier()
+    {
+        using var scope = new CultureScope("zh-Hans");
+
+        Assert.Equal("SOCKS5 代理要求认证方式 0x02", Localization.Translate("SOCKS5 proxy requires auth method 0x{0:X2}", 2));
+    }
+
+    [Fact(DisplayName = "MQTT-SN：未设置网关时抛出本地化异常")]
+    public async Task MqttSnClient_ConnectAsync_ThrowsLocalizedMessage()
+    {
+        using var scope = new CultureScope("zh-Hans");
+        using var client = new MqttSnClient();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => client.ConnectAsync());
+
+        Assert.Equal("未设置网关，请先调用 SearchGatewayAsync", ex.Message);
+    }
+
+    [Fact(DisplayName = "消息工厂：不支持的类型抛出本地化异常")]
+    public void MqttFactory_UnsupportedType_ThrowsLocalizedMessage()
+    {
+        using var scope = new CultureScope("zh-Hans");
+
+        var ex = Assert.Throws<NotSupportedException>(() => new MqttFactory().CreateMessage((MqttType)0));
+
+        Assert.Equal("不支持的消息类型：0", ex.Message);
+    }
+
+    [Fact(DisplayName = "看板：HTML 按当前语言渲染")]
+    public void DashboardHtml_UsesCurrentCulture()
+    {
+        var method = typeof(MqttDashboard).GetMethod("GetDashboardHtml", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        using (new CultureScope("zh-Hans"))
+        {
+            var html = (String)method!.Invoke(null, null)!;
+            Assert.Contains("lang=\"zh-Hans\"", html);
+            Assert.Contains("在线客户端", html);
+            Assert.DoesNotContain("Online clients", html);
+        }
+
+        using (new CultureScope("en"))
+        {
+            var html = (String)method!.Invoke(null, null)!;
+            Assert.Contains("lang=\"en\"", html);
+            Assert.Contains("Online clients", html);
+            Assert.DoesNotContain("在线客户端", html);
+        }
+    }
+
+    [Fact(DisplayName = "词表：所有语言键集合与基准一致")]
+    public void LocaleFiles_HaveSameKeys()
+    {
+        var root = FindRepositoryRoot();
+        foreach (var dir in new[] { "NewLife.MQTT/Locales", "NewLife.MQTT.Storage/Locales", "NewLife.MqttServer/Locales" })
+        {
+            var path = Path.Combine(root, dir);
+            var baseline = ReadLocaleKeys(Path.Combine(path, "zh-Hans.yml"));
+            foreach (var file in Directory.GetFiles(path, "*.yml"))
+            {
+                var keys = ReadLocaleKeys(file);
+                var missing = baseline.Except(keys).ToList();
+                var extra = keys.Except(baseline).ToList();
+                Assert.True(missing.Count == 0, $"{Path.GetFileName(file)} 缺少键：{String.Join(", ", missing)}");
+                Assert.True(extra.Count == 0, $"{Path.GetFileName(file)} 多余键：{String.Join(", ", extra)}");
+            }
+        }
+    }
+
+    private static String FindRepositoryRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "NewLife.MQTT.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(dir);
+        return dir!.FullName;
+    }
+
+    private static IList<String> ReadLocaleKeys(String file)
+    {
+        var list = new List<String>();
+        foreach (var line in File.ReadAllLines(file))
+        {
+            var match = Regex.Match(line, "^\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*:");
+            if (match.Success) list.Add(match.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\"));
+        }
+        return list;
     }
 
     private sealed class CultureScope : IDisposable
