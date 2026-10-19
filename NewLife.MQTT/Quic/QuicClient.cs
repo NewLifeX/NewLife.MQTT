@@ -84,9 +84,9 @@ public class QuicClient : DisposeBase
     {
         if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
         if (!QuicConnection.IsSupported)
-            throw new NotSupportedException("当前平台不支持 QUIC，需要 Windows 11 或安装 msquic 的 Linux");
+            throw new NotSupportedException(L.T("QUIC is not supported on this platform; Windows 11 or Linux with msquic is required."));
 
-        WriteLog("正在通过 QUIC 连接 {0}:{1}", Server, Port);
+        WriteLog("Connecting over QUIC to {0}:{1}", Server, Port);
 
         var sslOptions = new SslClientAuthenticationOptions
         {
@@ -131,14 +131,14 @@ public class QuicClient : DisposeBase
         _receiveCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _ = ReceiveLoopAsync(_receiveCts.Token);
 
-        WriteLog("QUIC 连接已建立");
+        WriteLog("QUIC connection established");
     }
 
     /// <summary>发送 MQTT 消息（不等待响应）</summary>
     /// <param name="message">MQTT 消息</param>
     public void SendMessage(MqttMessage message)
     {
-        if (_stream == null) throw new InvalidOperationException("未建立 QUIC 连接");
+            if (_stream == null) throw new InvalidOperationException(L.T("No QUIC connection has been established."));
 
         using var data = message.ToPacket();
         _stream.Write(data.GetSpan());
@@ -150,7 +150,7 @@ public class QuicClient : DisposeBase
     /// <returns>响应消息，无响应则返回 null</returns>
     public async Task<MqttMessage?> SendMessageAsync(MqttMessage message, CancellationToken cancellationToken = default)
     {
-        if (_stream == null) throw new InvalidOperationException("未建立 QUIC 连接");
+            if (_stream == null) throw new InvalidOperationException(L.T("No QUIC connection has been established."));
 
         // 分配消息 ID（用于 QoS 1/2 的消息匹配）
         if (message is MqttIdMessage idm && idm.Id == 0 && (message.Type != MqttType.Publish || message.QoS > 0))
@@ -207,7 +207,7 @@ public class QuicClient : DisposeBase
         {
             _pendingRequests.TryRemove((message as MqttIdMessage)?.Id ?? 0, out _);
             _pendingByType.TryRemove(MqttType.ConnAck, out _);
-            throw new TimeoutException($"等待服务器响应超时：{message.Type}");
+            throw new TimeoutException(L.T("Timed out waiting for the server response: {0}.", message.Type));
         }
 
         return await tcs.Task.ConfigureAwait(false);
@@ -217,7 +217,7 @@ public class QuicClient : DisposeBase
     /// <returns></returns>
     public async Task CloseAsync()
     {
-        WriteLog("关闭 QUIC 连接");
+        WriteLog("Closing QUIC connection");
 
         _receiveCts?.Cancel();
 
@@ -305,7 +305,7 @@ public class QuicClient : DisposeBase
                 if (bytesRead == 0)
                 {
                     // 连接正常关闭
-                    WriteLog("QUIC 流已关闭");
+                    WriteLog("QUIC stream closed");
                     break;
                 }
 
@@ -324,13 +324,13 @@ public class QuicClient : DisposeBase
             }
             catch (QuicException ex) when (ex.QuicError == QuicError.ConnectionAborted)
             {
-                WriteLog("QUIC 连接被中止: {0}", ex.Message);
+                WriteLog("QUIC connection aborted: {0}", ex.Message);
                 Error?.Invoke(this, ex);
                 break;
             }
             catch (Exception ex)
             {
-                WriteLog("QUIC 接收异常: {0}", ex.Message);
+                WriteLog("QUIC receive error: {0}", ex.Message);
                 Error?.Invoke(this, ex);
 
                 // 连接异常，退出接收循环
@@ -351,7 +351,7 @@ public class QuicClient : DisposeBase
         // 连接断开
         if (!cancellationToken.IsCancellationRequested && _connection != null)
         {
-            WriteLog("QUIC 接收循环退出，触发关闭");
+            WriteLog("QUIC receive loop exited; closing");
             await CloseAsync().ConfigureAwait(false);
         }
     }
@@ -401,7 +401,7 @@ public class QuicClient : DisposeBase
         }
         catch (Exception ex)
         {
-            WriteLog("解析 MQTT 消息异常: {0}", ex.Message);
+            WriteLog("Error parsing MQTT message: {0}", ex.Message);
         }
     }
 
@@ -428,7 +428,7 @@ public class QuicClient : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[QuicClient]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[QuicClient]", format, args);
     #endregion
 }
 #endif

@@ -47,7 +47,7 @@ public class MqttWebSocketHandler : WebSocketHandler
     {
         if (message.Type == WebSocketMessageType.Close)
         {
-            if (_sessions.TryGetValue(socket, out var closed)) closed.Close("WebSocket关闭");
+            if (_sessions.TryGetValue(socket, out var closed)) closed.Close(L.T("WebSocket closed"));
 
             base.ProcessMessage(socket, message);
             return;
@@ -65,8 +65,8 @@ public class MqttWebSocketHandler : WebSocketHandler
         var deframer = _deframers.GetValue(socket, e => new MqttFrameDeframer());
         if (!deframer.Process(_codec, message.Payload, frame => session.Process(frame)) && deframer.Overflow)
         {
-            _server.WriteLog("WebSocket[{0}]报文残余超限，断开连接", session.SessionId);
-            socket.Close(1009, "MQTT报文超限");
+            _server.WriteLog("WebSocket [{0}] packet residue exceeded the limit; closing the connection", session.SessionId);
+            socket.Close(1009, L.T("MQTT packet size exceeded"));
         }
     }
 
@@ -91,12 +91,12 @@ public class MqttWebSocketHandler : WebSocketHandler
             finally { data.TryDispose(); }
         }))
         {
-            socket.Close(1008, "连接速率超限");
+            socket.Close(1008, L.T("Connection rate limit exceeded"));
             return session;
         }
 
         // 底层连接断开时释放会话，触发处理器关闭与交换机注销
-        if (transport != null) transport.OnDisposed += (s, e) => session.Close("WebSocket连接断开");
+        if (transport != null) transport.OnDisposed += (s, e) => session.Close(L.T("WebSocket connection closed"));
 
         return session;
     }

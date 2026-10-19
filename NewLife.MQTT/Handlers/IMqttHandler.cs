@@ -153,13 +153,13 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         // 与 V311/V500 客户端可同服务端并存，互不干扰。
         if (message.ProtocolName == "MQIsdp")
         {
-            WriteLog("客户端 [{0}] 使用 MQTT 3.1 协议（MQIsdp），以兼容模式接入", message.ClientId);
+            WriteLog("Client [{0}] uses MQTT 3.1 (MQIsdp); connected in compatibility mode", message.ClientId);
             message.ProtocolLevel = MqttVersion.V310;
         }
         else if (message.ProtocolLevel != MqttVersion.V311 && message.ProtocolLevel != MqttVersion.V310 && message.ProtocolLevel != MqttVersion.V500)
         {
             // 未知协议版本：返回 0x01（不支持的协议版本）
-            WriteLog("客户端 [{0}] 使用未知协议版本（ProtocolName={1}, ProtocolLevel={2}），拒绝连接", message.ClientId, message.ProtocolName, (Int32)message.ProtocolLevel);
+            WriteLog("Client [{0}] uses an unknown protocol version (ProtocolName={1}, ProtocolLevel={2}); rejecting connection", message.ClientId, message.ProtocolName, (Int32)message.ProtocolLevel);
             return new ConnAck { ReturnCode = ConnectReturnCode.RefusedUnacceptableProtocolVersion };
         }
 
@@ -168,7 +168,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         {
             message.ClientId = Rand.NextString(12);
             _serverAssignedClientId = true;
-            WriteLog("客户端未提供 ClientId，服务端分配: [{0}]", message.ClientId);
+            WriteLog("Client did not provide a ClientId; the server assigned [{0}]", message.ClientId);
         }
 
         _clientId = message.ClientId;
@@ -360,7 +360,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 var info = item.Value.GetSession(clientId).GetAwaiter().GetResult();
                 if (info == null || info.ClientId.IsNullOrEmpty()) continue;
 
-                WriteLog("从集群节点[{0}]迁移会话：{1}，订阅数：{2}", item.Key, clientId, info.Subscriptions.Count);
+                WriteLog("Migrated session from cluster node [{0}]: {1}, subscriptions: {2}", item.Key, clientId, info.Subscriptions.Count);
 
                 // 本地恢复订阅关系
                 foreach (var kv in info.Subscriptions)
@@ -373,7 +373,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                 // 注入待投递的离线消息
                 if (info.PendingMessages != null && info.PendingMessages.Count > 0)
                 {
-                    WriteLog("从集群节点[{0}]迁移离线消息：{1} 条", item.Key, info.PendingMessages.Count);
+                    WriteLog("Migrated offline messages from cluster node [{0}]: {1}", item.Key, info.PendingMessages.Count);
                     foreach (var msg in info.PendingMessages)
                     {
                         exchange.Publish(msg);
@@ -467,7 +467,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
         // 消息速率限制检查
         if (MessageRateLimiter != null && !_clientId.IsNullOrEmpty() && !MessageRateLimiter.IsMessageAllowed(_clientId))
         {
-            WriteLog("客户端[{0}] 消息速率超限，丢弃消息 Topic={1}", _clientId, message.Topic);
+            WriteLog("Message rate limit exceeded for client [{0}]; dropping message Topic={1}", _clientId, message.Topic);
             // 静默丢弃：不返回 ACK，触发客户端重发，进一步降低速率
             return null;
         }
@@ -765,7 +765,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
             if (_willDelaySeconds > 0)
             {
                 // MQTT 5.0 WillDelayInterval：延迟指定秒数后发布遗嘱消息
-                WriteLog("遗嘱延迟发布：{0} 秒后发布 [{1}]", _willDelaySeconds, will.Topic);
+                WriteLog("Will message delayed: publishing [{1}] in {0} seconds", _willDelaySeconds, will.Topic);
                 _ = Task.Delay(TimeSpan.FromSeconds(_willDelaySeconds)).ContinueWith(t =>
                 {
                     // 延迟期间会话可能已断开，检查后发布
@@ -779,7 +779,7 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
                     catch (Exception ex)
                     {
                         // 延迟发布失败仅记录日志，不影响主流程
-                        WriteLog("遗嘱延迟发布失败：{0}", ex.Message);
+                        WriteLog("Failed to publish the delayed will message: {0}", ex.Message);
                     }
                 });
             }
@@ -810,6 +810,6 @@ public class MqttHandler : IMqttHandler, ITracerFeature, ILogFeature
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttServer]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttServer]", format, args);
     #endregion
 }

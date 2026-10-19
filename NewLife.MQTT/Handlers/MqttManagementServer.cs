@@ -96,7 +96,7 @@ public class MqttManagementServer : DisposeBase, IServer, ILogFeature, ITracerFe
         _httpServer = server;
         _container = container;
 
-        WriteLog("HTTP 管理 API 已启动，端口 {0}，可用接口：stats / clients / topics / retained", Port);
+        WriteLog("HTTP management API started on port {0}; endpoints: stats / clients / topics / retained", Port);
 
         // 启动 Dashboard
         if (EnableDashboard)
@@ -129,7 +129,7 @@ public class MqttManagementServer : DisposeBase, IServer, ILogFeature, ITracerFe
     /// <summary>输出日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object[] args) => Log?.Info(format, args);
+    public void WriteLog(String format, params Object[] args) => Log?.InfoPrefixed("[Management] ", format, args);
     #endregion
 }
 

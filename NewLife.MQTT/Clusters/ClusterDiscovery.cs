@@ -50,11 +50,11 @@ public class ClusterDiscovery : DisposeBase, ILogFeature
 
             _announceTimer = new TimerX(DoAnnounce, null, 1_000, AnnounceInterval * 1000);
 
-            WriteLog("集群自动发现已启动，广播端口 {0}", DiscoveryPort);
+            WriteLog("Cluster auto-discovery started; broadcast port {0}", DiscoveryPort);
         }
         catch (Exception ex)
         {
-            WriteLog("集群自动发现启动失败，端口 {0} 可能已被占用: {1}", DiscoveryPort, ex.Message);
+            WriteLog("Cluster auto-discovery failed to start; port {0} may already be in use: {1}", DiscoveryPort, ex.Message);
         }
     }
 
@@ -136,7 +136,7 @@ public class ClusterDiscovery : DisposeBase, ILogFeature
                 var endpoint = $"{ip}:{port}";
                 if (Cluster.Nodes.ContainsKey(endpoint)) continue;
 
-                WriteLog("发现集群节点 {0}，正在加入...", endpoint);
+                WriteLog("Discovered cluster node {0}; joining...", endpoint);
                 Cluster.AddNode(endpoint);
             }
             catch (OperationCanceledException) { break; }
@@ -147,6 +147,6 @@ public class ClusterDiscovery : DisposeBase, ILogFeature
 
     #region 日志
     /// <summary>写日志</summary>
-    public void WriteLog(String format, params Object[] args) => Log?.Info($"[Discovery]{format}", args);
+    public void WriteLog(String format, params Object[] args) => Log?.InfoPrefixed("[Discovery]", format, args);
     #endregion
 }

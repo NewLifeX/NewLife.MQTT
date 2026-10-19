@@ -14,21 +14,21 @@ public class MqttStorageExchange : MqttExchange
     public override void SavePersistentSession(String clientId, Int32 sessionId, IDictionary<String, QualityOfService>? subscriptions)
     {
         base.SavePersistentSession(clientId, sessionId, subscriptions);
-        FireAndForget($"保存持久会话[{clientId}]", () => Provider?.SavePersistentSessionAsync(clientId, sessionId, subscriptions));
+        FireAndForget($"Save persistent session [{clientId}]", () => Provider?.SavePersistentSessionAsync(clientId, sessionId, subscriptions));
     }
 
     /// <summary>清除持久会话（委托给存储提供者）</summary>
     public override void ClearPersistentSession(String clientId)
     {
         base.ClearPersistentSession(clientId);
-        FireAndForget($"清除持久会话[{clientId}]", () => Provider?.ClearPersistentSessionAsync(clientId));
+        FireAndForget($"Clear persistent session [{clientId}]", () => Provider?.ClearPersistentSessionAsync(clientId));
     }
 
     /// <summary>入队离线消息（委托给存储提供者）</summary>
     public override void EnqueueOfflineMessage(String clientId, PublishMessage message)
     {
         base.EnqueueOfflineMessage(clientId, message);
-        FireAndForget($"入队离线消息[{clientId}]", () => Provider?.EnqueueOfflineMessageAsync(clientId, message));
+        FireAndForget($"Enqueue offline message [{clientId}]", () => Provider?.EnqueueOfflineMessageAsync(clientId, message));
     }
 
     /// <summary>初始化存储</summary>
@@ -47,7 +47,7 @@ public class MqttStorageExchange : MqttExchange
             }
             catch (Exception ex)
             {
-                WriteLog("存储失败：{0}，{1}", action, ex.Message);
+                WriteLog("Storage operation failed: {0}, {1}", action, ex.Message);
             }
         });
     }
@@ -59,6 +59,6 @@ public class MqttStorageExchange : MqttExchange
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[{GetType().Name}]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed($"[{GetType().Name}]", format, args);
     #endregion
 }

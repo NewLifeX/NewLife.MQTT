@@ -260,7 +260,7 @@ public class MqttSnClient : DisposeBase
         return id;
     }
 
-    private void WriteLog(String format, params Object?[] args) => Log.Info(format, args);
+    private void WriteLog(String format, params Object?[] args) => Log.InfoPrefixed("[MqttSnClient] ", format, args);
     #endregion
 
     protected override void Dispose(Boolean disposing)

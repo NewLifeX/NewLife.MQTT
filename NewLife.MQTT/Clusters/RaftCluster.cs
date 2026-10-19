@@ -96,7 +96,7 @@ public class RaftCluster : DisposeBase
 
         if (nodeCount < 3)
         {
-            Cluster.WriteLog("Raft: 节点数 {0} < 3，降级为RPC广播模式（每30s检测是否有新节点加入以自动升级）", nodeCount);
+            Cluster.WriteLog("Raft: node count {0} < 3; falling back to RPC broadcast mode (checks for new nodes every 30 s to upgrade automatically)", nodeCount);
             // 定期检测是否有新节点加入，达到3节点后自动升级
             _fallbackTimer = new TimerX(TryUpgradeFromFallback, null, 30_000, 30_000) { Async = true };
             State = RaftState.Follower;
@@ -109,7 +109,7 @@ public class RaftCluster : DisposeBase
         // 启动为Follower，等待选举超时
         BecomeFollower(CurrentTerm);
 
-        Cluster.WriteLog("Raft: 启动完成 NodeId={0} State={1} Term={2}", NodeId, State, CurrentTerm);
+        Cluster.WriteLog("Raft: startup completed, NodeId={0} State={1} Term={2}", NodeId, State, CurrentTerm);
     }
 
     /// <summary>从降级模式升级到Raft模式（新节点加入后触发）</summary>
@@ -118,7 +118,7 @@ public class RaftCluster : DisposeBase
         var nodeCount = Cluster.Nodes.Count + 1;
         if (nodeCount >= 3)
         {
-            Cluster.WriteLog("Raft: 节点数达到 {0}，从RPC广播模式升级为Raft共识模式", nodeCount);
+            Cluster.WriteLog("Raft: node count reached {0}; upgrading from RPC broadcast mode to Raft consensus mode", nodeCount);
             _fallbackTimer.TryDispose();
             _fallbackTimer = null;
             BecomeFollower(CurrentTerm);
@@ -165,7 +165,7 @@ public class RaftCluster : DisposeBase
             LeaderId = null;
         }
 
-        Cluster.WriteLog("Raft: 成为 Candidate Term={0}", CurrentTerm);
+        Cluster.WriteLog("Raft: became Candidate, Term={0}", CurrentTerm);
 
         // 请求投票
         var votes = 1; // 自己的一票
@@ -217,7 +217,7 @@ public class RaftCluster : DisposeBase
             LeaderId = NodeId;
         }
 
-        Cluster.WriteLog("Raft: 成为 Leader Term={0}", CurrentTerm);
+        Cluster.WriteLog("Raft: became Leader, Term={0}", CurrentTerm);
 
         // 初始化Follower的nextIndex和matchIndex
         var lastLogIndex = _log.Count;
@@ -294,7 +294,7 @@ public class RaftCluster : DisposeBase
             VotedFor = request.CandidateId;
             ResetElectionTimer();
 
-            Cluster.WriteLog("Raft: 投票给 {0} Term={1}", request.CandidateId, request.Term);
+            Cluster.WriteLog("Raft: voted for {0}, Term={1}", request.CandidateId, request.Term);
 
             return new RaftVoteResponse { Term = CurrentTerm, VoteGranted = true };
         }
@@ -554,7 +554,7 @@ public class RaftCluster : DisposeBase
             _lastSnapshotIndex = 0;
         }
 
-        WriteLog("快照创建完成 Index={0} Topics={1}", snapshot.LastIncludedIndex, snapshot.Topics.Count);
+        WriteLog("Snapshot created, Index={0} Topics={1}", snapshot.LastIncludedIndex, snapshot.Topics.Count);
     }
 
     /// <summary>安装快照（落后节点从Leader拉取）</summary>
@@ -585,7 +585,7 @@ public class RaftCluster : DisposeBase
             ));
         }
 
-        WriteLog("快照安装完成 Index={0} Topics={1}", snapshot.LastIncludedIndex, snapshot.Topics.Count);
+        WriteLog("Snapshot installed, Index={0} Topics={1}", snapshot.LastIncludedIndex, snapshot.Topics.Count);
     }
 
     /// <summary>处理RPC InstallSnapshot请求</summary>
@@ -611,7 +611,7 @@ public class RaftCluster : DisposeBase
     public ITracer? Tracer { get; set; }
 
     /// <summary>写日志</summary>
-    private void WriteLog(String format, params Object?[] args) => Cluster.WriteLog($"[Raft] {format}", args);
+    private void WriteLog(String format, params Object?[] args) => Cluster.WriteLogPrefixed("[Raft] ", format, args);
     #endregion
 }
 

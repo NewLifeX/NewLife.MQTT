@@ -171,7 +171,7 @@ public class MqttServer : NetServer<MqttSession>
             var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
             var exchange = Exchange ?? throw new NotSupportedException(L.T("Message exchange is not configured."));
 
-            WriteLog("创建MQTT集群 {0}，端口 {1}", cluster.Name, cluster.Port);
+            WriteLog("Creating MQTT cluster {0} on port {1}", cluster.Name, cluster.Port);
 
             // 启动集群服务
             cluster.ServiceProvider = provider;
@@ -232,7 +232,7 @@ public class MqttServer : NetServer<MqttSession>
 
         var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
 
-        WriteLog("创建WebSocket桥接，端口 {0}，路径 {1}", WebSocketPort, WebSocketPath);
+        WriteLog("Creating WebSocket bridge on port {0}, path {1}", WebSocketPort, WebSocketPath);
 
         var server = new HttpServer
         {
@@ -264,7 +264,7 @@ public class MqttServer : NetServer<MqttSession>
 
         if (QuicCertificate == null) throw new InvalidOperationException(L.T("QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS."));
 
-        WriteLog("创建 QUIC 监听器，端口 {0}", QuicPort);
+        WriteLog("Creating QUIC listener on port {0}", QuicPort);
 
         var provider = (ServiceProvider ?? ObjectContainer.Provider) ?? throw new NotSupportedException(L.T("ServiceProvider is not configured."));
         var exchange = Exchange ?? throw new NotSupportedException(L.T("Message exchange is not configured."));
@@ -279,7 +279,7 @@ public class MqttServer : NetServer<MqttSession>
 
         listener.ConnectionReceived += (sender, e) =>
         {
-            WriteLog("QUIC 新连接: {0}", e.Connection.RemoteEndPoint);
+            WriteLog("New QUIC connection: {0}", e.Connection.RemoteEndPoint);
 
             // 处理器可空，由协议会话按默认规则创建；交换机/集群/认证等由 MqttSession 统一注入
             var session = new MqttQuicSession(e.Connection, e.Stream)
@@ -440,8 +440,8 @@ public class MqttSession : NetSession<MqttServer>
             var ip = Remote?.Address?.ToString();
             if (!ip.IsNullOrEmpty() && !host.ConnectionRateLimiter.IsConnectionAllowed(ip))
             {
-                WriteLog("IP[{0}] 连接速率超限，拒绝连接", ip);
-                Close("连接速率超限");
+                WriteLog("Connection rate limit exceeded for IP [{0}]; rejecting connection", ip);
+                Close(L.T("Connection rate limit exceeded"));
                 return false;
             }
         }

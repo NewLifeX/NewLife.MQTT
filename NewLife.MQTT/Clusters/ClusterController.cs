@@ -43,7 +43,7 @@ public class ClusterController : IHttpController
     {
         if (info.ClusterSecret == null) return "OK";
 
-        _cluster.WriteLog("收到节点密钥更新[{0}]，同步新密钥", info.EndPoint);
+        _cluster.WriteLog("Received node key update [{0}]; synchronizing the new key", info.EndPoint);
         _cluster.UpdateClusterSecret(info.ClusterSecret, info.EndPoint);
 
         return "OK";
@@ -57,8 +57,8 @@ public class ClusterController : IHttpController
         // 共享密钥验证
         if (!ValidateClusterSecret(info, out var msg))
         {
-            _cluster.WriteLog("节点加入被拒绝[{0}]：{1}", info.EndPoint, msg);
-            throw new InvalidOperationException($"集群加入被拒绝：{msg}");
+            _cluster.WriteLog("Node join rejected [{0}]: {1}", info.EndPoint, msg);
+            throw new InvalidOperationException(L.T("Cluster join rejected: {0}", msg));
         }
 
         var endpoint = info.EndPoint;
@@ -72,7 +72,7 @@ public class ClusterController : IHttpController
         // 新节点同步进分片路由环，否则该节点不参与分片路由
         if (isNew) _cluster.TopicRouter?.OnNodeJoined(endpoint);
 
-        _cluster.WriteLog("节点[{0}]加入集群，来自：{1}", node, Context?.Connection?.Remote);
+        _cluster.WriteLog("Node [{0}] joined the cluster from {1}", node, Context?.Connection?.Remote);
 
         return _cluster.GetNodeInfo();
     }
@@ -108,9 +108,9 @@ public class ClusterController : IHttpController
             // 节点离开同步出分片路由环，避免继续把消息路由到已离线节点
             _cluster.TopicRouter?.OnNodeLeft(endpoint);
 
-            _cluster.WriteLog("节点[{0}]退出集群，来自：{1}", node, Context?.Connection?.Remote);
+            _cluster.WriteLog("Node [{0}] left the cluster from {1}", node, Context?.Connection?.Remote);
             // 延迟销毁，避免在 RPC 响应返回前关闭 Session 导致客户端超时
-            _ = Task.Run(() => { try { node.TryDispose(); } catch (Exception ex) { _cluster?.WriteLog("节点[{0}]延迟销毁异常: {1}", node, ex.Message); } });
+            _ = Task.Run(() => { try { node.TryDispose(); } catch (Exception ex) { _cluster?.WriteLog("Error disposing node [{0}] later: {1}", node, ex.Message); } });
         }
 
         return "OK";
@@ -125,7 +125,7 @@ public class ClusterController : IHttpController
     {
         var items = ToSubscriptionInfos(infos);
 
-        _cluster.WriteLog("节点[{0}]订阅：{1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        _cluster.WriteLog("Node [{0}] subscribed: {1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群订阅3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
@@ -147,7 +147,7 @@ public class ClusterController : IHttpController
     {
         var items = ToSubscriptionInfos(infos);
 
-        _cluster.WriteLog("节点[{0}]退订：{1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
+        _cluster.WriteLog("Node [{0}] unsubscribed: {1}", Context?.Connection?.Remote, items.Join(",", e => $"{e.Topic}(client={e.ClientId})"));
 
         // 集群退订3，收到节点广播的订阅关系
         var exchange = _cluster.ClusterExchange;
@@ -333,7 +333,7 @@ public class ClusterController : IHttpController
         // 跨网段：必须校验密钥
         if (info.ClusterSecret == secret) return true;
 
-        message = "ClusterSecret 不匹配";
+        message = L.T("ClusterSecret does not match");
         return false;
     }
     #endregion

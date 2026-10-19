@@ -79,7 +79,7 @@ public class MqttUdpClient : DisposeBase
     {
         if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
 
-        WriteLog("正在通过 UDP 可靠传输连接 {0}:{1}", Server, Port);
+        WriteLog("Connecting over reliable UDP to {0}:{1}", Server, Port);
 
         var uri = new NetUri(NetType.Udp, Server, Port);
         var client = uri.CreateRemote();
@@ -120,7 +120,7 @@ public class MqttUdpClient : DisposeBase
         // 启动去重清理定时器（清理30秒前的序列号记录）
         _cleanupTimer ??= new TimerX(CleanupReceivedSeqs, null, 30_000, 30_000);
 
-        WriteLog("UDP 可靠传输连接已建立");
+        WriteLog("Reliable UDP connection established");
     }
 
     private TaskCompletionSource<Boolean>? _connAckTcs;
@@ -132,7 +132,7 @@ public class MqttUdpClient : DisposeBase
     public Task SendAsync(MqttMessage message, CancellationToken cancellationToken = default)
     {
         if (_udp == null || !IsConnected)
-            throw new InvalidOperationException("未建立 UDP 连接");
+            throw new InvalidOperationException(L.T("No UDP connection has been established."));
 
         using var pk = message.ToPacket();
         var seqId = (UInt16)Interlocked.Increment(ref _nextSeqId);
@@ -311,7 +311,7 @@ public class MqttUdpClient : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttUdp]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttUdp]", format, args);
     #endregion
 }
 
@@ -359,7 +359,7 @@ public class MqttUdpListener : DisposeBase
     /// <summary>启动监听</summary>
     public void Start()
     {
-        WriteLog("启动 MQTT UDP 可靠传输监听，端口 {0}", Port);
+        WriteLog("Starting MQTT reliable UDP listener on port {0}", Port);
 
         var server = new NetServer { Port = Port, ProtocolType = NetType.Udp, Log = Log };
         server.Received += OnServerReceived;
@@ -371,7 +371,7 @@ public class MqttUdpListener : DisposeBase
         // 定时清理不活跃连接
         _cleanupTimer ??= new TimerX(CleanupPeers, null, 30_000, 30_000);
 
-        WriteLog("MQTT UDP 可靠传输监听已启动");
+        WriteLog("MQTT reliable UDP listener started");
     }
 
     /// <summary>停止监听</summary>
@@ -387,7 +387,7 @@ public class MqttUdpListener : DisposeBase
 
         _peers.Clear();
 
-        WriteLog("MQTT UDP 可靠传输监听已停止");
+        WriteLog("MQTT reliable UDP listener stopped");
     }
 
     /// <summary>收到 UDP 数据</summary>
@@ -529,7 +529,7 @@ public class MqttUdpListener : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttUdpListener]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttUdpListener]", format, args);
     #endregion
 
     /// <summary>销毁</summary>

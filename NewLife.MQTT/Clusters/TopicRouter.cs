@@ -108,7 +108,7 @@ public class TopicRouter
     {
         HashRing.AddNode(endpoint);
         InvalidateNodeCache();
-        WriteLog("节点加入路由表：{0}，当前 {1} 节点 {2} 虚拟节点", endpoint, HashRing.NodeCount, HashRing.VirtualNodesPerNode);
+        WriteLog("Node added to the routing table: {0}; now {1} nodes and {2} virtual nodes", endpoint, HashRing.NodeCount, HashRing.VirtualNodesPerNode);
     }
 
     /// <summary>节点离开时更新路由表</summary>
@@ -117,7 +117,7 @@ public class TopicRouter
     {
         HashRing.RemoveNode(endpoint);
         InvalidateNodeCache();
-        WriteLog("节点离开路由表：{0}，剩余 {1} 节点", endpoint, HashRing.NodeCount);
+        WriteLog("Node removed from the routing table: {0}; {1} nodes remaining", endpoint, HashRing.NodeCount);
     }
 
     /// <summary>全量同步集群节点到路由表</summary>
@@ -172,11 +172,11 @@ public class TopicRouter
     /// <summary>获取统计信息</summary>
     public String GetStats()
     {
-        return $"节点数={HashRing.NodeCount}, 缓存命中={_cacheHits}, 未命中={_cacheMisses}, 命中率={CacheHitRate:P1}";
+        return $"Nodes={HashRing.NodeCount}, cache hits={_cacheHits}, misses={_cacheMisses}, hit rate={CacheHitRate:P1}";
     }
     #endregion
 
     #region 日志
-    private void WriteLog(String format, params Object?[] args) => XTrace.Log.Info($"[TopicRouter] {format}", args);
+    private void WriteLog(String format, params Object?[] args) => XTrace.Log.InfoPrefixed("[TopicRouter] ", format, args);
     #endregion
 }

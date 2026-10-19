@@ -71,7 +71,7 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
             // 如非 localhost 模式启动失败，回退到 localhost
             if (!LocalhostOnly)
             {
-                WriteLog("看板以 http://+:{0}/ 启动失败（{1}），回退到 localhost 模式", dashPort, ex.Message);
+                WriteLog("Dashboard failed to start at http://+:{0}/ ({1}); falling back to localhost mode", dashPort, ex.Message);
                 listener = new HttpListener();
                 listener.Prefixes.Add($"http://localhost:{dashPort}/");
                 listener.Start();
@@ -83,7 +83,7 @@ public class MqttDashboard : DisposeBase, IServer, ILogFeature
         _cts = new CancellationTokenSource();
         _ = ServeAsync(listener, _cts.Token);
 
-        WriteLog("Dashboard 已启动，访问地址：http://localhost:{0}/", dashPort);
+        WriteLog("Dashboard started at http://localhost:{0}/", dashPort);
     }
 
     /// <summary>停止看板服务</summary>
@@ -322,6 +322,6 @@ window.onload=function(){
 
     #region 日志
     /// <summary>输出日志</summary>
-    public void WriteLog(String format, params Object[] args) => Log?.Info(format, args);
+    public void WriteLog(String format, params Object[] args) => Log?.InfoPrefixed("[Dashboard] ", format, args);
     #endregion
 }

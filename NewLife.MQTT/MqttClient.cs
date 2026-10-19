@@ -325,7 +325,7 @@ public class MqttClient : DisposeBase
                 var quicUri = new Uri(Server);
                 var quicHost = quicUri.Host;
                 var quicPort = quicUri.Port > 0 ? quicUri.Port : 14567;
-                WriteLog("正在连接[{0}:{1}](QUIC)", quicHost, quicPort);
+                WriteLog("Connecting to [{0}:{1}] (QUIC)", quicHost, quicPort);
 
                 var quic = new QuicClient
                 {
@@ -370,7 +370,7 @@ public class MqttClient : DisposeBase
                 {
                     RequestHeaders = new Dictionary<String, String?> { ["Sec-WebSocket-Protocol"] = "mqtt" },
                 };
-                WriteLog("正在连接[{0}]", Server);
+                WriteLog("Connecting to [{0}]", Server);
 
                 client = ws;
             }
@@ -379,13 +379,13 @@ public class MqttClient : DisposeBase
                 var uri = new NetUri(Server);
                 if (uri.Type == NetType.Unknown) uri.Type = NetType.Tcp;
                 if (uri.Port == 0) uri.Port = 1883;
-                WriteLog("正在连接[{0}]", uri);
+                WriteLog("Connecting to [{0}]", uri);
 
                 // SOCKS5 代理：先连接到代理，通过代理转发到目标服务器
                 if (!Socks5Server.IsNullOrEmpty())
                 {
                     var proxyUri = new NetUri($"tcp://{Socks5Server}");
-                    WriteLog("通过SOCKS5代理[{0}]连接[{1}]", proxyUri, uri);
+                    WriteLog("Connecting to [{1}] through SOCKS5 proxy [{0}]", proxyUri, uri);
                     client = await ConnectViaSocks5(proxyUri, uri, cancellationToken).ConfigureAwait(false);
                 }
                 else
@@ -516,7 +516,7 @@ public class MqttClient : DisposeBase
                     await SendWsAsync(ws, msg, cancellationToken).ConfigureAwait(false);
 
                     var winner = await Task.WhenAny(pending.Source.Task, Task.Delay(Timeout, cancellationToken)).ConfigureAwait(false);
-                    if (winner != pending.Source.Task) throw new TimeoutException($"等待服务器响应超时：{msg.Type}");
+                    if (winner != pending.Source.Task) throw new TimeoutException(L.T("Timed out waiting for the server response: {0}.", msg.Type));
 
                     var rep = await pending.Source.Task.ConfigureAwait(false);
                     rs = Decode(rep);
@@ -538,7 +538,7 @@ public class MqttClient : DisposeBase
                 rs = await quic2.SendMessageAsync(msg, cancellationToken).ConfigureAwait(false);
 #endif
             else
-                throw new InvalidOperationException($"不支持的客户端类型: {client.GetType().FullName}");
+                throw new InvalidOperationException(L.T("Unsupported client type: {0}.", client.GetType().FullName));
 
             // 重置
             _taskCanceledCount = 0;
@@ -551,12 +551,12 @@ public class MqttClient : DisposeBase
         {
             span?.SetError(ex, msg);
 
-            if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("发送超时，任务取消=> {0}", msg as MqttMessage);
+            if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("Send timed out; canceling task => {0}", msg as MqttMessage);
 
             // 超过三次，销毁连接
             if (_taskCanceledCount++ > 3)
             {
-                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("发送超时超过三次，销毁，下次使用另一个地址");
+                if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("Send timed out more than three times; closing and using another address next time");
 
                 // 销毁，下次使用另一个地址
                 TryDisposeClient(client);
@@ -568,7 +568,7 @@ public class MqttClient : DisposeBase
         {
             span?.SetError(ex, msg);
 
-            if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("销毁，下次使用另一个地址");
+            if (Log != null && Log.Level <= LogLevel.Debug) WriteLog("Closing and using another address next time");
 
             // 销毁，下次使用另一个地址
             TryDisposeClient(client);
@@ -643,7 +643,7 @@ public class MqttClient : DisposeBase
             }
             catch (Exception ex)
             {
-                WriteLog("WebSocket接收失败：{0}", ex.Message);
+                WriteLog("WebSocket receive failed: {0}", ex.Message);
                 break;
             }
 
@@ -655,7 +655,7 @@ public class MqttClient : DisposeBase
             }
             catch (Exception ex)
             {
-                WriteLog("WebSocket消息处理失败：{0}", ex.Message);
+                WriteLog("WebSocket message handling failed: {0}", ex.Message);
             }
             finally
             {
@@ -687,8 +687,8 @@ public class MqttClient : DisposeBase
             ProcessMessage(ws, msg);
         }) && deframer.Overflow)
         {
-            WriteLog("WebSocket报文残余超限，断开连接");
-            ws.Close("MQTT报文超限");
+            WriteLog("WebSocket packet residue exceeded the limit; closing the connection");
+            ws.Close(L.T("MQTT packet size exceeded"));
         }
     }
 
@@ -755,7 +755,7 @@ public class MqttClient : DisposeBase
     /// <summary>QUIC 客户端发生错误时</summary>
     private void QuicClient_Error(Object? sender, Exception e)
     {
-        WriteLog("QUIC 客户端错误: {0}", e.Message);
+        WriteLog("QUIC client error: {0}", e.Message);
     }
 #endif
     public event EventHandler<EventArgs<PublishMessage>>? Received;
@@ -863,7 +863,7 @@ public class MqttClient : DisposeBase
         // 判断响应，是否成功连接
         if (rs!.ReturnCode != ConnectReturnCode.Accepted)
         {
-            var errMsg = $"连接失败，参数：{message.ToJson()}，原因：{rs.ReturnCode}";
+            var errMsg = L.T("Connection failed. Parameters: {0}, reason: {1}.", message.ToJson(), rs.ReturnCode);
             WriteLog(errMsg);
             throw new Exception(errMsg);
         }
@@ -972,14 +972,14 @@ public class MqttClient : DisposeBase
 
     private void Client_Error(Object sender, ExceptionEventArgs e)
     {
-        WriteLog("传输层异常: {0}", e.Exception?.Message);
+        WriteLog("Transport error: {0}", e.Exception?.Message);
     }
 
     private void Client_Closed(Object sender, EventArgs e)
     {
         _isConnected = false;
 
-        WriteLog("断开连接");
+        WriteLog("Disconnected");
         Disconnected?.Invoke(this, e);
 
         if (Disposed || !Reconnect) return;
@@ -1017,13 +1017,13 @@ public class MqttClient : DisposeBase
             // 检查是否超过最大重连次数
             if (MaxReconnectAttempts > 0 && currentAttempt > MaxReconnectAttempts)
             {
-                WriteLog("已达到最大重连次数 {0},停止重连", MaxReconnectAttempts);
+                WriteLog("Maximum reconnect attempts ({0}) reached; stopping reconnects.", MaxReconnectAttempts);
                 break;
             }
 
             // 计算延迟时间(指数退避)
             var delay = CalculateReconnectDelay(currentAttempt);
-            WriteLog("第 {0} 次重连,延迟 {1}ms 后尝试", currentAttempt, delay);
+            WriteLog("Reconnect attempt {0}; retrying in {1} ms", currentAttempt, delay);
 
             try
             {
@@ -1036,18 +1036,18 @@ public class MqttClient : DisposeBase
 
             if (cancellationToken.IsCancellationRequested || Disposed) break;
 
-            WriteLog("尝试重新连接 (第 {0} 次)", currentAttempt);
+            WriteLog("Reconnecting (attempt {0})", currentAttempt);
 
             try
             {
                 await ConnectAsync(cancellationToken).ConfigureAwait(false);
-                WriteLog("重连成功");
+                WriteLog("Reconnected successfully");
                 Interlocked.Exchange(ref _reconnectAttempts, 0); // 重置计数
                 break; // 连接成功,退出循环
             }
             catch (Exception ex)
             {
-                WriteLog("重连失败: {0}", ex.Message);
+                WriteLog("Reconnect failed: {0}", ex.Message);
                 // 继续循环尝试
             }
         }
@@ -1213,7 +1213,7 @@ public class MqttClient : DisposeBase
     {
         if (!IsConnected)
         {
-            WriteLog("未连接成功，不发送ping报文"); return null;
+            WriteLog("Not connected; skipping the ping packet"); return null;
         }
 
         var message = new PingRequest();
@@ -1308,6 +1308,6 @@ public class MqttClient : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[{Name}]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed($"[{Name}]", format, args);
     #endregion
 }

@@ -47,9 +47,9 @@ public class MqttQuicClient : DisposeBase
     {
         if (Server.IsNullOrEmpty()) throw new ArgumentNullException(nameof(Server));
         if (!QuicConnection.IsSupported)
-            throw new NotSupportedException("当前平台不支持 QUIC，需要 Windows 11 或安装 msquic 的 Linux");
+                    throw new NotSupportedException(L.T("QUIC is not supported on this platform; Windows 11 or Linux with msquic is required."));
 
-        WriteLog("正在通过 QUIC 连接 {0}:{1}", Server, Port);
+        WriteLog("Connecting over QUIC to {0}:{1}", Server, Port);
 
         var options = new QuicClientConnectionOptions
         {
@@ -66,7 +66,7 @@ public class MqttQuicClient : DisposeBase
         _connection = await QuicConnection.ConnectAsync(options, cancellationToken).ConfigureAwait(false);
         _stream = await _connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cancellationToken).ConfigureAwait(false);
 
-        WriteLog("QUIC 连接已建立");
+        WriteLog("QUIC connection established");
     }
 
     /// <summary>发送 MQTT 消息</summary>
@@ -75,7 +75,7 @@ public class MqttQuicClient : DisposeBase
     /// <returns></returns>
     public async Task SendAsync(MqttMessage message, CancellationToken cancellationToken = default)
     {
-        var stream = _stream ?? throw new InvalidOperationException("未建立 QUIC 连接");
+            var stream = _stream ?? throw new InvalidOperationException(L.T("No QUIC connection has been established."));
 
         using var data = message.ToPacket();
         await stream.WriteAsync(data.GetMemory(), cancellationToken).ConfigureAwait(false);
@@ -86,7 +86,7 @@ public class MqttQuicClient : DisposeBase
     /// <returns></returns>
     public async Task<MqttMessage?> ReceiveAsync(CancellationToken cancellationToken = default)
     {
-        var stream = _stream ?? throw new InvalidOperationException("未建立 QUIC 连接");
+        var stream = _stream ?? throw new InvalidOperationException("No QUIC connection has been established.");
 
         using var pk = new OwnerPacket(64 * 1024);
         var bytesRead = await stream.ReadAsync(pk.GetMemory(), cancellationToken).ConfigureAwait(false);
@@ -138,7 +138,7 @@ public class MqttQuicClient : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttQuic]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttQuic]", format, args);
     #endregion
 }
 
@@ -179,11 +179,11 @@ public class MqttQuicListener : DisposeBase
     /// <returns></returns>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (Certificate == null) throw new ArgumentNullException(nameof(Certificate), "QUIC 强制 TLS，必须指定证书");
+        if (Certificate == null) throw new ArgumentNullException(nameof(Certificate), L.T("QUIC requires TLS; a certificate must be specified."));
         if (!QuicListener.IsSupported)
-            throw new NotSupportedException("当前平台不支持 QUIC，需要 Windows 11 或安装 msquic 的 Linux");
+                    throw new NotSupportedException(L.T("QUIC is not supported on this platform; Windows 11 or Linux with msquic is required."));
 
-        WriteLog("启动 MQTT over QUIC 监听，端口 {0}", Port);
+        WriteLog("Starting MQTT over QUIC listener on port {0}", Port);
 
         var options = new QuicListenerOptions
         {
@@ -207,7 +207,7 @@ public class MqttQuicListener : DisposeBase
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _ = AcceptLoopAsync(_cts.Token);
 
-        WriteLog("MQTT over QUIC 监听已启动");
+        WriteLog("MQTT over QUIC listener started");
     }
 
     /// <summary>停止 QUIC 监听</summary>
@@ -226,7 +226,7 @@ public class MqttQuicListener : DisposeBase
             _listener = null;
         }
 
-        WriteLog("MQTT over QUIC 监听已停止");
+        WriteLog("MQTT over QUIC listener stopped");
     }
 
     /// <summary>接受连接循环</summary>
@@ -248,7 +248,7 @@ public class MqttQuicListener : DisposeBase
             }
             catch (Exception ex)
             {
-                WriteLog("QUIC 接受连接异常: {0}", ex.Message);
+                WriteLog("Error accepting QUIC connection: {0}", ex.Message);
             }
         }
     }
@@ -274,7 +274,7 @@ public class MqttQuicListener : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttQuicListener]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttQuicListener]", format, args);
     #endregion
 }
 

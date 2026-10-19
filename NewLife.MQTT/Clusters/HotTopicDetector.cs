@@ -244,7 +244,7 @@ public class HotTopicDetector : DisposeBase
     #endregion
 
     #region 辅助
-    private void WriteLog(String format, params Object?[] args) => Log?.Info($"[HotTopicDetector]{format}", args);
+    private void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[HotTopicDetector]", format, args);
 
     /// <summary>发布记录</summary>
     private class PublishRecord

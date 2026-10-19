@@ -174,7 +174,7 @@ public class HierarchicalCluster : DisposeBase
     #endregion
 
     #region 辅助
-    private void WriteLog(String format, params Object?[] args) => Log?.Info($"[Hierarchical]{format}", args);
+    private void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[Hierarchical]", format, args);
 
     /// <summary>释放资源</summary>
     protected override void Dispose(Boolean disposing)

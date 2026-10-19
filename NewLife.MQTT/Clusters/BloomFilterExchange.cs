@@ -39,7 +39,7 @@ public class BloomFilterExchange
             Async = true
         };
 
-        WriteLog("BloomFilterExchange 已启动，重建周期 {0}s", RebuildInterval);
+        WriteLog("BloomFilterExchange started; rebuild interval {0} s", RebuildInterval);
     }
 
     /// <summary>停止布隆过滤器交换</summary>
@@ -49,7 +49,7 @@ public class BloomFilterExchange
         _rebuildTimer = null;
 
         _nodeFilters.Clear();
-        WriteLog("BloomFilterExchange 已停止");
+        WriteLog("BloomFilterExchange stopped");
     }
     #endregion
 
@@ -138,7 +138,7 @@ public class BloomFilterExchange
             // 原子替换
             var old = Interlocked.Exchange(ref _nodeFilters, newFilters);
 
-            WriteLog("BloomFilter 重建完成，节点数 {0}，总主题数 {1}", newFilters.Count, nodeTopics.Values.Sum(v => v.Count));
+            WriteLog("BloomFilter rebuild completed; nodes={0}, total topics={1}", newFilters.Count, nodeTopics.Values.Sum(v => v.Count));
         }
         catch (Exception ex)
         {
@@ -160,6 +160,6 @@ public class BloomFilterExchange
     private ITracer? Tracer => Cluster?.Tracer;
 
     /// <summary>写日志</summary>
-    private void WriteLog(String format, params Object?[] args) => Log.Info($"[BloomFilter] {format}", args);
+    private void WriteLog(String format, params Object?[] args) => Log.InfoPrefixed("[BloomFilter] ", format, args);
     #endregion
 }

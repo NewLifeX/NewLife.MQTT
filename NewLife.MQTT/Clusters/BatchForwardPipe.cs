@@ -43,7 +43,7 @@ public class BatchForwardPipe
             Async = true
         };
 
-        WriteLog("BatchForwardPipe 已启动，合并窗口 {0}ms / {1}KB", MaxDelayMs, MaxBatchSize / 1024);
+        WriteLog("BatchForwardPipe started; merge window {0} ms / {1} KB", MaxDelayMs, MaxBatchSize / 1024);
     }
 
     /// <summary>停止批量转发管道</summary>
@@ -56,7 +56,7 @@ public class BatchForwardPipe
         FlushAll();
 
         _buffers.Clear();
-        WriteLog("BatchForwardPipe 已停止");
+        WriteLog("BatchForwardPipe stopped");
     }
     #endregion
 
@@ -176,6 +176,6 @@ public class BatchForwardPipe
     private ILog Log => XTrace.Log;
 
     /// <summary>写日志</summary>
-    private void WriteLog(String format, params Object?[] args) => Log.Info($"[BatchPipe] {format}", args);
+    private void WriteLog(String format, params Object?[] args) => Log.InfoPrefixed("[BatchPipe] ", format, args);
     #endregion
 }

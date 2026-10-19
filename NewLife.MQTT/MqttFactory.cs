@@ -46,7 +46,7 @@ public class MqttFactory
     public virtual MqttMessage? ReadMessage(MqttFrame frame, MqttVersion protocolLevel)
     {
         var body = frame.Payload;
-        if (body == null) throw new InvalidOperationException($"帧[{frame}]缺少帧体，会话必须启用 MatchQueue 以确保帧体在交付前物化");
+        if (body == null) throw new InvalidOperationException(L.T("Frame [{0}] has no body; the session must enable MatchQueue to ensure the body is materialized before delivery.", frame));
 
         return ReadMessage(frame.FirstByte, body, protocolLevel);
     }

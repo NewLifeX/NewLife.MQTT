@@ -1,0 +1,7 @@
+# 简体中文译文。键为英文源文，缺失时运行期回退英文。
+# MQTT 服务端示例日志
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "客户端[{0}]连接 user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "客户端[{0}]断开"
+"Publish [{0}:qos={1}]: {2}": "发布[{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "客户端[{0}]取消订阅主题[{1}]"
+"Client [{0}] subscribed to topics [{1}]": "客户端[{0}]订阅主题[{1}]"

@@ -112,7 +112,7 @@ public class MqttQuicSession : DisposeBase
         if (_handler != null) session.MqttHandler = _handler;
         if (!session.AttachQuic(host, Connection.RemoteEndPoint + "", SendFrame))
         {
-            WriteLog("连接速率超限，拒绝 QUIC 连接");
+            WriteLog("Connection rate limit exceeded; rejecting QUIC connection");
             CloseTransport();
             return;
         }
@@ -123,7 +123,7 @@ public class MqttQuicSession : DisposeBase
 
         _ = ReceiveLoopAsync(_receiveCts.Token);
 
-        WriteLog("QUIC 会话已启动，客户端标识: {0}", ClientId ?? "(未知)");
+        WriteLog("QUIC session started; client identifier: {0}", ClientId ?? "(unknown)");
     }
 
     /// <summary>发送 MQTT 消息到客户端</summary>
@@ -139,7 +139,7 @@ public class MqttQuicSession : DisposeBase
         }
         catch (Exception ex)
         {
-            WriteLog("发送消息失败: {0}", ex.Message);
+            WriteLog("Failed to send message: {0}", ex.Message);
         }
     }
 
@@ -155,7 +155,7 @@ public class MqttQuicSession : DisposeBase
                 var bytesRead = await Stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
-                    WriteLog("QUIC 流已关闭，客户端: {0}", ClientId ?? "(未知)");
+                    WriteLog("QUIC stream closed; client: {0}", ClientId ?? "(unknown)");
                     break;
                 }
 
@@ -163,7 +163,7 @@ public class MqttQuicSession : DisposeBase
                 var pk = new ArrayPacket(buffer, 0, bytesRead);
                 if (!deframer.Process(_codec, pk, frame => _session?.Process(frame)) && deframer.Overflow)
                 {
-                    WriteLog("QUIC 报文残余超限，断开连接");
+                    WriteLog("QUIC packet residue exceeded the limit; closing the connection");
                     break;
                 }
 
@@ -186,12 +186,12 @@ public class MqttQuicSession : DisposeBase
             }
             catch (QuicException ex) when (ex.QuicError == QuicError.ConnectionAborted)
             {
-                WriteLog("QUIC 连接被中止: {0}", ex.Message);
+                WriteLog("QUIC connection aborted: {0}", ex.Message);
                 break;
             }
             catch (Exception ex)
             {
-                WriteLog("QUIC 接收异常: {0}", ex.Message);
+                WriteLog("QUIC receive error: {0}", ex.Message);
 
                 if (Disposed) break;
 
@@ -206,7 +206,7 @@ public class MqttQuicSession : DisposeBase
             }
         }
 
-        _session?.Close("连接已断开");
+        _session?.Close(L.T("Connection closed"));
         Closed?.Invoke(this, EventArgs.Empty);
 
         // 接收循环结束即整个会话生命周期结束，自行释放传输资源
@@ -233,7 +233,7 @@ public class MqttQuicSession : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttQuicSession]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttQuicSession]", format, args);
     #endregion
 }
 #endif

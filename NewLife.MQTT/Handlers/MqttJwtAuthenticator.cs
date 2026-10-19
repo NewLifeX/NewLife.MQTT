@@ -172,7 +172,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
             var parts = token.Split('.');
             if (parts.Length != 3)
             {
-                error = "JWT 格式无效：应包含 Header.Payload.Signature 三部分";
+                error = L.T("Invalid JWT format: expected Header.Payload.Signature.");
                 return false;
             }
 
@@ -192,7 +192,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
 
             if (!CryptographicEquals(expectedSignature, computedSignature))
             {
-                error = "JWT 签名验证失败";
+                error = L.T("JWT signature verification failed.");
                 return false;
             }
 
@@ -201,7 +201,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
             var header = JsonParser.Decode(headerJson);
             if (header == null || !header.TryGetValue("alg", out var alg) || alg?.ToString() != "HS256")
             {
-                error = "JWT 算法不支持，仅支持 HS256";
+                error = L.T("JWT algorithm is not supported; only HS256 is supported.");
                 return false;
             }
 
@@ -224,7 +224,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
                 var expTime = UnixTimeSecondsToDateTime(expUnix);
                 if (DateTime.UtcNow > expTime + ClockSkew)
                 {
-                    error = "JWT Token 已过期";
+                    error = L.T("JWT token has expired.");
                     return false;
                 }
             }
@@ -235,7 +235,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
                 var nbfTime = UnixTimeSecondsToDateTime(nbfUnix);
                 if (DateTime.UtcNow < nbfTime - ClockSkew)
                 {
-                    error = "JWT Token 尚未生效";
+                    error = L.T("JWT token is not yet valid.");
                     return false;
                 }
             }
@@ -245,7 +245,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
             {
                 if (!String.Equals(iss, ValidIssuer, StringComparison.Ordinal))
                 {
-                    error = $"JWT 签发者不匹配：期望 {ValidIssuer}，实际 {iss}";
+                    error = L.T("JWT issuer mismatch: expected {0}, actual {1}.", ValidIssuer, iss);
                     return false;
                 }
             }
@@ -255,7 +255,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
             {
                 if (!String.Equals(aud, ValidAudience, StringComparison.Ordinal))
                 {
-                    error = $"JWT 受众不匹配：期望 {ValidAudience}，实际 {aud}";
+                    error = L.T("JWT audience mismatch: expected {0}, actual {1}.", ValidAudience, aud);
                     return false;
                 }
             }
@@ -264,7 +264,7 @@ public class MqttJwtAuthenticator : IMqttAuthenticator
         }
         catch (Exception ex)
         {
-            error = $"JWT 解析异常：{ex.Message}";
+            error = L.T("JWT parsing error: {0}", ex.Message);
             return false;
         }
     }

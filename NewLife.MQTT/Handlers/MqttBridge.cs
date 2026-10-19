@@ -96,7 +96,7 @@ public class MqttBridge : DisposeBase
         if (_started) return;
         if (RemoteServer.IsNullOrEmpty()) throw new ArgumentNullException(nameof(RemoteServer));
 
-        WriteLog("启动 MQTT 桥接 [{0}] -> {1}", Name, RemoteServer);
+        WriteLog("Starting MQTT bridge [{0}] -> {1}", Name, RemoteServer);
 
         var client = new MqttClient
         {
@@ -121,14 +121,14 @@ public class MqttBridge : DisposeBase
             if (rule.Direction is BridgeDirection.In or BridgeDirection.Both)
             {
                 await client.SubscribeAsync(rule.RemoteTopic, cancellationToken: cancellationToken).ConfigureAwait(false);
-                WriteLog("桥接订阅远端主题: {0}", rule.RemoteTopic);
+                WriteLog("Bridge subscribed to remote topic: {0}", rule.RemoteTopic);
             }
         }
 
         _remoteClient = client;
         _started = true;
 
-        WriteLog("MQTT 桥接 [{0}] 启动完成", Name);
+        WriteLog("MQTT bridge [{0}] started", Name);
     }
 
     /// <summary>停止桥接</summary>
@@ -137,7 +137,7 @@ public class MqttBridge : DisposeBase
     {
         if (!_started) return;
 
-        WriteLog("停止 MQTT 桥接 [{0}]", Name);
+        WriteLog("Stopping MQTT bridge [{0}]", Name);
 
         if (_remoteClient != null)
         {
@@ -175,7 +175,7 @@ public class MqttBridge : DisposeBase
             {
                 // 桥接转发失败记录日志，不影响本地消息处理
                 if (t.Exception != null)
-                    WriteLog("桥接转发失败 [{0}]: {1}", remoteTopic, t.Exception.GetBaseException().Message);
+                    WriteLog("Bridge forwarding failed [{0}]: {1}", remoteTopic, t.Exception.GetBaseException().Message);
             }, TaskContinuationOptions.OnlyOnFaulted);
             break;
         }
@@ -220,6 +220,6 @@ public class MqttBridge : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttBridge]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttBridge]", format, args);
     #endregion
 }

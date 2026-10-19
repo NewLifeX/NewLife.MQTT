@@ -1029,7 +1029,7 @@ public class MqttExchange : DisposeBase, IMqttExchange, ITracerFeature
     {
         if (clientId.IsNullOrEmpty()) return false;
 
-        var text = reason ?? "管理 API 断开";
+        var text = reason ?? L.T("Management API disconnect");
         foreach (var kv in _clientIdMap)
         {
             if (kv.Value == clientId)

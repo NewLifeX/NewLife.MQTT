@@ -1,0 +1,6 @@
+# 繁體中文譯文。鍵為英文源文，缺失時執行期回退英文。
+"Client [{0}] connected, user={1} pass={2} clientId={3}": "客戶端[{0}]連接 user={1} pass={2} clientId={3}"
+"Client [{0}] disconnected": "客戶端[{0}]斷開"
+"Publish [{0}:qos={1}]: {2}": "發布[{0}:qos={1}]: {2}"
+"Client [{0}] unsubscribed from topics [{1}]": "客戶端[{0}]取消訂閱主題[{1}]"
+"Client [{0}] subscribed to topics [{1}]": "客戶端[{0}]訂閱主題[{1}]"

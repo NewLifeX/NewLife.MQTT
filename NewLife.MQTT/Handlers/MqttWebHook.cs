@@ -193,7 +193,7 @@ public class MqttWebHook : DisposeBase
             }
             catch (Exception ex)
             {
-                WriteLog("WebHook 发送失败 [{0}] 重试 {1}/{2}: {3}", endpoint.Url, i + 1, MaxRetries, ex.Message);
+                WriteLog("WebHook delivery failed [{0}], retry {1}/{2}: {3}", endpoint.Url, i + 1, MaxRetries, ex.Message);
             }
         }
     }
@@ -206,7 +206,7 @@ public class MqttWebHook : DisposeBase
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[MqttWebHook]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[MqttWebHook]", format, args);
     #endregion
 }
 

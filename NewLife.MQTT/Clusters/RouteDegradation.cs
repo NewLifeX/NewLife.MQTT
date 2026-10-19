@@ -194,7 +194,7 @@ public class RouteDegradation : DisposeBase
     #endregion
 
     #region 辅助
-    private void WriteLog(String format, params Object?[] args) => Log?.Info($"[RouteDegradation]{format}", args);
+    private void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed("[RouteDegradation]", format, args);
 
     /// <summary>释放资源</summary>
     protected override void Dispose(Boolean disposing)

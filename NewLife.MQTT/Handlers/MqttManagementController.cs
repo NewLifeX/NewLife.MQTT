@@ -70,7 +70,7 @@ public class MqttManagementController
     {
         if (clientId.IsNullOrEmpty()) return false;
 
-        return Exchange.DisconnectClient(clientId, reason ?? "管理 API 断开");
+        return Exchange.DisconnectClient(clientId, reason ?? L.T("Management API disconnect"));
     }
 
     /// <summary>清除指定主题的保留消息</summary>

@@ -46,7 +46,7 @@ public class WebSocketServer : MqttServer
     {
         try
         {
-            WriteLog("准备创建服务器，端口：{0}和{1}", Port, WebSocketPort);
+            WriteLog("Preparing to create server on ports {0} and {1}", Port, WebSocketPort);
 
             // 如果服务器集合为空，创建服务器
             if (Servers.Count <= 0)
@@ -80,13 +80,13 @@ public class WebSocketServer : MqttServer
                     // 注意：我们需要先处理WebSocket协议，再处理MQTT协议
 
                     // 添加ProxyCodec
-                    WriteLog("为WebSocket服务器添加ProxyCodec");
+                    WriteLog("Adding ProxyCodec to the WebSocket server");
                     item.Add(new ProxyProtocol.ProxyCodec());
 
                     // 添加WebSocketCodec（放在MqttCodec之前）
                     if (LogWebSocketData)
                     {
-                        WriteLog("为WebSocket服务器添加WebSocketCodec，路径：{0}", WebSocketPath);
+                        WriteLog("Adding WebSocketCodec to the WebSocket server, path: {0}", WebSocketPath);
                         item.Add(new WebSocketCodec(Log, WebSocketPath));
                     }
                     else
@@ -95,7 +95,7 @@ public class WebSocketServer : MqttServer
                     }
 
                     // 添加MqttCodec
-                    WriteLog("为WebSocket服务器添加MqttCodec");
+                    WriteLog("Adding MqttCodec to the WebSocket server");
                     item.Add(new MqttCodec());
 
                     // 设置服务器属性
@@ -105,12 +105,12 @@ public class WebSocketServer : MqttServer
                     Servers.Add(item);
                 }
 
-                WriteLog("已创建服务器，监听端口：{0}和{1}", Port, WebSocketPort);
+                WriteLog("Server created; listening on ports {0} and {1}", Port, WebSocketPort);
             }
         }
         catch (Exception ex)
         {
-            WriteLog("创建服务器失败：{0}", ex);
+            WriteLog("Failed to create server: {0}", ex);
         }
     }
 
@@ -120,7 +120,7 @@ public class WebSocketServer : MqttServer
         // 调用基类的启动方法，初始化MqttServer并启动所有端口
         base.OnStart();
 
-        WriteLog("WebSocket服务器已启动，监听端口：{0}和{1}", Port, WebSocketPort);
+        WriteLog("WebSocket server started; listening on ports {0} and {1}", Port, WebSocketPort);
     }
 
     ///// <summary>停止</summary>

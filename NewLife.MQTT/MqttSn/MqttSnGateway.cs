@@ -293,7 +293,7 @@ public class MqttSnGateway : DisposeBase
         };
     }
 
-    private void WriteLog(String format, params Object?[] args) => Log.Info(format, args);
+    private void WriteLog(String format, params Object?[] args) => Log.InfoPrefixed("[MqttSnGateway] ", format, args);
     #endregion
 }
 

@@ -113,18 +113,18 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
                 {
                     // 受控同步等待：密钥轮换是低频管理操作，同步等待才能保证“先广播后切换”的时序确定
                     if (!node.UpdateRemoteSecret(info).Wait(SecretSyncTimeout))
-                        WriteLog("通知节点[{0}]更新密钥超时，需人工同步", node.EndPoint);
+                        WriteLog("Timed out notifying node [{0}] to update the key; manual synchronization is required", node.EndPoint);
                     else
-                        WriteLog("节点[{0}]已同步新密钥", node.EndPoint);
+                        WriteLog("Node [{0}] synchronized the new key", node.EndPoint);
                 }
                 catch (Exception ex)
                 {
-                    WriteLog("通知节点[{0}]更新密钥失败：{1}，需人工同步", node.EndPoint, ex.GetBaseException().Message);
+                    WriteLog("Failed to notify node [{0}] to update the key: {1}; manual synchronization is required", node.EndPoint, ex.GetBaseException().Message);
                 }
             }
         }
 
-        WriteLog("集群共享密钥已更新：{0} -> {1}", oldSecret ?? "(null)", newSecret ?? "(null)");
+        WriteLog("Cluster shared secret updated: {0} -> {1}", oldSecret ?? "(null)", newSecret ?? "(null)");
 
         // 已连接节点改用新令牌；远端节点已在同步窗口内一并更新
         foreach (var node in Nodes.Values) node.UpdateSecret(newSecret);
@@ -196,7 +196,7 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         ServiceProvider ??= ObjectContainer.Provider;
 
-        WriteLog("创建集群服务 {0}，端口 {1}", Name, Port);
+        WriteLog("Creating cluster service {0} on port {1}", Name, Port);
 
         // 控制器单例经容器解析，构造时注入本集群服务
         var container = new ObjectContainer();
@@ -329,8 +329,8 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
 
         foreach (var item in dels)
         {
-            WriteLog("节点超时退出：{0}", item);
-            LogEvent("NodeTimeout", "节点 {0} 超时退出，LastActive={1}", item, DateTime.Now.AddMinutes(-5));
+            WriteLog("Node timed out and left: {0}", item);
+            LogEvent("NodeTimeout", "Node {0} timed out and left, LastActive={1}", item, DateTime.Now.AddMinutes(-5));
 
             if (Nodes.TryRemove(item, out var node))
             {
@@ -350,7 +350,7 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
             _ = node.Ping(myNode).ContinueWith(t =>
             {
                 if (t.Exception != null)
-                    WriteLog("Ping节点[{0}]失败：{1}", item.Key, t.Exception.GetBaseException().Message);
+                    WriteLog("Ping to node [{0}] failed: {1}", item.Key, t.Exception.GetBaseException().Message);
             }, TaskContinuationOptions.OnlyOnFaulted);
         }
     }
@@ -398,8 +398,8 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <param name="args">参数</param>
     public void LogEvent(String eventType, String format, params Object?[] args)
     {
-        var msg = $"[{eventType}] {String.Format(format, args)}";
-        WriteLog(msg);
+        var msg = L.T(format, args);
+        WriteLog($"[{eventType}] {msg}");
     }
     private void PublishMetrics(Object? state)
     {
@@ -441,7 +441,13 @@ public class ClusterServer : DisposeBase, IServer, ILogFeature, ITracerFeature
     /// <summary>写日志</summary>
     /// <param name="format"></param>
     /// <param name="args"></param>
-    public void WriteLog(String format, params Object?[] args) => Log?.Info($"[{Name}]{format}", args);
+    public void WriteLog(String format, params Object?[] args) => Log?.InfoPrefixed($"[{Name}]", format, args);
+
+    /// <summary>写日志。附加子模块前缀</summary>
+    /// <param name="prefix">子模块前缀</param>
+    /// <param name="format">格式化字符串</param>
+    /// <param name="args">格式化参数</param>
+    internal void WriteLogPrefixed(String prefix, String format, params Object?[] args) => Log?.InfoPrefixed($"[{Name}]{prefix}", format, args);
     #endregion
 }
 

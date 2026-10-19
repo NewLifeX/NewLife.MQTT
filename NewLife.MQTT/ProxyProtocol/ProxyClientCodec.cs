@@ -53,7 +53,7 @@ public class ProxyClientCodec : IMessageCodec, IMessageCodecDecorator
     /// <param name="message">消息</param>
     /// <param name="bodyLength">消息体字节数</param>
     /// <returns></returns>
-    public IOwnerPacket BuildHeader(IMessage message, Int64 bodyLength) => throw new NotSupportedException("PROXY 前缀依赖完整帧，不支持头部与帧体分段发送");
+    public IOwnerPacket BuildHeader(IMessage message, Int64 bodyLength) => throw new NotSupportedException(L.T("The PROXY prefix requires a complete frame; sending header and body separately is not supported."));
 
     private Byte[]? BuildProxyHeader()
     {
