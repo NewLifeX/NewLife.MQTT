@@ -1,4 +1,6 @@
 # fi translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT-protokollakirjasto"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Täysin hallinnoitu MQTT 3.1/3.1.1/5.0 -asiakas ja -palvelin kuudella siirtotavalla, klusteroinnilla, sillalla, sääntömoottorilla, WebHookilla, ACL:llä ja $SYS:llä. Ei kolmannen osapuolen riippuvuuksia, MIT-lisenssi."
 "The cluster shared secret does not match.": "Klusterin jaettu salaisuus ei täsmää."
 "Message exchange is not configured.": "Viestien vaihtoa ei ole määritetty."
 "Invalid management token.": "Virheellinen hallintatunnus."

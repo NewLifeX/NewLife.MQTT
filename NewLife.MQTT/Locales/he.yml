@@ -1,4 +1,6 @@
 # he translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - ספריית פרוטוקול MQTT"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "לקוח ושרת MQTT 3.1/3.1.1/5.0 מנוהלים לחלוטין עם שישה אמצעי תעבורה, אשכולות, גישור, מנוע חוקים, WebHook, ACL ו-$SYS. ללא תלויות צד שלישי, רישיון MIT."
 "The cluster shared secret does not match.": "הסוד המשותף של האשכול אינו תואם."
 "Message exchange is not configured.": "החלפת הודעות אינה מוגדרת."
 "Invalid management token.": "אסימון ניהול לא חוקי."

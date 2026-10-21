@@ -1,4 +1,9 @@
 # 简体中文译文。键为英文源文，缺失时运行期回退英文。
+# 运行时日志与异常
+# 其余运行时日志
+# 运行时补充：调试方向、重连、SOCKS5、MQTT-SN、消息工厂与看板
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT 协议库"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "纯托管 MQTT 3.1/3.1.1/5.0 客户端与服务端，支持六种传输（TCP/TLS/WebSocket/WSS/QUIC/UDP）以及集群、桥接、规则引擎、WebHook、ACL 和 $SYS；零第三方依赖，MIT 许可。"
 "The cluster shared secret does not match.": "集群共享密钥不匹配"
 "Message exchange is not configured.": "未配置消息交换机 Exchange"
 "Invalid management token.": "无效的管理令牌"
@@ -8,8 +13,6 @@
 "The MQTT protocol does not support sending headers and bodies separately.": "MQTT 协议不支持头部与帧体分段发送"
 "ServiceProvider is not configured.": "未配置服务提供者ServiceProvider"
 "QuicCertificate must be specified to start a QUIC listener; QUIC requires TLS.": "启动 QUIC 监听必须指定 QuicCertificate，QUIC 强制 TLS"
-
-# 运行时日志与异常
 "Connecting to [{0}:{1}] (QUIC)": "正在连接[{0}:{1}](QUIC)"
 "Connecting to [{0}]": "正在连接[{0}]"
 "Connecting to [{1}] through SOCKS5 proxy [{0}]": "通过SOCKS5代理[{0}]连接[{1}]"
@@ -122,8 +125,6 @@
 "JWT issuer mismatch: expected {0}, actual {1}.": "JWT 签发者不匹配：期望 {0}，实际 {1}"
 "JWT audience mismatch: expected {0}, actual {1}.": "JWT 受众不匹配：期望 {0}，实际 {1}"
 "JWT parsing error: {0}": "JWT 解析异常：{0}"
-
-# 其余运行时日志
 "Check error: {0}": "检查错误：{0}"
 "CheckHotTopics error: {0}": "热点主题检查错误：{0}"
 "Client {0} entering sleep for {1}s": "客户端 {0} 进入休眠 {1} 秒"
@@ -182,7 +183,6 @@
 "WebSocket connection closed": "WebSocket连接断开"
 "Connection closed": "连接已断开"
 "Node {0} timed out and left, LastActive={1}": "节点 {0} 超时退出，LastActive={1}"
-# 运行时补充：调试方向、重连、SOCKS5、MQTT-SN、消息工厂与看板
 "=> {0}": "=> {0}"
 "=> {0} {1}": "=> {0} {1}"
 "<= {0}": "<= {0}"

@@ -1,4 +1,7 @@
 # 繁體中文譯文。鍵為英文源文，缺失時執行期回退英文。
+# 執行時補充：除錯方向、重連、SOCKS5、MQTT-SN、訊息工廠與看板
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT 協定庫"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "純託管 MQTT 3.1/3.1.1/5.0 用戶端與伺服端，支援六種傳輸（TCP/TLS/WebSocket/WSS/QUIC/UDP）以及叢集、橋接、規則引擎、WebHook、ACL 與 $SYS；零第三方相依，MIT 授權。"
 "The cluster shared secret does not match.": "集群共享密鑰不匹配"
 "Message exchange is not configured.": "未配置消息交換機 Exchange"
 "Invalid management token.": "無效的管理令牌"
@@ -178,7 +181,6 @@
 "WebSocket connection closed": "WebSocket連接斷開"
 "Connection closed": "連接已斷開"
 "Node {0} timed out and left, LastActive={1}": "節點 {0} 超時退出，LastActive={1}"
-# 執行時補充：除錯方向、重連、SOCKS5、MQTT-SN、訊息工廠與看板
 "=> {0}": "=> {0}"
 "=> {0} {1}": "=> {0} {1}"
 "<= {0}": "<= {0}"

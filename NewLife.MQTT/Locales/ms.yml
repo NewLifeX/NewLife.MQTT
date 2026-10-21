@@ -1,4 +1,6 @@
 # ms translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - Pustaka protokol MQTT"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Klien dan pelayan MQTT 3.1/3.1.1/5.0 yang diurus sepenuhnya dengan enam pengangkutan, pengelompokan, penjambatan, enjin peraturan, WebHook, ACL dan $SYS. Tiada kebergantungan pihak ketiga, lesen MIT."
 "The cluster shared secret does not match.": "Rahsia kongsi kluster tidak sepadan."
 "Message exchange is not configured.": "Pertukaran mesej tidak dikonfigurasikan."
 "Invalid management token.": "Token pengurusan tidak sah."

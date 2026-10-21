@@ -1,4 +1,6 @@
 # ja translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT プロトコルライブラリ"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "純マネージド MQTT 3.1/3.1.1/5.0 のクライアントとサーバー。6 種類のトランスポート、クラスタリング、ブリッジ、ルールエンジン、WebHook、ACL、$SYS に対応。サードパーティ依存なし、MIT ライセンス。"
 "The cluster shared secret does not match.": "クラスターの共有シークレットが一致しません。"
 "Message exchange is not configured.": "メッセージ交換が構成されていません。"
 "Invalid management token.": "管理トークンが無効です。"

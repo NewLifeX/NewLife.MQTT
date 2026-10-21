@@ -1,4 +1,6 @@
 # hu translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT protokoll könyvtár"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Teljesen felügyelt MQTT 3.1/3.1.1/5.0 kliens és szerver hat átvitellel, klaszterezéssel, áthidalással, szabálymotorsal, WebHookkal, ACL-lel és $SYS-szel. Harmadik féltől származó függőségek nélkül, MIT licenc."
 "The cluster shared secret does not match.": "A fürt közös titka nem egyezik."
 "Message exchange is not configured.": "Az üzenetváltás nincs beállítva."
 "Invalid management token.": "Érvénytelen felügyeleti token."

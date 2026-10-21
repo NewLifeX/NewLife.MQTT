@@ -1,4 +1,6 @@
 # vi translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - Thư viện giao thức MQTT"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Máy khách và máy chủ MQTT 3.1/3.1.1/5.0 được quản lý hoàn toàn với sáu phương thức truyền tải, cụm, cầu nối, công cụ quy tắc, WebHook, ACL và $SYS. Không phụ thuộc bên thứ ba, giấy phép MIT."
 "The cluster shared secret does not match.": "Khóa chia sẻ của cụm không khớp."
 "Message exchange is not configured.": "Trao đổi tin nhắn chưa được cấu hình."
 "Invalid management token.": "Mã quản trị không hợp lệ."

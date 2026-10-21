@@ -1,4 +1,6 @@
 # ko translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT 프로토콜 라이브러리"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "순수 관리형 MQTT 3.1/3.1.1/5.0 클라이언트 및 서버로 6가지 전송, 클러스터링, 브리징, 규칙 엔진, WebHook, ACL, $SYS를 지원합니다. 타사 종속성 없음, MIT 라이선스."
 "The cluster shared secret does not match.": "클러스터 공유 비밀이 일치하지 않습니다."
 "Message exchange is not configured.": "메시지 교환이 구성되지 않았습니다."
 "Invalid management token.": "관리 토큰이 유효하지 않습니다."

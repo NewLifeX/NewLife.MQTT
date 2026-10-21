@@ -1,4 +1,6 @@
 # tr translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT protokol kitaplığı"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Altı taşıma, kümeleme, köprüleme, kural motoru, WebHook, ACL ve $SYS içeren tam yönetilen MQTT 3.1/3.1.1/5.0 istemci ve sunucusu. Üçüncü taraf bağımlılığı yok, MIT lisanslı."
 "The cluster shared secret does not match.": "Küme ortak gizli anahtarı eşleşmiyor."
 "Message exchange is not configured.": "İleti değişimi yapılandırılmamış."
 "Invalid management token.": "Geçersiz yönetim belirteci."

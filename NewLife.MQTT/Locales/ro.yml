@@ -1,4 +1,6 @@
 # ro translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - bibliotecă pentru protocolul MQTT"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Client și server MQTT 3.1/3.1.1/5.0 complet administrate cu șase transporturi, clustering, bridging, motor de reguli, WebHook, ACL și $SYS. Fără dependențe terțe, licență MIT."
 "The cluster shared secret does not match.": "Secretul partajat al clusterului nu corespunde."
 "Message exchange is not configured.": "Schimbul de mesaje nu este configurat."
 "Invalid management token.": "Token de administrare nevalid."

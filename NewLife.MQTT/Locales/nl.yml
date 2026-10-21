@@ -1,4 +1,6 @@
 # nl translations. Keys are English source; missing entries fall back to English.
+"NewLife.MQTT - MQTT Protocol Library": "NewLife.MQTT - MQTT-protocolbibliotheek"
+"Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed.": "Volledig beheerde MQTT 3.1/3.1.1/5.0-client en -server met zes transporten, clustering, bridging, regelengine, WebHook, ACL en $SYS. Geen externe afhankelijkheden, MIT-licentie."
 "The cluster shared secret does not match.": "Het gedeelde geheim van het cluster komt niet overeen."
 "Message exchange is not configured.": "Berichtuitwisseling is niet geconfigureerd."
 "Invalid management token.": "Ongeldig beheertoken."
