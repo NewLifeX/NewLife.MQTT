@@ -146,6 +146,21 @@ public class RuntimeLocalizationTests
         }
     }
 
+    [Fact(DisplayName = "程序集元数据：标题与描述键与词表一致")]
+    public void AssemblyMetadata_KeysMatchLocales()
+    {
+        var asm = typeof(MqttClient).Assembly;
+        var title = asm.GetCustomAttribute<AssemblyTitleAttribute>()?.Title;
+        var description = asm.GetCustomAttribute<AssemblyDescriptionAttribute>()?.Description;
+
+        Assert.Equal("NewLife.MQTT - MQTT Protocol Library", title);
+        Assert.False(description.IsNullOrEmpty());
+
+        var entries = ReadLocaleEntries(Path.Combine(FindRepositoryRoot(), "NewLife.MQTT", "Locales", "zh-Hans.yml"));
+        Assert.True(entries.ContainsKey(title!), "词表缺少程序集标题键");
+        Assert.True(entries.ContainsKey(description!), "词表缺少程序集描述键");
+    }
+
     [Fact(DisplayName = "词表：程序集元数据键覆盖全部 31 种语言")]
     public void MetadataKeys_CoverAllLanguages()
     {
@@ -161,6 +176,32 @@ public class RuntimeLocalizationTests
             {
                 Assert.True(entries.TryGetValue(key, out var value), $"{Path.GetFileName(file)} 缺少元数据键：{key}");
                 Assert.False(String.Equals(key, value, StringComparison.Ordinal), $"{Path.GetFileName(file)} 元数据键未翻译：{key}");
+            }
+        }
+    }
+
+    [Fact(DisplayName = "词表：所有语言条目均已翻译（技术同形词除外）")]
+    public void LocaleEntries_AreTranslated()
+    {
+        var root = FindRepositoryRoot();
+        foreach (var dir in new[] { "NewLife.MQTT/Locales", "NewLife.MQTT.Storage/Locales", "NewLife.MqttServer/Locales" })
+        {
+            var path = Path.Combine(root, dir);
+            var allow = new HashSet<String>(StringComparer.Ordinal);
+            var allowPath = Path.Combine(path, "identical.allow.json");
+            if (File.Exists(allowPath))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(allowPath));
+                foreach (var item in doc.RootElement.GetProperty("keys").EnumerateArray()) allow.Add(item.GetString()!);
+            }
+
+            foreach (var file in Directory.GetFiles(path, "*.yml"))
+            {
+                foreach (var item in ReadLocaleEntries(file))
+                {
+                    if (allow.Contains(item.Key)) continue;
+                    Assert.False(String.Equals(item.Key, item.Value, StringComparison.Ordinal), $"{Path.GetFileName(file)} 未翻译：{item.Key}");
+                }
             }
         }
     }

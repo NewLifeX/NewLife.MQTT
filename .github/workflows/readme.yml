@@ -39,3 +39,6 @@ jobs:
     - name: Check README package copy
       shell: pwsh
       run: pwsh -NoProfile -File ./tools/sync-readme-package.ps1 -Check
+    - name: Check README structure
+      shell: pwsh
+      run: pwsh -NoProfile -File ./tools/check-readme-structure.ps1

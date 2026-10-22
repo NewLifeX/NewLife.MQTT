@@ -1,0 +1,24 @@
+{
+  "comment": "允许译文与英文源文同形的技术性键：纯符号日志、诊断格式串，以及法语 messages、荷兰语 Online clients/Uptime 等原生同形词。",
+  "updated": "2026-10-22",
+  "keys": [
+    "{0}(client={1})",
+    "<= {0}",
+    "<= {0} {1}",
+    "<={0}",
+    "=> {0}",
+    "=> {0} {1}",
+    "HandleConnect: clientId={0}, IsConnected={1}",
+    "messages",
+    "messages/s",
+    "Online clients",
+    "OnPostProperty:{0}",
+    "OnSetProperty:{0}",
+    "OnSyncTime:{0}",
+    "QoS 1 pub ack: TopicId={0}",
+    "RX",
+    "SendAsync: type={0}, len={1}, to={2}",
+    "TX",
+    "Uptime: "
+  ]
+}

@@ -8,6 +8,7 @@
 | `check-english-exceptions.ps1` | 检查异常、日志、控制台与界面提示中是否残留中文运行时消息 |
 | `sync-readme-languages.ps1` | 按 `readme-languages.json` 重写各 README 的语言切换行，`-Check` 只校验 |
 | `sync-readme-package.ps1` | 从 `README.md` 生成 `README.nuget.md`，`-Check` 只校验 |
+| `check-readme-structure.ps1` | 校验各译文与英文基线的章节层级、代码块数量一致 |
 
 ## 标准命令
 
@@ -23,6 +24,9 @@ pwsh -File tools/sync-readme-languages.ps1 -Check
 
 # NuGet 包版 README
 pwsh -File tools/sync-readme-package.ps1 -Check
+
+# README 结构（章节层级与代码块）
+pwsh -File tools/check-readme-structure.ps1
 ```
 
 ## 约定

@@ -98,9 +98,11 @@ if (!(Test-Path -LiteralPath $referencePath)) {
 }
 $reference = Read-Locale $referencePath
 $metadata = @()
+$metadataSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 $metadataPath = if ([IO.Path]::IsPathRooted($MetadataKeys)) { $MetadataKeys } else { Join-Path $localeDir $MetadataKeys }
 if (Test-Path -LiteralPath $metadataPath) {
     $metadata = @((Get-Content -LiteralPath $metadataPath -Raw -Encoding UTF8 | ConvertFrom-Json).keys)
+    foreach ($key in $metadata) { [void]$metadataSet.Add($key) }
 }
 $allErrors = @($reference.Errors | ForEach-Object { "$($Baseline): $_" })
 $allWarnings = @()
@@ -176,7 +178,7 @@ if (!$SkipOrphan) {
 
     foreach ($key in $reference.Entries.Keys) {
         # 程序集标题/描述等元数据键不在源码字符串中，由 metadata-keys.json 声明
-        if ($metadata -contains $key) { continue }
+        if ($metadataSet.Contains($key)) { continue }
 
         # 源码中的字面量形式：制表符写作 \t，引号写作 \"
         $escaped = $key.Replace('\', '\\').Replace('"', '\"').Replace("`t", '\t').Replace("`r", '\r').Replace("`n", '\n')

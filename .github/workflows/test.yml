@@ -180,7 +180,7 @@ jobs:
         $failed = $false
         Get-ChildItem -Path . -Recurse -Directory -Filter Locales | ForEach-Object {
           if (Test-Path (Join-Path $_.FullName 'zh-Hans.yml')) {
-            pwsh -File ./tools/check-locales.ps1 -LocaleDir $_.FullName -Baseline zh-Hans.yml -SourceDir NewLife.MQTT,NewLife.MQTT.Storage,NewLife.MqttServer
+            pwsh -File ./tools/check-locales.ps1 -LocaleDir $_.FullName -Baseline zh-Hans.yml -SourceDir NewLife.MQTT,NewLife.MQTT.Storage,NewLife.MqttServer -Strict
             if ($LASTEXITCODE -ne 0) { $failed = $true }
           }
         }
