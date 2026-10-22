@@ -17,5 +17,5 @@
 "WebSocket port": "พอร์ต WebSocket ค่าเริ่มต้น 8083"
 "Debug switch": "สวิตช์ดีบัก ค่าเริ่มต้น false"
 "Enable WebSocket": "เปิดใช้ WebSocket ค่าเริ่มต้น true"
-"Cluster nodes": "โหนดคลัสเตอร์ รูปแบบ ip1:port1"
+"Cluster nodes": "โหนดคลัสเตอร์"
 "WebSocket path": "พาธ WebSocket ค่าเริ่มต้น /mqtt"
