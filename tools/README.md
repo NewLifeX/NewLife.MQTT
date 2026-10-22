@@ -34,4 +34,5 @@ pwsh -File tools/check-readme-structure.ps1
 - 英文原文是词表键与唯一兜底，`Locales/` 下不建 `en.yml`。
 - 词表键必须与源码字符串逐字一致，占位符 `{0}` 与格式说明符 `{1:n0}` 必须一致。
 - 新增消息时先写英文源文，再补中文；其它语言由统一批次补齐。
+- 技术性同形词登记在 `Locales/identical.allow.json`，其余条目禁止与英文源文相同，单元测试会逐条校验。
 - README 以英文 `README.md` 为基线，11 种语言的结构、徽章、代码块与链接保持一致。

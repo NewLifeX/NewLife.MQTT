@@ -22,14 +22,24 @@ function Get-Structure([String]$path) {
     $lines = Get-Content -LiteralPath $path -Encoding UTF8
     $levels = @{ 1 = 0; 2 = 0; 3 = 0; 4 = 0 }
     $fences = 0
+    $links = @()
     foreach ($line in $lines) {
         if ($line -match '^```') { $fences++; continue }
         if ($line -match '^(#{1,4})\s+') {
             $level = $Matches[1].Length
             $levels[$level]++
         }
+        foreach ($m in [regex]::Matches($line, '!?\[[^\]]*\]\(([^)]+)\)')) {
+            $target = $m.Groups[1].Value.Trim()
+            if ($target -match '^(https?://|mailto:|#|//)') { continue }
+            # 去掉可选标题与锚点
+            $target = ($target -split '\s+')[0].Trim('<', '>')
+            $hash = $target.IndexOf('#')
+            if ($hash -ge 0) { $target = $target.Substring(0, $hash) }
+            if ($target) { $links += $target }
+        }
     }
-    return [pscustomobject]@{ Levels = $levels; Fences = $fences }
+    return [pscustomobject]@{ Levels = $levels; Fences = $fences; Links = $links }
 }
 
 $expected = Get-Structure $baseline
@@ -51,6 +61,11 @@ foreach ($lang in $langs | Select-Object -Skip 1) {
         }
     }
     if ($actual.Fences -ne $expected.Fences) { $issues += "代码块标记 $($actual.Fences) 与基线 $($expected.Fences) 不一致" }
+
+    foreach ($link in $actual.Links | Sort-Object -Unique) {
+        $full = Join-Path $Root $link
+        if (!(Test-Path -LiteralPath $full)) { $issues += "相对链接不存在：$link" }
+    }
 
     if ($issues.Count -gt 0) {
         $errors++
