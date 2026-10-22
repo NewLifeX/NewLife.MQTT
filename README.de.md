@@ -180,7 +180,7 @@ await client.SubscribeAsync("/device/+/data", handler);   // + entspricht einer 
 await client.SubscribeAsync("/device/#", handler);        // # entspricht mehreren Ebenen
 ```
 
-### Shared Subscriptions (Lastverteilung)
+### Geteilte Abonnements (Lastverteilung)
 
 Format `$share/{group}/{topic}`; mehrere Verbraucher derselben Gruppe erhalten Nachrichten reihum:
 
@@ -259,7 +259,7 @@ services.AddSingleton<IMqttAuthenticator, MyAuthenticator>();
 
 ## Enterprise-Funktionen
 
-### Message Bridging
+### Nachrichten-Bridging
 
 ```csharp
 var bridge = new MqttBridge
@@ -273,7 +273,7 @@ var bridge = new MqttBridge
 bridge.Start();
 ```
 
-### Rule Engine
+### Regel-Engine
 
 ```csharp
 var engine = new MqttRuleEngine();
@@ -385,7 +385,7 @@ Es bietet ein Publish/Subscribe-Modell, das einfacher, leichter und benutzerfreu
 5. Kleiner Transport mit sehr geringem Overhead (fester Header 2 Byte) und minimalem Protokollaustausch.
 6. Last Will and Testament benachrichtigt Interessierte bei abnormaler Trennung.
 
-## MQTT Publish und Subscribe
+## MQTT-Veröffentlichung und -Abonnement
 Beim Veröffentlichen wird die QoS festgelegt und mit der Nachricht im Broker gespeichert; beim Abonnieren ist die Konsum-QoS das Minimum aus Veröffentlichungs- und Abonnement-QoS.
 
 Details:
@@ -464,7 +464,7 @@ while (true)
 
 Ein Client benötigt `Serveradresse`, `Benutzername`, `Passwort` und `Client-ID`; dann verbindet `ConnectAsync`. Ein Client kann als Verbraucher mit `SubscribeAsync` abonnieren oder als Produzent mit `PublishAsync` veröffentlichen.
 
-## Shared Subscriptions (EMQX)
+## Geteilte Abonnements (EMQX)
 Unterstützt EMQX-Shared-Subscriptions: Mehrere Clients abonnieren dasselbe Shared-Topic, der Broker verteilt die Nachrichten lastverteilt. Format: `$share/{group}/{topic}`.
 
 ```csharp
