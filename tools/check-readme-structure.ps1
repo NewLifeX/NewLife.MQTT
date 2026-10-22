@@ -53,8 +53,7 @@ foreach ($lang in $langs | Select-Object -Skip 1) {
     $issues = @()
 
     if ($actual.Levels[1] -ne 1) { $issues += "H1 数量为 $($actual.Levels[1])，应为 1" }
-    # 译文允许额外增加 License 等 H2 章节，但不得少于英文基线
-    if ($actual.Levels[2] -lt $expected.Levels[2]) { $issues += "H2 数量 $($actual.Levels[2]) 少于基线 $($expected.Levels[2])" }
+    if ($actual.Levels[2] -ne $expected.Levels[2]) { $issues += "H2 数量 $($actual.Levels[2]) 与基线 $($expected.Levels[2]) 不一致" }
     foreach ($level in 3, 4) {
         if ($actual.Levels[$level] -ne $expected.Levels[$level]) {
             $issues += "H$level 数量 $($actual.Levels[$level]) 与基线 $($expected.Levels[$level]) 不一致"
