@@ -129,6 +129,16 @@ public class RuntimeLocalizationTests
             Assert.Contains("Client ID", html);
             Assert.DoesNotContain("在线客户端", html);
         }
+
+        using (new CultureScope("de"))
+        {
+            var html = (String)method!.Invoke(null, null)!;
+            Assert.Contains("lang=\"de\"", html);
+            Assert.Contains("Online-Clients", html);
+            Assert.Contains("MQTT-Broker-Dashboard", html);
+            Assert.Contains("Client-ID", html);
+            Assert.DoesNotContain("在线客户端", html);
+        }
     }
 
     [Fact(DisplayName = "程序集元数据：标题与描述按语言翻译")]
