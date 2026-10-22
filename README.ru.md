@@ -16,31 +16,551 @@
 
 > Перевод может отставать от [English README](README.md).
 
-NewLife.MQTT — полностью управляемые клиент и сервер MQTT 3.1/3.1.1/5.0 с QoS, сохранёнными сообщениями, завещанием, общими подписками и TLS.
+**NewLife.MQTT** — это **полностью собственный, без сторонних зависимостей, MIT-лицензированный** полный реализация протокола MQTT. Один NuGet-пакет предоставляет и полнофункциональный `MqttClient`, и высокопроизводительный `MqttServer` (брокер), охватывая все основные среды от .NET Framework 4.5 до .NET 10.
 
-## Установка
+## 📖 Навигация по документации
+
+| Документ | Описание |
+|------|------|
+| [Требования](Doc/需求文档.md) | Видение, цели, требования 7 основных модулей, отложенные пункты и не-цели |
+| [Список функций](Doc/功能清单.md) | Трёхмерное отслеживание реализации, тестов и комментариев для 87 функциональных точек |
+| [Архитектура](Doc/架构设计.md) | Пятиуровневая архитектура, модели данных, интерфейсы, ключевые решения и производительность |
+| [Архитектура сервера](Doc/SRV-服务端架构.md) | Устройство брокера: маршрутизация, аутентификация и HTTP API управления |
+| [Архитектура кластера](Doc/CLUS-集群架构.md) | Четырёхэтапная эволюция кластера, консенсус Raft, шардирование топиков и многоуровневая топология |
+| [Конкурентный анализ](Doc/竞品分析.md) | Сравнение экосистемы MQTT (EMQX/MQTTnet/Mosquitto) и SWOT |
+| [Конкурентный анализ кластера](Doc/CLUS-集群竞品分析.md) | Сравнение кластерных возможностей (EMQX/HiveMQ/VerneMQ) |
+| [Интеграционные тесты](Doc/集成测试说明.md) | Структура тестов, запуск, категории и кросс-совместимость (NewLife ↔ MQTTnet, обязательно в CI) |
+| [Совместимость с AOT](Doc/AOT兼容性分析.md) | Измерения NativeAOT: 19 сценариев в JIT и AOT, матрица RID |
+| [Примечания к выпуску](Doc/更新日志.md) | История версий и подробности коммитов |
+
+---
+
+## Ключевые возможности
+
+| Возможность | Описание |
+|------|------|
+| **Полный протокол** | MQTT 3.1 / 3.1.1 / 5.0, 14 типов пакетов + пакет AUTH, 30 свойств MQTT 5.0 |
+| **Без зависимостей** | Только NewLife.Core; никаких сторонних пакетов в цепочке NuGet |
+| **Клиент и сервер вместе** | Один пакет NuGet `NewLife.MQTT`, без отдельных сборок |
+| **Семь транспортов** | TCP / TLS / WebSocket / WSS / QUIC (.NET 7+) / надёжный UDP / ProxyProtocol v1/v2 |
+| **Высокая производительность** | Миллионы подключений на узел (проверено 4 млн); брокер — около **1,25 млн сообщений/с** на входе и 106 000 сообщений/с сквозь соединение; маршрутизация — 120 нс на запись |
+| **Корпоративные функции бесплатно** | Кластер (Raft / шардирование) / мост / движок правил / WebHook / $SYS / ACL |
+| **Автоподписка после переподключения** | Все топики переподписываются автоматически |
+| **Прокси SOCKS5** | Встроенный SOCKS5 с логином/паролем для TCP и WS |
+| **Полный охват версий** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6–net10 |
+| **NativeAOT** | Основные пути проверены в NativeAOT (API, кластерный RPC, TCP, WS, аутентификация, MQTT-SN; 19 сценариев, 0 предупреждений ILC) |
+| **Соответствие требованиям** | Полностью собственный код, MIT, без copyleft и патентных оговорок |
+
+---
+
+## Отличительные преимущества
+
+### MQTT поверх QUIC (редкость в отрасли)
+Сейчас **только EMQX и NewLife.MQTT** поддерживают этот транспорт:
+- Низкая задержка, нет блокировки головы очереди, идеально для слабых сетей и мобильных устройств
+- .NET 7/8 требуют предварительных функций; стабильно с .NET 9
+- Порт по умолчанию 14567, идентификатор ALPN `"mqtt"`
+- Полный путь клиент/сервер проверен сквозным образом (Linux/libmsquic, `QuicIntegrationTests`)
+
+### MQTT поверх надёжного UDP (первый в отрасли)
+**Первый в мире, без msquic ОС, доступен на всех платформах**:
+- 4-байтовый заголовок кадра + номер последовательности + ACK + повтор по таймауту
+- Подходит для встраиваемых платформ вроде ARM Linux 4.x без msquic
+
+### Автоподписка после переподключения
+MQTTnet / Eclipse Paho требуют ручной переподписки; NewLife.MQTT делает это автоматически:
+
+```csharp
+await client.SubscribeAsync("/device/+/data", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
+// После переподключения дополнительный код не нужен.
+```
+
+### Корпоративные функции встроены и бесплатны
+- **Мост сообщений**: In / Out / Both, отображение префиксов топиков, ограничение QoS
+- **Движок правил**: 5 действий (Republish / WebHook / Bridge / Drop / Custom)
+- **WebHook**: 6 типов событий асинхронно с автоповтором; интегрировано в MqttHandler + Exchange
+- **Кластер**: консенсус Raft + согласованное хеширование топиков + многоуровневая маршрутизация, синхронизация подписок и пересылка между узлами, отдельный RPC-порт (2883)
+- **MQTT-SN v1.2**: шлюз для ограниченных устройств, совместим с топиками MQTT
+- **Постоянное хранилище**: необязательный пакет `NewLife.MQTT.Storage` с Redis / БД для офлайн-сообщений и сессий
+- **Системные топики $SYS**: 14 стандартных топиков со статистикой в реальном времени
+- **ProxyProtocol v1/v2**: сохранение реального IP клиента через nginx/HAProxy
+
+---
+
+## Быстрый старт
+
+### Установка
 
 ```bash
 dotnet add package NewLife.MQTT
 ```
 
-## Быстрый старт
+### Запуск сервера
 
 ```csharp
-var client = new MqttClient("tcp://127.0.0.1:1883");
-await client.ConnectAsync();
-await client.SubscribeAsync("test/#");
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+    Log = XTrace.Log,
+};
+server.Start();
 ```
 
-## Возможности
+### Подключение клиента
 
-- Широкий охват версий популярных протоколов и форматов
-- Потоковая обработка и связь в реальном времени
-- Совместимость с облачными сервисами и управляемыми middleware
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid().ToString(),
+};
+await client.ConnectAsync();
 
-## Документация
+// Подписка (после переподключения — автоматически)
+await client.SubscribeAsync("/test/#", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
 
-> 📖 Полная документация (на китайском): [документы репозитория](Doc)
+// Публикация
+await client.PublishAsync("/test/hello", "Hello MQTT");
+```
+
+### Инициализация строкой подключения
+
+```csharp
+var client = new MqttClient();
+client.Init("Server=tcp://127.0.0.1:1883;UserName=admin;******;ClientId=myDevice");
+await client.ConnectAsync();
+```
+
+---
+
+## Подробно о клиенте
+
+### Указание версии протокола
+
+```csharp
+var client = new MqttClient
+{
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = "myDevice",
+    Version = MqttVersion.V500,   // V310 / V311 (по умолчанию) / V500
+};
+```
+
+### Публикация с QoS
+
+```csharp
+await client.PublishAsync("/sensor/temp", "25.6");                                 // QoS 0
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.AtLeastOnce);  // QoS 1
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.ExactlyOnce);  // QoS 2
+```
+
+### Семантика QoS
+
+Эффективная QoS потребления — **меньшая** из QoS публикации и подписки:
+
+| QoS | Название | Описание |
+|-----|------|------|
+| 0 | Не более одного раза | Без подтверждения; возможны потери, подходит для датчиков |
+| 1 | Не менее одного раза | Брокер отвечает PUBACK; возможны дубликаты, подходит для важных данных |
+| 2 | Ровно один раз | Четырёхшаговое рукопожатие; без потерь и дублей, подходит для биллинга/заказов |
+
+### Подписки с шаблонами
+
+```csharp
+await client.SubscribeAsync("/device/+/data", handler);   // + — один уровень
+await client.SubscribeAsync("/device/#", handler);        // # — несколько уровней
+```
+
+### Разделяемые подписки (балансировка)
+
+Формат `$share/{group}/{topic}`; несколько потребителей группы получают сообщения по очереди:
+
+```csharp
+await client.SubscribeAsync("$share/workers/orders/new", e =>
+    XTrace.WriteLine($"Получено: {e.Payload.ToStr()}"));
+```
+
+### TLS / WebSocket / QUIC
+
+```csharp
+new MqttClient { Server = "ssl://broker.example.com:8883" };           // TLS
+new MqttClient { Server = "ws://broker.example.com:8083" };            // WebSocket
+new MqttClient { Server = "wss://broker.example.com:8084" };           // WSS
+new MqttClient { Server = "quic://broker.example.com:14567" };         // QUIC (.NET 7+)
+```
+
+> Сервер WebSocket: с v12 размещается отдельным `HttpServer` (`EnableWebSocket = true`, `WebSocketPort` по умолчанию 0 — системное назначение, `WebSocketPath` по умолчанию `/mqtt`) и не использует общий TCP-порт MQTT; клиенты по-прежнему подключаются через `ws://host:port/mqtt`. `WebSocketCertificate` включает TLS на этом порту, то есть `wss://host:port/mqtt`.
+
+---
+
+## Подробно о сервере
+
+### Пользовательский обработчик
+
+Наследуйте `MqttHandler`, чтобы перехватывать все сообщения; идеально для IoT-платформ, сохраняющих данные напрямую:
+
+```csharp
+public class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("Connected[{0}] user={1} clientId={2}",
+            Session.Remote.EndPoint, message.Username, message.ClientId);
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("Disconnected[{0}]", Session.Remote);
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("[{0} QoS={1}] {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+        return base.OnPublish(message);
+    }
+}
+
+services.AddTransient<IMqttHandler, MyHandler>();
+```
+
+### Пользовательская аутентификация (ACL)
+
+```csharp
+public class MyAuthenticator : IMqttAuthenticator
+{
+    public Boolean Authenticate(String clientId, String username, String password)
+        => username == "admin" && password == "secret";
+
+    public Boolean AuthorizePublish(String clientId, String topic)
+        => !topic.StartsWith("$SYS/");
+
+    public Boolean AuthorizeSubscribe(String clientId, String topic) => true;
+}
+
+services.AddSingleton<IMqttAuthenticator, MyAuthenticator>();
+```
+
+---
+
+## Корпоративные функции
+
+### Мост сообщений
+
+```csharp
+var bridge = new MqttBridge
+{
+    Name = "to-cloud",
+    Server = "tcp://cloud-broker.example.com:1883",
+    Direction = BridgeDirection.Both,
+    TopicPrefix = "edge/factory1/",
+    MaxQoS = QualityOfService.AtLeastOnce,
+};
+bridge.Start();
+```
+
+### Движок правил
+
+```csharp
+var engine = new MqttRuleEngine();
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/sensor/+/temperature",
+    Action = RuleAction.Republish,
+    TargetTopic = "/analytics/temperature",
+});
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/alarm/#",
+    Action = RuleAction.WebHook,
+    WebHookUrl = "https://api.example.com/alarm",
+});
+```
+
+### Развёртывание кластера
+
+Кластер из трёх узлов (каждый перечисляет адреса остальных):
+
+```csharp
+var cluster = new ClusterServer
+{
+    Nodes = new[] { "192.168.1.11:2883", "192.168.1.12:2883" },
+    ClusterPort = 2883,
+};
+cluster.Start();
+services.AddSingleton<IMqttExchange, ClusterExchange>();
+```
+
+Работа: Join при старте → Ping каждые 15 секунд → Lease при остановке; узлы с истёкшим временем (5 минут) удаляются автоматически.
+
+> С v12 кластерный RPC использует HTTP (`ClusterPort` — HTTP-порт; адреса `host:port` или `http://host:port`), `ClusterSecret` проверяется как токен при каждом вызове; NewLife.Remoting больше не нужен.
+
+### Адаптер Alibaba Cloud IoT
+
+```csharp
+var client = new AliyunMqttClient
+{
+    ProductKey = "a1xxxxxxxx",
+    DeviceName = "myDevice",
+    DeviceSecret = "xxxxxxxx",
+};
+await client.ConnectAsync();
+await client.PublishPropertyAsync(new { temperature = 25.6 });
+```
+
+---
+
+## Быстрая проверка
+
+Откройте исходники и задайте `Test` стартовым проектом, чтобы запустить сервер и клиент одновременно:
+
+![Demo](Doc/Demo.png)
+
+---
+
+## Ключевые преимущества
+
+| Преимущество | Описание |
+|------|------|
+| 🚀 **Полный протокол** | Полная поддержка MQTT 3.1.1 (14 пакетов) + основные функции MQTT 5.0 (30 свойств) |
+| 🔒 **Без зависимостей** | Только NewLife.Core; нет рисков цепочки поставок и конфликтов лицензий |
+| ⚖️ **MIT** | Самая свободная лицензия; коммерческое использование и изменение без copyleft и патентов |
+| 🎯 **Клиент + сервер** | Один пакет `NewLife.MQTT` для обоих; минимальная интеграция |
+| 🌐 **Семь транспортов** | TCP / TLS / WebSocket / WSS / QUIC (.NET 7+) / надёжный UDP / ProxyProtocol v1/v2 |
+| 🏢 **Корпоративные функции бесплатно** | Кластер / мост / движок правил / WebHook / статистика / $SYS |
+| 🇨🇳 **Полностью собственный** | Полная интеллектуальная собственность, без внешних юридических рисков, готов к комплаенсу |
+| 🔧 **Полный охват версий** | .NET Framework 4.5 / 4.6.1 / .NET Standard 2.0/2.1 / .NET 7/8/9/10 |
+
+## Дополнительные преимущества
+
+### 1. MQTT поверх QUIC (редкость)
+- **Поддерживают только EMQX и NewLife.MQTT**
+- Низкая задержка, без блокировки головы очереди
+- Доступно в .NET 7+ (предпросмотр в 7/8, стабильно в 9+)
+
+### 2. MQTT поверх надёжного UDP (собственная разработка)
+- **Единственный в отрасли**
+- 4-байтовый заголовок + последовательность + Ack + повтор по таймауту
+- Не требует QUIC/msquic ОС; работает на всех платформах
+
+### 3. Корпоративные функции встроены и бесплатны
+- **Двунаправленный мост:** In/Out/Both, префиксы топиков, ограничение QoS
+- **Движок правил (5 действий):** Republish / WebHook / Bridge / Drop / Custom
+- **WebHook:** 6 типов событий, асинхронно и без блокировок, с повторами
+- **Кластер:** ручная настройка узлов, синхронизация подписок и пересылка
+- **ProxyProtocol:** nginx/HAProxy v1/v2 для сохранения реального IP
+- **Топики $SYS:** 14 стандартных топиков со статистикой в реальном времени
+
+### 4. Автоподписка после переподключения
+Конкуренты (MQTTnet / Eclipse Paho) требуют ручной переподписки; NewLife.MQTT делает это автоматически.
+
+### 5. Встроенный адаптер Alibaba Cloud IoT
+`AliyunMqttClient` работает сразу: подпись HMAC, отчёт свойств и синхронизация времени.
+
+## Протокол MQTT
+MQTT — самый популярный протокол IoT-связи, включающий клиент, сервер и веб-платформу управления.
+
+Он предлагает более простую, лёгкую и удобную модель публикации/подписки для ограниченных сред (низкая пропускная способность, высокая задержка, нестабильная сеть). Проще говоря, создан для Интернета вещей. Официальные особенности:
+1. Модель публикации/подписки с распределением 1:n и развязкой приложений.
+2. Транспорт, независимый от содержимого payload.
+3. Сетевое подключение по TCP/IP.
+4. Три уровня QoS:
+«Не более одного раза»: полностью зависит от TCP/IP; возможны потери и дубликаты. Подходит для датчиков среды.
+«Не менее одного раза»: доставка гарантирована, возможны дубликаты.
+«Ровно один раз»: ровно одна доставка; подходит для биллинга, где дубликаты или потери дают неверный результат.
+5. Компактный транспорт с минимальными накладными расходами (фиксированный заголовок 2 байта) и минимальным обменом.
+6. Last Will and Testament уведомляет заинтересованных при аномальном отключении.
+
+## Публикация и подписка MQTT
+При публикации указывается QoS, и брокер сохраняет её; при подписке QoS потребления — меньшая из двух.
+
+Подробности:
+- Подписка QoS=0: потребление всегда QoS 0;
+- Подписка QoS=1: публикация QoS=0 → потребление QoS=0; публикация QoS=1 или 2 → потребление QoS=1;
+- Подписка QoS=2: потребление совпадает с опубликованной QoS;
+- Публикация QoS=0: брокер не отвечает; потеря по пути теоретически незаметна, но TCP обнаруживает сбои;
+- Публикация QoS=1: брокер отвечает `PubAck`;
+- Публикация QoS=2: брокер отвечает `PubRec`, клиент отправляет `PubRel`, брокер отвечает `PubComp`; только тогда сообщение опубликовано;
+- Подписка QoS=2: брокер отправляет QoS=2, клиент отвечает `PubRec`, брокер отправляет `PubRel`, клиент отвечает `PubComp`; только тогда сообщение потреблено;
+- При QoS=2 потребителю не нужно быть онлайн; обмен идёт между издателем и брокером.
+
+## Быстрый опыт
+Откройте решение, задайте Test стартовым проектом и запустите. По умолчанию TestServer и TestClient стартуют по очереди.
+
+![Demo](Doc/Demo.png)
+
+## Сервер
+Подключите `NewLife.MQTT` из NuGet и запустите сервер:
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+
+    Log = XTrace.Log,
+    SessionLog = XTrace.Log,
+};
+server.Start();
+```
+
+С портом 1883, обработчиком `MqttHandler` и обменом `MqttExchange` сервер запускается.
+
+## Клиент
+Подключите `NewLife.MQTT` из NuGet и подключитесь:
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    //UserName = "admin",
+    //Password = "admin",
+    ClientId = Guid.NewGuid() + "",
+};
+
+await client.ConnectAsync().ConfigureAwait(false);
+
+// Подписка на топик "/test"
+var rt = await client.SubscribeAsync("/test", (e) =>
+{
+    XTrace.WriteLine("Received: " + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
+}).ConfigureAwait(false);
+
+// Публикация каждые 2 секунды в "/test"
+while (true)
+{
+    try
+    {
+        var msg = "В учении нет фиксированного порядка; кто пришёл первым, тот и учитель" + Rand.NextString(8);
+        await client.PublishAsync("/test", msg).ConfigureAwait(false);
+    }
+    catch (Exception ex)
+    {
+        XTrace.WriteException(ex);
+    }
+    await Task.Delay(2000).ConfigureAwait(false);
+}
+```
+
+Клиенту нужны `адрес сервера`, `имя пользователя`, `пароль` и `идентификатор клиента`; затем `ConnectAsync`. Клиент может потреблять через `SubscribeAsync` или публиковать через `PublishAsync`.
+
+## Разделяемые подписки (EMQX)
+Поддерживаются разделяемые подписки EMQX: несколько клиентов подписываются на один общий топик, брокер распределяет нагрузку. Формат: `$share/{group}/{topic}`.
+
+```csharp
+// Подписка на общий топик; клиенты группы получают с балансировкой
+await client.SubscribeAsync("$share/group1/Yh/Drive/+/OrderLock", (e) =>
+{
+    XTrace.WriteLine($"Общее сообщение: {e.Topic} => {e.Payload.ToStr()}");
+}).ConfigureAwait(false);
+
+// Публикация в реальный топик (без префикса $share)
+await client.PublishAsync("Yh/Drive/1111/OrderLock", "Order locked").ConfigureAwait(false);
+```
+
+Преимущества:
+- **Балансировка нагрузки**: равномерное распределение в группе
+- **Горизонтальное масштабирование**: больше подписчиков — больше мощность
+- **Высокая доступность**: при сбое одного подписчика остальные продолжают
+
+### Указание версии протокола MQTT
+С версии 2.3.2025.0212 клиент позволяет выбрать MQTT 3.1, 3.1.1 или 5.0 через свойство `Version`:
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid() + "",
+    Version = MqttVersion.V500, // MQTT 5.0
+};
+```
+
+Поддерживаемые версии:
+- `MqttVersion.V310` - MQTT 3.1
+- `MqttVersion.V311` - MQTT 3.1.1 (по умолчанию)
+- `MqttVersion.V500` - MQTT 5.0
+
+**Примечание**: без явного значения используется MQTT 3.1.1 для обратной совместимости.
+
+## Пользовательский сервер
+Когда требуется управлять подключениями и сообщениями на сервере, нужен пользовательский сервер. Например, IoT-платформа может сохранять данные устройств сразу при получении.
+
+```csharp
+private class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("Client[{0}] connected user={1} pass={2} clientId={3}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("Client[{0}] disconnected", Session.Remote);
+
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("Client[{0}] published [{1}:qos={2}]: {3}", Session.Remote, message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+
+        return base.OnPublish(message);
+    }
+}
+```
+
+Измените регистрацию обработчика:
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MyHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+
+    Log = XTrace.Log,
+    SessionLog = XTrace.Log,
+};
+server.Start();
+```
+
+## Кластер
+Управление кластером: Join, Ping, Lease.
+Join вступает в кластер и сообщает о узле; вызывается N-1 раз при старте.
+Ping обновляет время активности всех узлов каждые 15 секунд.
+Lease покидает кластер; вызывается N-1 раз.
+Каждый узел периодически удаляет узлы с истёкшим временем активности.
 
 ## Карта экосистемы
 

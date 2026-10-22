@@ -16,31 +16,551 @@
 
 > 本翻譯可能落後，以 [English README](README.md) 為準。
 
-NewLife.MQTT 是純受控的 MQTT 3.1/3.1.1/5.0 用戶端與伺服器實作，支援 QoS、保留訊息、遺囑、共享訂閱與 TLS，適配阿里雲等物聯網平台。
+**NewLife.MQTT** 是一款**完全自主研發、零第三方依賴、MIT 開源**的 MQTT 完整協定實作，以單一 NuGet 套件同時提供功能完整的 `MqttClient` 用戶端與高效能 `MqttServer` 服務端（Broker），涵蓋 .NET Framework 4.5 至 .NET 10 全部主流執行環境。
 
-## 安裝
+## 📖 文件導覽
+
+| 文件 | 說明 |
+|------|------|
+| [需求文件](Doc/需求文档.md) | 專案願景、7 大模組核心需求、暫緩項目與非目標 |
+| [功能清單](Doc/功能清单.md) | 87 個功能點的實作／測試／註解三維追蹤 |
+| [架構設計](Doc/架构设计.md) | 五層架構、資料模型、介面設計、關鍵決策與效能設計 |
+| [SRV 服務端架構](Doc/SRV-服务端架构.md) | Broker 設計：訊息路由、安全驗證、HTTP 管理 API |
+| [CLUS 叢集架構](Doc/CLUS-集群架构.md) | 四階段叢集演進、Raft 共識、主題分片與多層拓撲 |
+| [競品分析](Doc/竞品分析.md) | MQTT 生態比較（EMQX/MQTTnet/Mosquitto）與 SWOT |
+| [CLUS 叢集競品分析](Doc/CLUS-集群竞品分析.md) | 叢集能力專項比較（EMQX/HiveMQ/VerneMQ） |
+| [整合測試](Doc/集成测试说明.md) | 測試架構、執行方式、測試分類與交叉相容（NewLife ↔ MQTTnet，CI 強制） |
+| [AOT 相容性](Doc/AOT兼容性分析.md) | NativeAOT 量測：19 個主路徑同時通過 JIT 與 AOT，RID 矩陣 |
+| [版本記錄](Doc/更新日志.md) | 版本發佈記錄與提交細節 |
+
+---
+
+## 核心特性
+
+| 特性 | 說明 |
+|------|------|
+| **完整協定** | MQTT 3.1 / 3.1.1 / 5.0，14 種基礎封包 + AUTH 封包，30 個 MQTT 5.0 屬性 |
+| **零依賴** | 僅依賴 NewLife.Core；NuGet 依賴鏈無任何第三方套件 |
+| **用戶端與服務端一體** | 單一 NuGet 套件 `NewLife.MQTT`，無需分別建置 |
+| **七種傳輸** | TCP / TLS / WebSocket / WSS / QUIC（.NET 7+）/ 可靠 UDP / ProxyProtocol v1/v2 |
+| **高效能** | 單節點百萬連線（已驗證 400 萬）；Broker 入站約 **125 萬訊息/秒**，單連線端到端 106,000 訊息/秒；主題路由固定 120 奈秒/條目 |
+| **企業功能免費** | 叢集（Raft／主題分片）／橋接／規則引擎／WebHook／$SYS／ACL |
+| **斷線自動重訂閱** | 重連後自動重新訂閱全部主題，無需額外程式碼 |
+| **SOCKS5 代理** | 內建 SOCKS5 代理，支援使用者名稱／密碼驗證，TCP 與 WS 均可轉發 |
+| **完整版本覆蓋** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6～net10 |
+| **NativeAOT** | 主路徑通過 NativeAOT 驗證（管理 API、叢集 RPC、TCP、WS、驗證、MQTT-SN；19 個情境，ILC 零警告） |
+| **合規就緒** | 完全自主研發、MIT 授權，無 copyleft／專利條款 |
+
+---
+
+## 差異化優勢
+
+### MQTT over QUIC（業界罕見）
+目前**僅 EMQX 與 NewLife.MQTT** 支援此傳輸：
+- 低延遲、無隊頭阻塞，適合弱網與行動場景
+- .NET 7/8 需啟用預覽功能；.NET 9 以上穩定
+- 預設埠 14567，ALPN 識別碼 `"mqtt"`
+- 用戶端／服務端完整路徑已端到端驗證（Linux/libmsquic，`QuicIntegrationTests`）
+
+### MQTT over 可靠 UDP（業界獨創）
+**全球首創，無需作業系統 msquic，全平台可用**：
+- 自研 4 位元組訊框標頭 + 序號 + ACK 確認 + 逾時重傳
+- 涵蓋不支援 msquic 的 ARM Linux 4.x 等嵌入式平台
+
+### 斷線後自動重訂閱
+MQTTnet / Eclipse Paho 需使用者手動重訂閱；NewLife.MQTT 自動完成：
+
+```csharp
+await client.SubscribeAsync("/device/+/data", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
+// 重連後無需額外程式碼。
+```
+
+### 企業功能內建免費
+- **訊息橋接**：In / Out / Both 方向、主題前綴對映、QoS 上限控制
+- **規則引擎**：5 種動作（Republish / WebHook / Bridge / Drop / Custom）
+- **WebHook**：6 種事件非同步推送，失敗自動重試；整合至 MqttHandler + Exchange 管線
+- **叢集**：Raft 共識 + 一致性雜湊主題分片 + 多層拓撲路由，跨節點訂閱同步與訊息轉發，專用 RPC 埠（2883）
+- **MQTT-SN v1.2**：受限裝置（感測器）接入閘道，與 MQTT 主題互通
+- **持久化儲存**：選用 `NewLife.MQTT.Storage`（Redis／資料庫）實作離線訊息與工作階段保存
+- **$SYS 系統主題**：14 個標準主題，即時執行統計
+- **ProxyProtocol v1/v2**：經 nginx/HAProxy 保留真實用戶端 IP
+
+---
+
+## 快速開始
+
+### 安裝
 
 ```bash
 dotnet add package NewLife.MQTT
 ```
 
-## 快速開始
+### 啟動服務端
 
 ```csharp
-var client = new MqttClient("tcp://127.0.0.1:1883");
-await client.ConnectAsync();
-await client.SubscribeAsync("test/#");
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+    Log = XTrace.Log,
+};
+server.Start();
 ```
 
-## 核心特性
+### 連線用戶端
 
-- 涵蓋主流協定與格式版本，相容性強
-- 串流處理與即時通訊能力
-- 適配主流雲端服務與託管中介軟體
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid().ToString(),
+};
+await client.ConnectAsync();
 
-## 文件
+// 訂閱（重連後自動重新訂閱）
+await client.SubscribeAsync("/test/#", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
 
-> 📖 完整文件（中文）見 [儲存庫文件](Doc)
+// 發佈
+await client.PublishAsync("/test/hello", "Hello MQTT");
+```
+
+### 連線字串初始化
+
+```csharp
+var client = new MqttClient();
+client.Init("Server=tcp://127.0.0.1:1883;UserName=admin;******;ClientId=myDevice");
+await client.ConnectAsync();
+```
+
+---
+
+## 用戶端詳細用法
+
+### 指定協定版本
+
+```csharp
+var client = new MqttClient
+{
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = "myDevice",
+    Version = MqttVersion.V500,   // V310 / V311（預設）/ V500
+};
+```
+
+### QoS 發佈
+
+```csharp
+await client.PublishAsync("/sensor/temp", "25.6");                                 // QoS 0
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.AtLeastOnce);  // QoS 1
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.ExactlyOnce);  // QoS 2
+```
+
+### QoS 服務品質說明
+
+實際消費 QoS 為發佈 QoS 與訂閱 QoS 的**較小值**：
+
+| QoS | 名稱 | 說明 |
+|-----|------|------|
+| 0 | 最多一次 | 發送後不確認，可能遺失，適合感測器心跳 |
+| 1 | 至少一次 | Broker 回 PUBACK，可能重複，適合重要資料 |
+| 2 | 恰好一次 | 四步握手，不遺失不重複，適合計費／訂單 |
+
+### 萬用字元訂閱
+
+```csharp
+await client.SubscribeAsync("/device/+/data", handler);   // + 符合單層
+await client.SubscribeAsync("/device/#", handler);        // # 符合多層
+```
+
+### 共享訂閱（負載平衡）
+
+格式 `$share/{group}/{topic}`；同一群組的多個消費者輪流接收訊息：
+
+```csharp
+await client.SubscribeAsync("$share/workers/orders/new", e =>
+    XTrace.WriteLine($"收到：{e.Payload.ToStr()}"));
+```
+
+### TLS / WebSocket / QUIC
+
+```csharp
+new MqttClient { Server = "ssl://broker.example.com:8883" };           // TLS
+new MqttClient { Server = "ws://broker.example.com:8083" };            // WebSocket
+new MqttClient { Server = "wss://broker.example.com:8084" };           // WSS
+new MqttClient { Server = "quic://broker.example.com:14567" };         // QUIC（.NET 7+）
+```
+
+> WebSocket 服務端：v12 起由獨立 `HttpServer` 託管（`EnableWebSocket = true`，`WebSocketPort` 預設 0 由系統分配，`WebSocketPath` 預設 `/mqtt`），不再與 MQTT TCP 埠共用；用戶端仍以 `ws://host:port/mqtt` 連線。設定 `WebSocketCertificate` 可在該埠啟用 TLS，即 `wss://host:port/mqtt`。
+
+---
+
+## 服務端詳細用法
+
+### 自訂處理器
+
+繼承 `MqttHandler` 可攔截各類訊息，適合直接持久化資料的 IoT 平台：
+
+```csharp
+public class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("Connected[{0}] user={1} clientId={2}",
+            Session.Remote.EndPoint, message.Username, message.ClientId);
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("Disconnected[{0}]", Session.Remote);
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("[{0} QoS={1}] {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+        return base.OnPublish(message);
+    }
+}
+
+services.AddTransient<IMqttHandler, MyHandler>();
+```
+
+### 自訂驗證（ACL）
+
+```csharp
+public class MyAuthenticator : IMqttAuthenticator
+{
+    public Boolean Authenticate(String clientId, String username, String password)
+        => username == "admin" && password == "secret";
+
+    public Boolean AuthorizePublish(String clientId, String topic)
+        => !topic.StartsWith("$SYS/");
+
+    public Boolean AuthorizeSubscribe(String clientId, String topic) => true;
+}
+
+services.AddSingleton<IMqttAuthenticator, MyAuthenticator>();
+```
+
+---
+
+## 企業功能
+
+### 訊息橋接
+
+```csharp
+var bridge = new MqttBridge
+{
+    Name = "to-cloud",
+    Server = "tcp://cloud-broker.example.com:1883",
+    Direction = BridgeDirection.Both,
+    TopicPrefix = "edge/factory1/",
+    MaxQoS = QualityOfService.AtLeastOnce,
+};
+bridge.Start();
+```
+
+### 規則引擎
+
+```csharp
+var engine = new MqttRuleEngine();
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/sensor/+/temperature",
+    Action = RuleAction.Republish,
+    TargetTopic = "/analytics/temperature",
+});
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/alarm/#",
+    Action = RuleAction.WebHook,
+    WebHookUrl = "https://api.example.com/alarm",
+});
+```
+
+### 叢集部署
+
+三節點叢集（每個節點列出其他節點位址）：
+
+```csharp
+var cluster = new ClusterServer
+{
+    Nodes = new[] { "192.168.1.11:2883", "192.168.1.12:2883" },
+    ClusterPort = 2883,
+};
+cluster.Start();
+services.AddSingleton<IMqttExchange, ClusterExchange>();
+```
+
+運作方式：啟動時 Join → 每 15 秒 Ping → 關閉時 Lease；逾時（5 分鐘）節點自動移除。
+
+> v12 起叢集 RPC 改用 HTTP（`ClusterPort` 為 HTTP 埠；位址可寫 `host:port` 或 `http://host:port`），`ClusterSecret` 每次呼叫皆作為權杖驗證；不再需要 NewLife.Remoting。
+
+### 阿里雲 IoT 適配
+
+```csharp
+var client = new AliyunMqttClient
+{
+    ProductKey = "a1xxxxxxxx",
+    DeviceName = "myDevice",
+    DeviceSecret = "xxxxxxxx",
+};
+await client.ConnectAsync();
+await client.PublishPropertyAsync(new { temperature = 25.6 });
+```
+
+---
+
+## 快速體驗
+
+開啟原始碼並將 `Test` 設為啟動專案，即可同時執行服務端與用戶端：
+
+![Demo](Doc/Demo.png)
+
+---
+
+## 核心特點
+
+| 特點 | 說明 |
+|------|------|
+| 🚀 **完整協定** | 完整支援 MQTT 3.1.1（14 種封包）+ MQTT 5.0 核心功能（30 個屬性） |
+| 🔒 **零依賴** | 僅依賴 NewLife.Core 基礎庫，無供應鏈風險與授權衝突 |
+| ⚖️ **MIT 開源** | 最寬鬆的開源授權，可自由修改與商用，無 copyleft、無專利條款 |
+| 🎯 **用戶端 + 服務端** | 單一 `NewLife.MQTT` 套件同時提供兩者，整合成本最低 |
+| 🌐 **七種傳輸** | TCP / TLS / WebSocket / WSS / QUIC（.NET 7+）/ 可靠 UDP / ProxyProtocol v1/v2 |
+| 🏢 **企業功能免費** | 叢集／橋接／規則引擎／WebHook／統計／$SYS，競品多需企業版或付費外掛 |
+| 🇨🇳 **完全自主研發** | 完整自主智慧財產權，無外部依賴法律風險，合規就緒 |
+| 🔧 **完整版本覆蓋** | .NET Framework 4.5 / 4.6.1 / .NET Standard 2.0/2.1 / .NET 7/8/9/10 |
+
+## 差異化優勢
+
+### 1. MQTT over QUIC（業界罕見）
+- **僅 EMQX 與 NewLife.MQTT 支援**
+- 低延遲、無隊頭阻塞
+- .NET 7+ 可用（7/8 預覽，9+ 穩定）
+
+### 2. MQTT over 可靠 UDP（獨創自研）
+- **業界唯一**
+- 4 位元組訊框標頭 + 序號 + Ack 確認 + 逾時重傳
+- 無需作業系統 QUIC/msquic，全平台運作
+
+### 3. 企業功能內建免費
+- **雙向訊息橋接：** In/Out/Both、主題前綴對映、QoS 上限
+- **規則引擎（5 種動作）：** Republish / WebHook / Bridge / Drop / Custom
+- **WebHook：** 6 種事件、非同步非阻塞、支援重試
+- **叢集：** 手動節點組態、跨節點訂閱同步與訊息轉發
+- **ProxyProtocol：** nginx/HAProxy v1/v2 保留真實用戶端 IP
+- **$SYS 系統主題：** 14 個標準主題，即時執行統計
+
+### 4. 重連後自動重訂閱
+競品（MQTTnet / Eclipse Paho）需手動重訂閱；NewLife.MQTT 自動完成。
+
+### 5. 阿里雲 IoT 內建適配
+`AliyunMqttClient` 開箱即用：HMAC 簽名、屬性上報與時鐘同步。
+
+## MQTT 協定
+MQTT 是最受歡迎的 IoT 通訊協定，包含用戶端、服務端與 Web 管理平台。
+
+它提供更簡單、輕量、易用的發佈／訂閱模型，面向受限環境（低頻寬、高延遲、不穩定網路）。簡而言之，就是為物聯網而生。官方特性如下：
+1. 採用發佈／訂閱模式，提供一對多訊息分發與應用解耦。
+2. 訊息傳輸與承載內容無關。
+3. 使用 TCP/IP 提供網路連線。
+4. 三種訊息發佈服務品質：
+「最多一次」：完全依賴底層 TCP/IP，可能遺失或重複；適合環境感測器，遺失一筆很快就會有下一筆。
+「至少一次」：保證送達，但可能重複。
+「恰好一次」：保證恰好送達一次；適合計費系統，重複或遺失都會導致錯誤結果。
+5. 傳輸量小、額外開銷極低（固定標頭 2 位元組），協定交換最少。
+6. 透過 Last Will and Testament 在用戶端異常斷線時通知相關方。
+
+## MQTT 發佈與訂閱
+發佈時指定訊息 QoS，Broker 儲存的訊息包含該 QoS；訂閱時消費訊息的 QoS 為發佈與訂閱 QoS 的較小值。
+
+詳細情境：
+- 訂閱 QoS=0：無論發佈 QoS 為何，消費皆為 QoS 0；
+- 訂閱 QoS=1：發佈 QoS=0 → 消費 QoS=0；發佈 QoS=1 或 2 → 消費 QoS=1；
+- 訂閱 QoS=2：消費 QoS 與發佈 QoS 相同；
+- 發佈 QoS=0：Broker 完全不回覆；理論上中途遺失無法察覺，但 TCP 可偵測網路故障；
+- 發佈 QoS=1：Broker 回覆 `PubAck`，表示已收到；
+- 發佈 QoS=2：Broker 回覆 `PubRec`，用戶端再送 `PubRel`，Broker 回覆 `PubComp`，才算完成發佈；
+- 訂閱 QoS=2：Broker 推送 QoS=2 訊息，用戶端先回 `PubRec`，Broker 再送 `PubRel`，用戶端回 `PubComp`，才算完成消費；
+- 發佈 QoS=2 時，雙重確認流程不需要消費者在線，僅在發佈者與 Broker 之間完成。
+
+## 快速嘗鮮
+開啟原始碼方案，將 Test 設為啟動專案並啟動。預設會先後啟動 TestServer 與 TestClient。
+
+![Demo](Doc/Demo.png)
+
+## 服務端
+從 NuGet 引用 `NewLife.MQTT`，使用以下程式碼啟動服務端：
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+
+    Log = XTrace.Log,
+    SessionLog = XTrace.Log,
+};
+server.Start();
+```
+
+指定 1883 埠、預設處理器 `MqttHandler` 與預設交換器 `MqttExchange`，服務端即可啟動。
+
+## 用戶端
+從 NuGet 引用 `NewLife.MQTT`，使用以下程式碼連線：
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    //UserName = "admin",
+    //Password = "admin",
+    ClientId = Guid.NewGuid() + "",
+};
+
+await client.ConnectAsync().ConfigureAwait(false);
+
+// 訂閱 "/test" 主題
+var rt = await client.SubscribeAsync("/test", (e) =>
+{
+    XTrace.WriteLine("Received: " + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
+}).ConfigureAwait(false);
+
+// 每 2 秒向 "/test" 發佈訊息
+while (true)
+{
+    try
+    {
+        var msg = "學無先後，達者為師" + Rand.NextString(8);
+        await client.PublishAsync("/test", msg).ConfigureAwait(false);
+    }
+    catch (Exception ex)
+    {
+        XTrace.WriteException(ex);
+    }
+    await Task.Delay(2000).ConfigureAwait(false);
+}
+```
+
+用戶端連線需要 `伺服器位址`、`使用者名稱`、`密碼` 與 `用戶端識別碼`，再透過 `ConnectAsync` 連線。用戶端可作為消費者以 `SubscribeAsync` 訂閱，也可作為生產者以 `PublishAsync` 發佈。
+
+## 共享訂閱（EMQX）
+支援 EMQX 共享訂閱：多個用戶端訂閱同一共享主題，Broker 以負載平衡方式分發訊息。格式為 `$share/{group}/{topic}`。
+
+```csharp
+// 訂閱共享主題；同一群組的多個用戶端負載平衡接收
+await client.SubscribeAsync("$share/group1/Yh/Drive/+/OrderLock", (e) =>
+{
+    XTrace.WriteLine($"收到共享訂閱訊息：{e.Topic} => {e.Payload.ToStr()}");
+}).ConfigureAwait(false);
+
+// 向實際主題發佈（不含 $share 前綴）
+await client.PublishAsync("Yh/Drive/1111/OrderLock", "Order locked").ConfigureAwait(false);
+```
+
+優點：
+- **負載平衡**：同群組訂閱者平均分攤訊息
+- **水平擴充**：增加訂閱者即可提升處理能力
+- **高可用**：一個訂閱者故障，其他訂閱者仍可處理
+
+### 指定 MQTT 協定版本
+自 2.3.2025.0212 起，用戶端支援以 `Version` 屬性指定 MQTT 3.1、3.1.1 或 5.0：
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid() + "",
+    Version = MqttVersion.V500, // 指定 MQTT 5.0
+};
+```
+
+支援版本：
+- `MqttVersion.V310` - MQTT 3.1
+- `MqttVersion.V311` - MQTT 3.1.1（預設）
+- `MqttVersion.V500` - MQTT 5.0
+
+**注意**：未明確設定 `Version` 時，用戶端預設使用 MQTT 3.1.1 以維持向後相容。
+
+## 自訂服務端
+需要在服務端處理用戶端連線與訊息互動邏輯時，需使用自訂服務端。例如 IoT 平台可在收到裝置上報資料時直接儲存，無需再次消費。
+
+```csharp
+private class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("Client[{0}] connected user={1} pass={2} clientId={3}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("Client[{0}] disconnected", Session.Remote);
+
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("Client[{0}] published [{1}:qos={2}]: {3}", Session.Remote, message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+
+        return base.OnPublish(message);
+    }
+}
+```
+
+只需調整服務端的處理器註冊：
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MyHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+
+    Log = XTrace.Log,
+    SessionLog = XTrace.Log,
+};
+server.Start();
+```
+
+## 叢集
+叢集管理：Join、Ping、Lease。
+Join 加入叢集並告知其他節點本身為叢集成員；啟動時呼叫 N-1 次。
+每 15 秒 Ping 全部節點以更新活躍時間。
+Lease 離開叢集；呼叫 N-1 次。
+每個節點依最後活躍時間定期移除逾時節點。
 
 ## 生態版圖
 

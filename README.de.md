@@ -16,31 +16,551 @@
 
 > Diese Übersetzung kann hinter dem [English README](README.md) zurückliegen.
 
-NewLife.MQTT ist ein rein verwalteter MQTT-3.1/3.1.1/5.0-Client und -Server mit QoS, Retained Messages, Will, Shared Subscriptions und TLS.
+**NewLife.MQTT** ist eine **vollständig selbst entwickelte, von Drittanbietern unabhängige, MIT-lizenzierte** komplette MQTT-Protokollimplementierung. Ein einziges NuGet-Paket stellt sowohl einen voll funktionsfähigen `MqttClient` als auch einen hochperformanten `MqttServer` (Broker) bereit und deckt alle gängigen Laufzeiten von .NET Framework 4.5 bis .NET 10 ab.
 
-## Installation
+## 📖 Dokumentationsnavigation
+
+| Dokument | Beschreibung |
+|------|------|
+| [Anforderungen](Doc/需求文档.md) | Projektvision, Kernziele, funktionale Anforderungen der 7 Hauptmodule, zurückgestellte Punkte und Nicht-Ziele |
+| [Funktionsliste](Doc/功能清单.md) | Dreidimensionale Verfolgung von Implementierung, Tests und Kommentaren für 87 Funktionspunkte |
+| [Architektur](Doc/架构设计.md) | Gesamtarchitektur mit fünf Schichten, Datenmodelle, Schnittstellendesign, Schlüsselentscheidungen und Performance-Design |
+| [SRV-Server-Architektur](Doc/SRV-服务端架构.md) | Detailliertes Broker-Design: Nachrichtenrouting, Sicherheitsauthentifizierung, HTTP-Verwaltungs-API |
+| [CLUS-Cluster-Architektur](Doc/CLUS-集群架构.md) | Vierstufige Cluster-Roadmap, Raft-Konsens, Topic-Sharding und mehrstufige Topologie |
+| [Wettbewerbsanalyse](Doc/竞品分析.md) | Vergleich der MQTT-Landschaft (EMQX/MQTTnet/Mosquitto usw.) und SWOT |
+| [CLUS-Cluster-Wettbewerbsanalyse](Doc/CLUS-集群竞品分析.md) | Gezielter Vergleich der Cluster-Fähigkeiten (EMQX/HiveMQ/VerneMQ) |
+| [Integrationstests](Doc/集成测试说明.md) | Testarchitektur, Ausführung, Testkategorien und Kreuzkompatibilität (NewLife ↔ MQTTnet, verpflichtend in CI) |
+| [AOT-Kompatibilität](Doc/AOT兼容性分析.md) | NativeAOT-Messungen: 19 Hauptpfade bestehen JIT und AOT, RID-Matrix (Windows/Linux × x64/arm64 + Loongson LA64) |
+| [Release Notes](Doc/更新日志.md) | Versionsverlauf und Commit-Details |
+
+---
+
+## Kernfunktionen
+
+| Funktion | Beschreibung |
+|------|------|
+| **Vollständiges Protokoll** | MQTT 3.1 / 3.1.1 / 5.0, 14 grundlegende Pakettypen + AUTH-Paket, 30 MQTT-5.0-Eigenschaften |
+| **Keine Abhängigkeiten** | Nur NewLife.Core; keine Drittanbieterpakete in der NuGet-Kette, kein Risiko in der Lieferkette |
+| **Client und Server vereint** | Ein einziges NuGet-Paket `NewLife.MQTT`, keine getrennten Client-/Server-Builds |
+| **Sieben Transporte** | TCP / TLS / WebSocket / WSS / QUIC (.NET 7+) / zuverlässiges UDP / ProxyProtocol v1/v2 |
+| **Hohe Leistung** | Millionen Verbindungen pro Knoten (4 Millionen verifiziert); Broker mit ca. **1,25 Mio. Nachrichten/s** eingehend und 106.000 Nachrichten/s Ende-zu-Ende auf einer Verbindung; Topic-Routing konstant bei 120 ns pro Eintrag |
+| **Enterprise-Funktionen kostenlos** | Cluster (Raft / Topic-Sharding) / Bridging / Rule Engine / WebHook / $SYS / ACL, ohne Aufpreis |
+| **Automatisches erneutes Abonnieren** | Alle Topics werden nach dem Wiederverbinden automatisch erneut abonniert |
+| **SOCKS5-Proxy** | Integrierter SOCKS5-Proxy mit Benutzername/Passwort; TCP und WS können über den Proxy laufen |
+| **Volle Versionsabdeckung** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 bis net10 |
+| **NativeAOT** | Hauptpfade unter NativeAOT verifiziert (Verwaltungs-API, Cluster-RPC, TCP, WS, Authentifizierung, MQTT-SN; 19 Szenarien unter JIT und AOT, 0 ILC-Warnungen) |
+| **Compliance** | Vollständig selbst entwickelt, MIT, keine Copyleft- oder Patentklauseln, keine ausländischen Lieferkettenrisiken |
+
+---
+
+## Alleinstellungsmerkmale
+
+### MQTT über QUIC (selten in der Branche)
+Derzeit unterstützen **nur EMQX und NewLife.MQTT** diesen Transport:
+- Geringe Latenz, kein Head-of-Line-Blocking, ideal für schwache Netze und mobile Szenarien
+- .NET 7/8 benötigen Preview-Funktionen; ab .NET 9 stabil
+- Standardport 14567, ALPN-Kennung `"mqtt"`
+- Vollständiger Client-/Server-Pfad (Verbinden/Abonnieren/Veröffentlichen/Empfangen) Ende-zu-Ende verifiziert (Linux/libmsquic, `QuicIntegrationTests`)
+
+### MQTT über zuverlässiges UDP (branchenweit erstmals)
+**Weltpremiere, ohne msquic-Unterstützung des Betriebssystems, auf allen Plattformen verfügbar**:
+- Eigener 4-Byte-Frame-Header + Sequenznummer + ACK-Bestätigung + Timeout-Wiederholung
+- Für eingebettete Plattformen wie ARM Linux 4.x ohne msquic
+
+### Automatisches erneutes Abonnieren nach Wiederverbindung
+MQTTnet / Eclipse Paho verlangen manuelles erneutes Abonnieren; NewLife.MQTT erledigt das automatisch:
+
+```csharp
+await client.SubscribeAsync("/device/+/data", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
+// Nach dem Wiederverbinden ist kein zusätzlicher Code erforderlich.
+```
+
+### Enterprise-Funktionen integriert und kostenlos
+- **Message Bridging**: In / Out / Both, Topic-Präfix-Mapping, QoS-Obergrenze
+- **Rule Engine**: 5 Aktionen (Republish / WebHook / Bridge / Drop / Custom)
+- **WebHook**: 6 Ereignistypen, asynchron mit automatischer Wiederholung; integriert in die MqttHandler- und Exchange-Pipeline
+- **Cluster**: Raft-Konsens + konsistentes Hashing für Topic-Sharding + mehrstufiges Routing, knotenübergreifende Abonnementsynchronisierung und Nachrichtenweiterleitung, eigener RPC-Port (2883)
+- **MQTT-SN v1.2**: Gateway für eingeschränkte Geräte (Sensoren), interoperabel mit MQTT-Topics
+- **Persistente Speicherung**: optionales Paket `NewLife.MQTT.Storage` mit Redis-/Datenbankimplementierung für Offline-Nachrichten und Sitzungen
+- **$SYS-Systemtopics**: 14 Standard-Topics mit Echtzeitstatistiken
+- **ProxyProtocol v1/v2**: echte Client-IP über nginx/HAProxy erhalten
+
+---
+
+## Schnellstart
+
+### Installation
 
 ```bash
 dotnet add package NewLife.MQTT
 ```
 
-## Schnellstart
+### Server starten
 
 ```csharp
-var client = new MqttClient("tcp://127.0.0.1:1883");
-await client.ConnectAsync();
-await client.SubscribeAsync("test/#");
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+    Log = XTrace.Log,
+};
+server.Start();
 ```
 
-## Funktionen
+### Client verbinden
 
-- Breite Abdeckung gängiger Protokoll- und Formatversionen
-- Streaming- und Echtzeitkommunikationsfähigkeiten
-- Kompatibel mit gängigen Cloud-Diensten und Managed Middleware
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid().ToString(),
+};
+await client.ConnectAsync();
 
-## Dokumentation
+// Abonnieren (nach Wiederverbindung automatisch erneut abonniert)
+await client.SubscribeAsync("/test/#", e =>
+    XTrace.WriteLine($"{e.Topic}: {e.Payload.ToStr()}"));
 
-> 📖 Vollständige Dokumentation (Chinesisch): [Repository-Dokumente](Doc)
+// Veröffentlichen
+await client.PublishAsync("/test/hello", "Hello MQTT");
+```
+
+### Initialisierung über Verbindungszeichenfolge
+
+```csharp
+var client = new MqttClient();
+client.Init("Server=tcp://127.0.0.1:1883;UserName=admin;******;ClientId=myDevice");
+await client.ConnectAsync();
+```
+
+---
+
+## Client im Detail
+
+### Protokollversion festlegen
+
+```csharp
+var client = new MqttClient
+{
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = "myDevice",
+    Version = MqttVersion.V500,   // V310 / V311 (Standard) / V500
+};
+```
+
+### QoS-Veröffentlichung
+
+```csharp
+await client.PublishAsync("/sensor/temp", "25.6");                                 // QoS 0
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.AtLeastOnce);  // QoS 1
+await client.PublishAsync("/sensor/temp", "25.6", QualityOfService.ExactlyOnce);  // QoS 2
+```
+
+### QoS-Semantik
+
+Die effektive Konsum-QoS ist die **kleinere** aus Veröffentlichungs- und Abonnement-QoS:
+
+| QoS | Name | Beschreibung |
+|-----|------|------|
+| 0 | Höchstens einmal | Keine Bestätigung; Nachrichten können verloren gehen, geeignet für Sensor-Heartbeats |
+| 1 | Mindestens einmal | Der Broker antwortet mit PUBACK; Duplikate möglich, geeignet für wichtige Daten |
+| 2 | Genau einmal | Viertstufiger Handshake; kein Verlust, keine Duplikate, geeignet für Abrechnung/Bestellungen |
+
+### Wildcard-Abonnements
+
+```csharp
+await client.SubscribeAsync("/device/+/data", handler);   // + entspricht einer Ebene
+await client.SubscribeAsync("/device/#", handler);        // # entspricht mehreren Ebenen
+```
+
+### Shared Subscriptions (Lastverteilung)
+
+Format `$share/{group}/{topic}`; mehrere Verbraucher derselben Gruppe erhalten Nachrichten reihum:
+
+```csharp
+await client.SubscribeAsync("$share/workers/orders/new", e =>
+    XTrace.WriteLine($"Empfangen: {e.Payload.ToStr()}"));
+```
+
+### TLS / WebSocket / QUIC
+
+```csharp
+new MqttClient { Server = "ssl://broker.example.com:8883" };           // TLS
+new MqttClient { Server = "ws://broker.example.com:8083" };            // WebSocket
+new MqttClient { Server = "wss://broker.example.com:8084" };           // WSS
+new MqttClient { Server = "quic://broker.example.com:14567" };         // QUIC (.NET 7+)
+```
+
+> WebSocket-Server: Seit v12 wird er von einem separaten `HttpServer` gehostet (`EnableWebSocket = true`, `WebSocketPort` standardmäßig 0 für Systemzuweisung, `WebSocketPath` standardmäßig `/mqtt`) und teilt nicht mehr den MQTT-TCP-Port; Clients verbinden weiterhin über `ws://host:port/mqtt`. `WebSocketCertificate` aktiviert TLS auf diesem Port, also `wss://host:port/mqtt`.
+
+---
+
+## Server im Detail
+
+### Benutzerdefinierter Handler
+
+Von `MqttHandler` erben, um alle Nachrichten abzufangen; ideal für IoT-Plattformen, die Daten direkt speichern:
+
+```csharp
+public class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("Connected[{0}] user={1} clientId={2}",
+            Session.Remote.EndPoint, message.Username, message.ClientId);
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("Disconnected[{0}]", Session.Remote);
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("[{0} QoS={1}] {2}", message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+        return base.OnPublish(message);
+    }
+}
+
+services.AddTransient<IMqttHandler, MyHandler>();
+```
+
+### Benutzerdefinierte Authentifizierung (ACL)
+
+```csharp
+public class MyAuthenticator : IMqttAuthenticator
+{
+    public Boolean Authenticate(String clientId, String username, String password)
+        => username == "admin" && password == "secret";
+
+    public Boolean AuthorizePublish(String clientId, String topic)
+        => !topic.StartsWith("$SYS/");
+
+    public Boolean AuthorizeSubscribe(String clientId, String topic) => true;
+}
+
+services.AddSingleton<IMqttAuthenticator, MyAuthenticator>();
+```
+
+---
+
+## Enterprise-Funktionen
+
+### Message Bridging
+
+```csharp
+var bridge = new MqttBridge
+{
+    Name = "to-cloud",
+    Server = "tcp://cloud-broker.example.com:1883",
+    Direction = BridgeDirection.Both,
+    TopicPrefix = "edge/factory1/",
+    MaxQoS = QualityOfService.AtLeastOnce,
+};
+bridge.Start();
+```
+
+### Rule Engine
+
+```csharp
+var engine = new MqttRuleEngine();
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/sensor/+/temperature",
+    Action = RuleAction.Republish,
+    TargetTopic = "/analytics/temperature",
+});
+engine.AddRule(new MqttRule
+{
+    TopicFilter = "/alarm/#",
+    Action = RuleAction.WebHook,
+    WebHookUrl = "https://api.example.com/alarm",
+});
+```
+
+### Cluster-Bereitstellung
+
+Dreiknoten-Cluster (jeder Knoten listet die Adressen der anderen):
+
+```csharp
+var cluster = new ClusterServer
+{
+    Nodes = new[] { "192.168.1.11:2883", "192.168.1.12:2883" },
+    ClusterPort = 2883,
+};
+cluster.Start();
+services.AddSingleton<IMqttExchange, ClusterExchange>();
+```
+
+Cluster-Ablauf: Join beim Start → Ping alle 15 Sekunden → Lease beim Herunterfahren; Zeitüberschreitungen (5 Minuten) werden automatisch entfernt.
+
+> Seit v12 nutzt Cluster-RPC HTTP (`ClusterPort` ist ein HTTP-Port; Adressen als `host:port` oder `http://host:port`), und `ClusterSecret` wird bei jedem Aufruf als Token geprüft; NewLife.Remoting ist nicht mehr erforderlich.
+
+### Alibaba-Cloud-IoT-Adapter
+
+```csharp
+var client = new AliyunMqttClient
+{
+    ProductKey = "a1xxxxxxxx",
+    DeviceName = "myDevice",
+    DeviceSecret = "xxxxxxxx",
+};
+await client.ConnectAsync();
+await client.PublishPropertyAsync(new { temperature = 25.6 });
+```
+
+---
+
+## Schnell ausprobieren
+
+Öffnen Sie den Quellcode und legen Sie `Test` als Startprojekt fest, um Server und Client gleichzeitig auszuführen:
+
+![Demo](Doc/Demo.png)
+
+---
+
+## Zentrale Highlights
+
+| Highlight | Beschreibung |
+|------|------|
+| 🚀 **Vollständiges Protokoll** | Vollständige MQTT-3.1.1-Unterstützung (14 Pakettypen) + vollständige MQTT-5.0-Kernfunktionen (30 Eigenschaften) |
+| 🔒 **Keine Abhängigkeiten** | Nur die Basisbibliothek NewLife.Core; kein Lieferkettenrisiko, keine Lizenzkonflikte |
+| ⚖️ **MIT-Open-Source** | Freizügigste Lizenz; freie kommerzielle Nutzung und Änderung, kein Copyleft, keine Patentklauseln |
+| 🎯 **Client + Server vereint** | Ein NuGet-Paket `NewLife.MQTT` für Client und Server; minimale Integration |
+| 🌐 **Sieben Transporte** | TCP / TLS / WebSocket / WSS / QUIC (.NET 7+) / zuverlässiges UDP / ProxyProtocol v1/v2 |
+| 🏢 **Kostenlose Enterprise-Funktionen** | Cluster / Bridging / Rule Engine / WebHook / Statistik / $SYS; Wettbewerber verlangen Enterprise-Editionen |
+| 🇨🇳 **Vollständig selbst entwickelt** | Vollständiges geistiges Eigentum, keine Rechtsrisiken durch externe Abhängigkeiten, compliance-ready |
+| 🔧 **Volle Versionsabdeckung** | .NET Framework 4.5 / 4.6.1 / .NET Standard 2.0/2.1 / .NET 7/8/9/10 |
+
+## Weitere Vorteile
+
+### 1. MQTT über QUIC (selten in der Branche)
+- **Nur EMQX und NewLife.MQTT unterstützen dies**
+- Geringe Latenz, kein Head-of-Line-Blocking
+- Verfügbar ab .NET 7+ (Preview unter .NET 7/8, stabil ab .NET 9+)
+
+### 2. MQTT über zuverlässiges UDP (eigenentwickelt)
+- **Branchenweit einzigartig**
+- 4-Byte-Frame-Header + Sequenznummer + Ack + Timeout-Wiederholung
+- Keine QUIC-/msquic-Unterstützung des Betriebssystems erforderlich; auf allen Plattformen verfügbar
+
+### 3. Enterprise-Funktionen integriert und kostenlos
+- **Message Bridging (bidirektional):** In/Out/Both, Topic-Präfix-Mapping, QoS-Obergrenze
+- **Rule Engine (5 Aktionen):** Republish / WebHook / Bridge / Drop / Custom
+- **WebHook-Ereignis-Push:** 6 Ereignistypen, asynchron und nicht blockierend, mit Wiederholung
+- **Cluster:** Manuelle Knotenkonfiguration, knotenübergreifende Abonnementsynchronisierung und Nachrichtenweiterleitung
+- **ProxyProtocol:** nginx/HAProxy v1/v2 zur Erhaltung der echten Client-IP
+- **$SYS-Systemtopics:** 14 Standard-Topics mit Echtzeitstatistiken
+
+### 4. Automatisches erneutes Abonnieren nach Wiederverbindung
+Wettbewerber (MQTTnet / Eclipse Paho) verlangen manuelles erneutes Abonnieren; NewLife.MQTT erledigt es automatisch.
+
+### 5. Integrierter Alibaba-Cloud-IoT-Adapter
+`AliyunMqttClient` funktioniert sofort: HMAC-Signatur, Property-Reporting und Zeitsynchronisierung.
+
+## MQTT-Protokoll
+MQTT ist das beliebteste IoT-Kommunikationsprotokoll und umfasst Client, Server und Web-Verwaltungsplattform.
+
+Es bietet ein Publish/Subscribe-Modell, das einfacher, leichter und benutzerfreundlicher ist und auf eingeschränkte Umgebungen abzielt (geringe Bandbreite, hohe Latenz, instabile Netze). Kurz gesagt: für das Internet der Dinge gemacht. Die offiziellen Merkmale:
+1. Publish/Subscribe-Muster mit 1:n-Verteilung und Entkopplung der Anwendungen.
+2. Transport unabhängig vom Payload-Inhalt.
+3. TCP/IP als Netzwerkgrundlage.
+4. Drei QoS-Stufen:
+"At most once": Veröffentlichung hängt vollständig vom TCP/IP-Netz ab; Verlust oder Duplikate möglich. Geeignet für Umgebungssensoren, bei denen ein verlorener Wert bald ersetzt wird.
+"At least once": Zustellung garantiert, Duplikate möglich.
+"Exactly once": Genau eine Zustellung; geeignet für Abrechnungssysteme, bei denen Duplikate oder Verluste falsche Ergebnisse verursachen.
+5. Kleiner Transport mit sehr geringem Overhead (fester Header 2 Byte) und minimalem Protokollaustausch.
+6. Last Will and Testament benachrichtigt Interessierte bei abnormaler Trennung.
+
+## MQTT Publish und Subscribe
+Beim Veröffentlichen wird die QoS festgelegt und mit der Nachricht im Broker gespeichert; beim Abonnieren ist die Konsum-QoS das Minimum aus Veröffentlichungs- und Abonnement-QoS.
+
+Details:
+- Abonnement-QoS=0: Konsum immer QoS 0, unabhängig von der Veröffentlichung;
+- Abonnement-QoS=1: Veröffentlichung QoS=0 ergibt Konsum QoS=0; Veröffentlichung QoS=1 oder 2 ergibt Konsum QoS=1;
+- Abonnement-QoS=2: Konsum-QoS entspricht der Veröffentlichungs-QoS;
+- Veröffentlichung QoS=0: keine Antwort des Brokers; theoretisch unbemerkter Verlust, aber TCP erkennt Netzfehler;
+- Veröffentlichung QoS=1: Broker antwortet mit `PubAck`;
+- Veröffentlichung QoS=2: Broker antwortet mit `PubRec`, Client sendet `PubRel`, Broker antwortet mit `PubComp`, erst dann gilt die Nachricht als veröffentlicht;
+- Abonnement-QoS=2: Broker pusht QoS=2, Client antwortet `PubRec`, Broker sendet `PubRel`, Client antwortet `PubComp`, erst dann gilt die Nachricht als konsumiert;
+- Bei QoS=2 muss der Verbraucher nicht online sein; der Ablauf findet zwischen Publisher und Broker statt.
+
+## Schneller Einstieg
+Öffnen Sie die Lösung, legen Sie Test als Startprojekt fest und starten Sie sie. Standardmäßig starten TestServer und TestClient nacheinander.
+
+![Demo](Doc/Demo.png)
+
+## Server
+Referenzieren Sie `NewLife.MQTT` aus NuGet und starten Sie den Server:
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MqttHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+
+    Log = XTrace.Log,
+    SessionLog = XTrace.Log,
+};
+server.Start();
+```
+
+Mit Port 1883, dem Standardhandler `MqttHandler` und dem Standard-Exchange `MqttExchange` startet der Server.
+
+## Client
+Referenzieren Sie `NewLife.MQTT` aus NuGet und verbinden Sie sich:
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    //UserName = "admin",
+    //Password = "admin",
+    ClientId = Guid.NewGuid() + "",
+};
+
+await client.ConnectAsync().ConfigureAwait(false);
+
+// Topic "/test" abonnieren
+var rt = await client.SubscribeAsync("/test", (e) =>
+{
+    XTrace.WriteLine("Received: " + "/test/# =>" + e.Topic + ":" + e.Payload.ToStr());
+}).ConfigureAwait(false);
+
+// Alle 2 Sekunden eine Nachricht an "/test" veröffentlichen
+while (true)
+{
+    try
+    {
+        var msg = "Lernen kennt keine feste Reihenfolge; wer zuerst ankommt, ist der Lehrer" + Rand.NextString(8);
+        await client.PublishAsync("/test", msg).ConfigureAwait(false);
+    }
+    catch (Exception ex)
+    {
+        XTrace.WriteException(ex);
+    }
+    await Task.Delay(2000).ConfigureAwait(false);
+}
+```
+
+Ein Client benötigt `Serveradresse`, `Benutzername`, `Passwort` und `Client-ID`; dann verbindet `ConnectAsync`. Ein Client kann als Verbraucher mit `SubscribeAsync` abonnieren oder als Produzent mit `PublishAsync` veröffentlichen.
+
+## Shared Subscriptions (EMQX)
+Unterstützt EMQX-Shared-Subscriptions: Mehrere Clients abonnieren dasselbe Shared-Topic, der Broker verteilt die Nachrichten lastverteilt. Format: `$share/{group}/{topic}`.
+
+```csharp
+// Shared Topic abonnieren; mehrere Clients derselben Gruppe erhalten Nachrichten lastverteilt
+await client.SubscribeAsync("$share/group1/Yh/Drive/+/OrderLock", (e) =>
+{
+    XTrace.WriteLine($"Shared-Subscription-Nachricht: {e.Topic} => {e.Payload.ToStr()}");
+}).ConfigureAwait(false);
+
+// Auf das eigentliche Topic veröffentlichen (ohne $share-Präfix)
+await client.PublishAsync("Yh/Drive/1111/OrderLock", "Order locked").ConfigureAwait(false);
+```
+
+Vorteile:
+- **Lastverteilung**: gleichmäßige Verteilung innerhalb der Gruppe
+- **Horizontale Skalierung**: mehr Kapazität durch weitere Abonnenten
+- **Hochverfügbarkeit**: bei Ausfall eines Abonnenten übernehmen die anderen
+
+### MQTT-Protokollversion festlegen
+Ab Version 2.3.2025.0212 kann die Protokollversion über `Version` gewählt werden:
+
+```csharp
+var client = new MqttClient
+{
+    Log = XTrace.Log,
+    Server = "tcp://127.0.0.1:1883",
+    ClientId = Guid.NewGuid() + "",
+    Version = MqttVersion.V500, // MQTT 5.0
+};
+```
+
+Unterstützte Versionen:
+- `MqttVersion.V310` - MQTT 3.1
+- `MqttVersion.V311` - MQTT 3.1.1 (Standard)
+- `MqttVersion.V500` - MQTT 5.0
+
+**Hinweis**: Ohne explizite Angabe wird MQTT 3.1.1 verwendet.
+
+## Benutzerdefinierter Server
+Für serverseitige Verbindungs- und Nachrichtenlogik ist ein benutzerdefinierter Server erforderlich. Eine IoT-Plattform kann Gerätedaten beispielsweise direkt speichern, ohne sie erneut zu konsumieren.
+
+```csharp
+private class MyHandler : MqttHandler
+{
+    private readonly ILog _log;
+
+    public MyHandler(ILog log) => _log = log;
+
+    protected override ConnAck OnConnect(ConnectMessage message)
+    {
+        _log.Info("Client[{0}] connected user={1} pass={2} clientId={3}", Session.Remote.EndPoint, message.Username, message.Password, message.ClientId);
+
+        return base.OnConnect(message);
+    }
+
+    protected override MqttMessage OnDisconnect(DisconnectMessage message)
+    {
+        _log.Info("Client[{0}] disconnected", Session.Remote);
+
+        return base.OnDisconnect(message);
+    }
+
+    protected override MqttIdMessage OnPublish(PublishMessage message)
+    {
+        _log.Info("Client[{0}] published [{1}:qos={2}]: {3}", Session.Remote, message.Topic, (Int32)message.QoS, message.Payload.ToStr());
+
+        return base.OnPublish(message);
+    }
+}
+```
+
+Registrierung des benutzerdefinierten Handlers:
+
+```csharp
+var services = ObjectContainer.Current;
+services.AddSingleton<ILog>(XTrace.Log);
+services.AddTransient<IMqttHandler, MyHandler>();
+services.AddSingleton<MqttExchange, MqttExchange>();
+
+var server = new MqttServer
+{
+    Port = 1883,
+    ServiceProvider = services.BuildServiceProvider(),
+
+    Log = XTrace.Log,
+    SessionLog = XTrace.Log,
+};
+server.Start();
+```
+
+## Cluster
+Cluster-Verwaltung: Join, Ping, Lease.
+Join tritt dem Cluster bei und meldet den Knoten; beim Start N-1 Mal aufgerufen.
+Ping aktualisiert alle 15 Sekunden die Aktivzeit aller Knoten.
+Lease verlässt den Cluster; N-1 Mal aufgerufen.
+Jeder Knoten entfernt regelmäßig Knoten, deren Aktivzeit abgelaufen ist.
 
 ## Ökosystem-Karte
 
