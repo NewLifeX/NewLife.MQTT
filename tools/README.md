@@ -8,11 +8,15 @@
 | `check-english-exceptions.ps1` | 检查异常、日志、控制台与界面提示中是否残留中文运行时消息 |
 | `sync-readme-languages.ps1` | 按 `readme-languages.json` 重写各 README 的语言切换行，`-Check` 只校验 |
 | `sync-readme-package.ps1` | 从 `README.md` 生成 `README.nuget.md`，`-Check` 只校验 |
-| `check-readme-structure.ps1` | 校验各译文与英文基线的章节层级、代码块数量一致 |
+| `check-readme-structure.ps1` | 校验各译文与英文基线的章节层级、代码块数量与相对链接 |
+| `check-all-localization.ps1` | 一键执行以上全部校验 |
 
 ## 标准命令
 
 ```powershell
+# 一键执行全部本地化校验
+pwsh -File tools/check-all-localization.ps1
+
 # 词表（主库、存储、服务端逐目录执行）
 pwsh -File tools/check-locales.ps1 -LocaleDir NewLife.MQTT/Locales -Baseline zh-Hans.yml -SourceDir NewLife.MQTT,NewLife.MQTT.Storage,NewLife.MqttServer
 
