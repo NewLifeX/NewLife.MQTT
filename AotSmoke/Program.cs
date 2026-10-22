@@ -27,6 +27,20 @@ void Check(String name, Boolean ok)
 Console.WriteLine($"IsDynamicCodeSupported={System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported}");
 Console.WriteLine($"Assembly.Location={typeof(MqttServer).Assembly.Location}");
 
+// 0. 本地化：编译期语言表与程序集元数据在 AOT 下可用
+try
+{
+    var prev = Localization.Culture;
+    Localization.Culture = new System.Globalization.CultureInfo("zh-Hans");
+    var zh = Localization.Translate("Connecting to [{0}]", "tcp://localhost:1883");
+    Localization.Culture = new System.Globalization.CultureInfo("de");
+    var de = Localization.Translate("NewLife.MQTT - MQTT Protocol Library");
+    Localization.Culture = prev;
+
+    Check("本地化：运行时消息与程序集元数据在 AOT 下可用", zh == "正在连接[tcp://localhost:1883]" && de == "NewLife.MQTT - MQTT-Protokollbibliothek");
+}
+catch (Exception ex) { Check($"本地化（异常：{ex.GetType().Name} {ex.Message}）", false); }
+
 // 1. TCP 回环：连接/订阅/发布/接收
 try
 {
