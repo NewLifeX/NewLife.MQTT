@@ -131,6 +131,40 @@ public class RuntimeLocalizationTests
         }
     }
 
+    [Fact(DisplayName = "程序集元数据：标题与描述按语言翻译")]
+    public void AssemblyMetadata_IsTranslated()
+    {
+        using (new CultureScope("zh-Hans"))
+        {
+            Assert.Equal("NewLife.MQTT - MQTT 协议库", Localization.Translate("NewLife.MQTT - MQTT Protocol Library"));
+            Assert.StartsWith("纯托管 MQTT 3.1/3.1.1/5.0", Localization.Translate("Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed."));
+        }
+
+        using (new CultureScope("de"))
+        {
+            Assert.Equal("NewLife.MQTT - MQTT-Protokollbibliothek", Localization.Translate("NewLife.MQTT - MQTT Protocol Library"));
+        }
+    }
+
+    [Fact(DisplayName = "词表：程序集元数据键覆盖全部 31 种语言")]
+    public void MetadataKeys_CoverAllLanguages()
+    {
+        var dir = Path.Combine(FindRepositoryRoot(), "NewLife.MQTT", "Locales");
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "metadata-keys.json")));
+        var keys = doc.RootElement.GetProperty("keys").EnumerateArray().Select(e => e.GetString()!).ToList();
+        Assert.NotEmpty(keys);
+
+        foreach (var file in Directory.GetFiles(dir, "*.yml"))
+        {
+            var entries = ReadLocaleEntries(file);
+            foreach (var key in keys)
+            {
+                Assert.True(entries.TryGetValue(key, out var value), $"{Path.GetFileName(file)} 缺少元数据键：{key}");
+                Assert.False(String.Equals(key, value, StringComparison.Ordinal), $"{Path.GetFileName(file)} 元数据键未翻译：{key}");
+            }
+        }
+    }
+
     [Fact(DisplayName = "词表：所有语言键集合与基准一致")]
     public void LocaleFiles_HaveSameKeys()
     {
@@ -162,15 +196,22 @@ public class RuntimeLocalizationTests
         return dir!.FullName;
     }
 
-    private static IList<String> ReadLocaleKeys(String file)
+    private static IList<String> ReadLocaleKeys(String file) => ReadLocaleEntries(file).Keys.ToList();
+
+    private static Dictionary<String, String> ReadLocaleEntries(String file)
     {
-        var list = new List<String>();
+        var map = new Dictionary<String, String>(StringComparer.Ordinal);
         foreach (var line in File.ReadAllLines(file))
         {
-            var match = Regex.Match(line, "^\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*:");
-            if (match.Success) list.Add(match.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\"));
+            var match = Regex.Match(line, "^\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
+            if (match.Success)
+            {
+                var key = match.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\");
+                var value = match.Groups[2].Value.Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\n", "\n").Replace("\\t", "\t");
+                map[key] = value;
+            }
         }
-        return list;
+        return map;
     }
 
     private sealed class CultureScope : IDisposable

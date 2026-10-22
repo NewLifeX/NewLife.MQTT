@@ -1,0 +1,8 @@
+{
+  "comment": "程序集标题与描述等元数据键。不参与源码字符串扫描，但要求覆盖全部 31 种译文语言。",
+  "updated": "2026-10-22",
+  "keys": [
+    "NewLife.MQTT - MQTT Protocol Library",
+    "Pure managed MQTT 3.1/3.1.1/5.0 client and server with six transports, clustering, bridging, rule engine, WebHook, ACL and $SYS. Zero third-party dependencies, MIT licensed."
+  ]
+}
