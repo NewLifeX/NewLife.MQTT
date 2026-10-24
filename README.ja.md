@@ -49,6 +49,8 @@
 | **SOCKS5 プロキシ** | ユーザー名/パスワード認証付き SOCKS5 を内蔵。TCP と WS に対応 |
 | **バージョン網羅** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6～net10 |
 | **NativeAOT** | 主要パスを NativeAOT で検証（管理 API、クラスタ RPC、TCP、WS、認証、MQTT-SN。19 シナリオ、ILC 警告 0） |
+| **31 言語のローカライズ** | 実行時メッセージ、ダッシュボード、アセンブリ メタデータを NewLife.Core のコンパイル時辞書で 31 言語にローカライズします。未訳の項目は英語にフォールバックします |
+| **イベント バス** | `MqttEventBus` は MQTT トピック上で型付きの発行/購読を提供します。既定はブロードキャスト、`$share` 共有サブスクリプションも選択可能で、NewLife.Core の `IEventBusFactory` 契約に準拠します |
 | **コンプライアンス** | 完全自社開発、MIT、コピーレフト/特許条項なし |
 
 ---

@@ -1,5 +1,51 @@
 # 新生命MQTT协议 - 版本变更历史
 
+## v4.0.2026.1024 (2026-10-24)
+
+### 破坏性变更（v4.0 升级须知）
+- **依赖升级到 NewLife.Core 12.0.2026.1024**：全面适配 v12 网络栈（消息泵、消息/帧契约、`OwnerPacket` 引用计数所有权模型）。基于 Core v11 编译的调用方需随大版本重新编译；自定义协议处理器与直接操作 `NewLife.Data` 数据包的代码需按 Core 12 升级说明调整
+- **WebSocket 独立监听**：改由独立 `HttpServer` + `MqttWebSocketHandler` 桥接，用 `EnableWebSocket` 开启；`WebSocketPort` 默认 0（系统分配）、`WebSocketPath` 默认 `/mqtt`，不再与 MQTT TCP 端口共用；`WebSocketCertificate` 开启 WSS
+- **管理 API 迁移到 HttpServer**：地址保持 `/Api/{Action}`，但改由 HttpServer 控制器承载
+- **集群 RPC 迁移到 HTTP**：`ClusterPort` 为 HTTP 端口，节点地址可写 `host:port` 或 `http://host:port`，`ClusterSecret` 作为每次请求的令牌校验；移除 `NewLife.Remoting` 依赖
+- **框架目标说明**：继续提供 net45 / net461 / netstandard2.0 / netstandard2.1 / net6.0~net10.0；NewLife.Core 12 已不再提供 net7.0 资产，net7.0 目标回退使用 Core net6.0 资产
+
+### 多语言本地化（31 种语言）
+- **运行时消息全面本地化**：主库 220+ 条运行时消息以及存储组件、服务端示例词表全部改走 NewLife.Core 12 编译期词表，覆盖 31 种语言，缺失译文自动回退英文
+- **程序集元数据与配置项翻译**：包标题/描述、服务端配置显示名与看板文案支持多语言，`Localization.Culture` 与 `Localization.LogCulture` 可分别控制界面与日志语言
+- **11 种语言 README**：README 默认语言切换为英文，补齐简体中文、繁體中文、西班牙语、德语、日语、法语、葡萄牙语、俄语、韩语、阿拉伯语全量译文
+- **本地化质量门禁**：新增词表键集合/译文完整性/源码消息/README 结构校验脚本并接入 CI
+
+### 事件总线
+- **MqttEventBus**：新增基于 MQTT 主题的强类型事件总线，对齐 NewLife.Core `IEventBusFactory` 契约，可在 MQTT / Redis / 进程内通道间切换
+- **广播与共享订阅**：默认广播订阅，开启 `UseSharedSubscription` 后走 `$share` 共享订阅；信封携带发布方标识排除自身回环
+
+### 性能优化
+- **主题路由前缀索引**：以首层主题段前缀索引 + 通配符桶定位候选过滤器，订阅列表写时复制快照，发布读路径无锁零分配
+- **零分配主题匹配**：`MqttTopicFilter.IsMatch` 改为 Span 逐段匹配，热路径前缀判断改用 Ordinal，字面量匹配由 637ns 降至 8.8ns
+- **收发缓冲默认下调**：服务端会话缓冲与客户端接收缓冲默认 2048 字节，降低小消息高吞吐场景的大对象分配
+- **实测吞吐**：Broker 收包约 125 万 msg/s，单连接端到端 QoS0 约 10.6 万 msg/s
+
+### NativeAOT 与多平台
+- **主链路 AOT 兼容**：TCP/WS 收发、管理 API、集群 RPC、JWT/OAuth 认证、保留消息、持久会话离线补发、MQTT-SN 网关等 19 个场景 JIT/AOT 双跑通过，库侧 0 条 ILC 告警
+- **CI 平台矩阵**：单元测试覆盖 win-x64 / linux-x64 / linux-arm64 / 龙芯 LA64（QEMU 仿真）；AOT 冒烟覆盖 win-x64 / linux-x64 / linux-arm64；RISC-V 64、s390x 指令集与 Android / iOS 移动端冒烟纳入观察期
+- **交叉兼容门禁**：NewLife ↔ MQTTnet 双向 32 个交叉用例（连接、QoS 0/1/2、通配符、共享订阅、遗嘱等）纳入每平台测试门禁
+- **移动端冒烟**：新增 Android / iOS 冒烟工程，验证主库在移动运行时加载核心 API
+
+### Bug 修复
+- **[fix]** 修复 v12 消息泵链式帧体解码静默截断：帧体跨多次管道追加时按 `Available` 取负载会截断，20KB 载荷确定性复现，已在大载荷入口归一化为连续包
+- **[fix]** 修复 QUIC 服务端会话未接入协议会话：连接后交换机、集群与认证注入失效，客户端 CONNACK 无法配对
+- **[fix]** 修复管理 API 断开客户端未真正断连：只清理交换机登记，TCP 连接仍然在线
+- **[fix]** 修复集群成员变更未同步分片路由环，分片转发可能指向已离线节点
+- **[fix]** 修复集群订阅/退订 RPC 数组参数绑定失败，以及 AOT 下集群载荷反序列化失败
+- **[fix]** 修复 Storage 离线消息查询重载误用，DbExchange 读取离线消息会抛出 SQL 语法错误
+
+### 工程与测试
+- **解决方案升级 slnx 格式**，单元测试并行化后全量耗时由约 94s 降至约 12s
+- **新增 LoadBench 双进程压测工具**，支持 server / pub / sub / mix / pair / rawserver / rawclient 七种场景
+- 新增 LA64 仿真流水线与 RISC-V / s390x 指令集冒烟工程，补齐多 RID 测试矩阵
+
+---
+
 ## v3.2.2026.0802 (2026-08-02)
 
 ### 集群能力升级（v4.x）

@@ -54,6 +54,8 @@
 | **SOCKS5 代理** | 内置 SOCKS5 代理支持（用户名密码认证），TCP/WS 连接均可通过代理转发 |
 | **全版本覆盖** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 ~ net10 |
 | **NativeAOT 支持** | 主链路 NativeAOT 实测通过（管理 API / 集群 RPC / TCP / WS / 认证 / MQTT-SN 等，19 场景 JIT/AOT 双跑、库侧 0 条 ILC 告警；CI 覆盖 win-x64 / linux-x64 / linux-arm64 / 龙芯 LA64，其中 LA64 AOT 冒烟为观察期不阻断） |
+| **31 种语言本地化** | 运行时消息、看板与程序集元数据通过 NewLife.Core 编译期词表本地化为 31 种语言，缺失译文自动回退英文 |
+| **事件总线** | `MqttEventBus` 基于 MQTT 主题提供强类型发布/订阅：默认广播、可选 `$share` 共享订阅，并对齐 NewLife.Core `IEventBusFactory` 契约 |
 | **信创合规** | 完全自主研发，MIT 开源，无 Copyleft / 专利条款，无境外供应链风险 |
 
 ---

@@ -49,6 +49,8 @@
 | **Proxy SOCKS5** | Proxy SOCKS5 intégré avec authentification, pour TCP et WS |
 | **Couverture des versions** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 à net10 |
 | **NativeAOT** | Chemins principaux vérifiés sous NativeAOT (API, RPC cluster, TCP, WS, authentification, MQTT-SN ; 19 scénarios, 0 avertissement ILC) |
+| **Localisation en 31 langues** | Les messages d'exécution, le tableau de bord et les métadonnées du paquet sont localisés en 31 langues via les tables compilées de NewLife.Core ; les entrées manquantes reviennent à l'anglais |
+| **Bus d'événements** | `MqttEventBus` fournit une publication/souscription fortement typée sur les thèmes MQTT : diffusion par défaut, abonnement partagé `$share` en option, et compatible avec les contrats `IEventBusFactory` de NewLife.Core |
 | **Conformité** | Auto-développé, MIT, sans copyleft ni clause de brevet |
 
 ---

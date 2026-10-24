@@ -28,7 +28,7 @@ jobs:
           10.x
     - name: Resolve version suffix
       # 包版本 = csproj 的 VersionPrefix(主.小) + 版本后缀。
-      # tag 发布从 tag 反推后缀（v3.3.2026.1024 → 2026.1024），重跑与 tag 完全一致；
+      # tag 发布从 tag 反推后缀（v4.0.2026.1024 → 2026.1024），重跑与 tag 完全一致；
       # 手工触发时退回当天日期（yyyy.MMdd）。
       run: |
         prefix=$(dotnet msbuild NewLife.MQTT/NewLife.MQTT.csproj -nologo -getProperty:VersionPrefix)
@@ -78,7 +78,7 @@ jobs:
           exit 0
         }
 
-        # 发布说明优先取 ChangeLog.md 中当前版本段落（标题形如 "## v3.3.2026.1024 (2026-10-24)"）
+        # 发布说明优先取 ChangeLog.md 中当前版本段落（标题形如 "## v4.0.2026.1024 (2026-10-24)"）
         $version = $tag.TrimStart('v')
         $pattern = '^##\s+v?' + [regex]::Escape($version) + '(\s|\(|$)'
         $lines = Get-Content -LiteralPath 'ChangeLog.md'

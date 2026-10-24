@@ -54,6 +54,8 @@
 | **SOCKS5 proxy** | Built-in SOCKS5 proxy support (username/password authentication); both TCP and WS connections can be forwarded through a proxy |
 | **Full version coverage** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6 ~ net10 |
 | **NativeAOT support** | Main paths verified under NativeAOT (management API / cluster RPC / TCP / WS / authentication / MQTT-SN, etc., 19 scenarios run under both JIT and AOT, 0 ILC warnings on the library side; CI covers win-x64 / linux-x64 / linux-arm64 / Loongson LA64, where LA64 AOT smoke is observational and non-blocking) |
+| **31-language localization** | Runtime messages, dashboard and package metadata are localized into 31 languages through NewLife.Core compiled word lists; missing entries fall back to English |
+| **Event bus** | `MqttEventBus` provides strongly-typed publish/subscribe over MQTT topics: broadcast by default, optional `$share` shared subscription, and pluggable with the NewLife.Core `IEventBusFactory` contracts |
 | **Compliance-ready** | Completely self-developed, MIT-licensed, no copyleft / patent clauses, no overseas supply-chain risk |
 
 ---

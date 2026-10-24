@@ -49,6 +49,8 @@
 | **SOCKS5 프록시** | 사용자명/비밀번호 인증 내장, TCP와 WS 지원 |
 | **버전 지원** | net45 / net461 / netstandard2.0 / netstandard2.1 / net6~net10 |
 | **NativeAOT** | 주요 경로 NativeAOT 검증(관리 API, 클러스터 RPC, TCP, WS, 인증, MQTT-SN; 19개 시나리오, ILC 경고 0) |
+| **31개 언어 지역화** | 런타임 메시지, 대시보드 및 어셈블리 메타데이터를 NewLife.Core 컴파일 타임 사전으로 31개 언어로 지역화하며, 누락된 항목은 영어로 대체됩니다 |
+| **이벤트 버스** | `MqttEventBus`는 MQTT 토픽 기반의 강력한 형식 게시/구독을 제공합니다. 기본은 브로드캐스트이며 `$share` 공유 구독을 선택할 수 있고 NewLife.Core `IEventBusFactory` 계약을 따릅니다 |
 | **컴플라이언스** | 완전 자체 개발, MIT, copyleft/특허 조항 없음 |
 
 ---
