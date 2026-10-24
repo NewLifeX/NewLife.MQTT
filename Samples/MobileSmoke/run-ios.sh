@@ -11,7 +11,8 @@ ARTIFACTS="$ROOT/Bin/MobileSmoke/artifacts"
 
 mkdir -p "$ARTIFACTS"
 
-dotnet build "$PROJECT" -c "$CONFIGURATION" -f net10.0-ios -p:RuntimeIdentifier="$RUNTIME" --nologo
+# 只还原/构建 iOS 目标，避免在未安装 Android 工作负载的 macOS 主机上因多目标还原失败
+dotnet build "$PROJECT" -c "$CONFIGURATION" -f net10.0-ios -p:TargetFrameworks=net10.0-ios -p:RuntimeIdentifier="$RUNTIME" --nologo
 
 APP="$(find "$ROOT/Bin/MobileSmoke" -maxdepth 6 -name "*.app" -print -quit)"
 if [ -z "$APP" ]; then

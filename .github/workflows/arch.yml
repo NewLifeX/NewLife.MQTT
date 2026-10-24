@@ -80,7 +80,7 @@ jobs:
           sh -c '
             set -e
             apt-get update -qq
-            apt-get install -y -qq --no-install-recommends dotnet-runtime-10.0 ca-certificates >/dev/null
+            apt-get install -y -qq --no-install-recommends dotnet-runtime-10.0 libicu-dev ca-certificates >/dev/null
             dotnet --info
             cd /src && dotnet Bin/ArchSmoke/AotSmoke.dll
           '
