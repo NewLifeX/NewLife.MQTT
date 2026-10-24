@@ -108,7 +108,7 @@ foreach ($item in $items) {
 }
 
 # 校验所有 csproj 的 PackageReadmeFile 都有对应的打包项，且源文件真实存在
-$projects = @(Get-ChildItem -Path $Root -Recurse -Filter *.csproj -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' })
+$projects = @(Get-ChildItem -Path $Root -Recurse -Filter *.csproj -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' })
 foreach ($project in $projects) {
     $content = [IO.File]::ReadAllText($project.FullName)
     $match = [regex]::Match($content, '<PackageReadmeFile>\s*([^<]+?)\s*</PackageReadmeFile>')

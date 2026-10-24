@@ -33,7 +33,7 @@ foreach ($dir in $dirs) {
         }
         else { $file.FullName }
 
-        if ($rel -match '\\(obj|bin)\\') { continue }
+        if ($rel -match '[\\/](obj|bin)[\\/]') { continue }
         $excluded = $false
         foreach ($pattern in $Exclude) {
             if ($rel -like $pattern -or $file.FullName -like $pattern) { $excluded = $true; break }

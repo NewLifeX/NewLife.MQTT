@@ -165,9 +165,9 @@ $sourceDirs = @($SourceDir | ForEach-Object {
     if ([IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $root $_ }
 } | Where-Object { Test-Path $_ })
 $allSourceFiles = @($sourceDirs | ForEach-Object { Get-ChildItem $_ -Recurse -Filter *.cs } |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin|Locales)\\' })
+    Where-Object { $_.FullName -notmatch '[\\/](obj|bin|Locales)[\\/]' })
 $sourceFiles = @($allSourceFiles | Where-Object {
-        $_.FullName -notmatch '\\WebSocket\\' -and
+        $_.FullName -notmatch '[\\/]WebSocket[\\/]' -and
         $_.Name -notin @('PruningRadixTrie.cs', 'SubscriptionManager.cs', 'Trie.cs', 'TrieNode.cs', 'MqttHandler.cs', 'MqttTypeAttribute.cs')
     })
 
