@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(클라이언트={1})"
 "MQTT Broker Dashboard": "MQTT 브로커 대시보드"
 "Client ID": "클라이언트 ID"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT 이벤트 버스 [{0}]에서 메시지 처리에 실패했습니다: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT 이벤트 버스 [{0}]에서 이벤트 봉투 디코딩에 실패했습니다"
+"MQTT event bus [{0}] failed to decode the event": "MQTT 이벤트 버스 [{0}]에서 이벤트 디코딩에 실패했습니다"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT 이벤트 버스 구독 취소에 실패했습니다: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT 이벤트 버스 배포에 실패했습니다: {0}"

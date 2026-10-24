@@ -14,7 +14,7 @@ function Invoke-Check([String]$Name, [String[]]$Arguments) {
     $script = $Arguments[0]
     $rest = @($Arguments | Select-Object -Skip 1)
     & pwsh -NoProfile -File $script @rest
-    if ($LASTEXITCODE -ne 0) { $failed += $Name }
+    if ($LASTEXITCODE -ne 0) { $script:failed += $Name }
 }
 
 $tools = Join-Path $Root "tools"

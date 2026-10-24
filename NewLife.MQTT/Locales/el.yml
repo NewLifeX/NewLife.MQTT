@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(πελάτης={1})"
 "MQTT Broker Dashboard": "Πίνακας ελέγχου MQTT Broker"
 "Client ID": "Αναγνωριστικό πελάτη"
+"MQTT event bus [{0}] failed to process message: {1}": "Ο δίαυλος συμβάντων MQTT [{0}] απέτυχε να επεξεργαστεί το μήνυμα: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Ο δίαυλος συμβάντων MQTT [{0}] απέτυχε να αποκωδικοποιήσει τον φάκελο του συμβάντος"
+"MQTT event bus [{0}] failed to decode the event": "Ο δίαυλος συμβάντων MQTT [{0}] απέτυχε να αποκωδικοποιήσει το συμβάν"
+"MQTT event bus failed to unsubscribe: {0}": "Ο δίαυλος συμβάντων MQTT απέτυχε να καταργήσει τη συνδρομή: {0}"
+"MQTT event bus dispatch failed: {0}": "Η διανομή του διαύλου συμβάντων MQTT απέτυχε: {0}"

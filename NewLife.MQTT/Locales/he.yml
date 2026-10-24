@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(לקוח={1})"
 "MQTT Broker Dashboard": "לוח בקרה של MQTT Broker"
 "Client ID": "מזהה לקוח"
+"MQTT event bus [{0}] failed to process message: {1}": "אפיק האירועים MQTT [{0}] נכשל בעיבוד ההודעה: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "אפיק האירועים MQTT [{0}] נכשל בפענוח מעטפת האירוע"
+"MQTT event bus [{0}] failed to decode the event": "אפיק האירועים MQTT [{0}] נכשל בפענוח האירוע"
+"MQTT event bus failed to unsubscribe: {0}": "אפיק האירועים MQTT נכשל בביטול המינוי: {0}"
+"MQTT event bus dispatch failed: {0}": "הפצה באפיק האירועים MQTT נכשלה: {0}"

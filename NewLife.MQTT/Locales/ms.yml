@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(klien={1})"
 "MQTT Broker Dashboard": "Papan pemuka Broker MQTT"
 "Client ID": "ID Klien"
+"MQTT event bus [{0}] failed to process message: {1}": "Bas peristiwa MQTT [{0}] gagal memproses mesej: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Bas peristiwa MQTT [{0}] gagal menyahkod sampul peristiwa"
+"MQTT event bus [{0}] failed to decode the event": "Bas peristiwa MQTT [{0}] gagal menyahkod peristiwa"
+"MQTT event bus failed to unsubscribe: {0}": "Bas peristiwa MQTT gagal melanggan keluar: {0}"
+"MQTT event bus dispatch failed: {0}": "Bas peristiwa MQTT gagal mengedarkan: {0}"

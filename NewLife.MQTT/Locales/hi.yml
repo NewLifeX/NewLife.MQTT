@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(क्लाइंट={1})"
 "MQTT Broker Dashboard": "MQTT ब्रोकर डैशबोर्ड"
 "Client ID": "क्लाइंट आईडी"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT इवेंट बस [{0}] संदेश संसाधित नहीं कर सकी: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT इवेंट बस [{0}] इवेंट लिफ़ाफ़ा डिकोड नहीं कर सकी"
+"MQTT event bus [{0}] failed to decode the event": "MQTT इवेंट बस [{0}] इवेंट डिकोड नहीं कर सकी"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT इवेंट बस सदस्यता रद्द नहीं कर सकी: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT इवेंट बस वितरण विफल: {0}"

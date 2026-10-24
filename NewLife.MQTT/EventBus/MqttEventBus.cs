@@ -120,7 +120,7 @@ public class MqttEventBus<TEvent> : EventBus<TEvent>, ITracerFeature
         }
         catch (Exception ex)
         {
-            Log?.Error("MQTT事件总线[{0}]处理消息失败：{1}", FullTopic, ex.Message);
+            Log?.Error("MQTT event bus [{0}] failed to process message: {1}", FullTopic, ex.Message);
         }
     }
 
@@ -142,7 +142,7 @@ public class MqttEventBus<TEvent> : EventBus<TEvent>, ITracerFeature
             var envelope = Factory.Client.Encoder.Decode<MqttEventEnvelope<TEvent>>(payload);
             if (envelope == null)
             {
-                Log?.Error("MQTT事件总线[{0}]解码事件信封失败", FullTopic);
+                Log?.Error("MQTT event bus [{0}] failed to decode the event envelope", FullTopic);
                 return;
             }
 
@@ -156,7 +156,7 @@ public class MqttEventBus<TEvent> : EventBus<TEvent>, ITracerFeature
 
         if (@event == null)
         {
-            Log?.Error("MQTT事件总线[{0}]解码事件失败", FullTopic);
+            Log?.Error("MQTT event bus [{0}] failed to decode the event", FullTopic);
             return;
         }
 

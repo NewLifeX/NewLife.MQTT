@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(asiakas={1})"
 "MQTT Broker Dashboard": "MQTT-välittäjän koontinäyttö"
 "Client ID": "Asiakastunnus"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT-tapahtumaväylä [{0}]: viestin käsittely epäonnistui: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT-tapahtumaväylä [{0}]: tapahtumakirjekuoren purku epäonnistui"
+"MQTT event bus [{0}] failed to decode the event": "MQTT-tapahtumaväylä [{0}]: tapahtuman purku epäonnistui"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT-tapahtumaväylä: tilauksen peruutus epäonnistui: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT-tapahtumaväylä: jakelu epäonnistui: {0}"

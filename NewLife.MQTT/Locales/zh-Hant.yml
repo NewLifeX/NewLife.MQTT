@@ -229,3 +229,8 @@
 "{0}(client={1})": "{0}(用戶端={1})"
 "MQTT Broker Dashboard": "MQTT Broker 儀表板"
 "Client ID": "用戶端 ID"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT 事件匯流排[{0}]處理訊息失敗：{1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT 事件匯流排[{0}]解碼事件信封失敗"
+"MQTT event bus [{0}] failed to decode the event": "MQTT 事件匯流排[{0}]解碼事件失敗"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT 事件匯流排取消訂閱失敗：{0}"
+"MQTT event bus dispatch failed: {0}": "MQTT 事件匯流排分發失敗：{0}"

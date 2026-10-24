@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(クライアント={1})"
 "MQTT Broker Dashboard": "MQTT ブローカー ダッシュボード"
 "Client ID": "クライアント ID"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT イベント バス [{0}] でメッセージの処理に失敗しました: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT イベント バス [{0}] でイベント エンベロープのデコードに失敗しました"
+"MQTT event bus [{0}] failed to decode the event": "MQTT イベント バス [{0}] でイベントのデコードに失敗しました"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT イベント バスのサブスクリプション解除に失敗しました: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT イベント バスの配信に失敗しました: {0}"

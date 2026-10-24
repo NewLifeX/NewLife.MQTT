@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(klient={1})"
 "MQTT Broker Dashboard": "MQTT-meglerdashbord"
 "Client ID": "Klient-ID"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT-hendelsesbuss [{0}]: behandling av melding mislyktes: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT-hendelsesbuss [{0}]: dekoding av hendelseskonvolutt mislyktes"
+"MQTT event bus [{0}] failed to decode the event": "MQTT-hendelsesbuss [{0}]: dekoding av hendelse mislyktes"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT-hendelsesbuss: avmelding mislyktes: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT-hendelsesbuss: distribusjon mislyktes: {0}"

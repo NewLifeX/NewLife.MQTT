@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(ügyfél={1})"
 "MQTT Broker Dashboard": "MQTT-közvetítő irányítópult"
 "Client ID": "Ügyfél-azonosító"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT eseménybusz [{0}]: az üzenet feldolgozása sikertelen: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT eseménybusz [{0}]: az eseményboríték dekódolása sikertelen"
+"MQTT event bus [{0}] failed to decode the event": "MQTT eseménybusz [{0}]: az esemény dekódolása sikertelen"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT eseménybusz: a leiratkozás sikertelen: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT eseménybusz: a kézbesítés sikertelen: {0}"

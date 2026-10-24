@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(istemci={1})"
 "MQTT Broker Dashboard": "MQTT Aracı Panosu"
 "Client ID": "İstemci Kimliği"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT olay veriyolu [{0}] iletiyi işleyemedi: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT olay veriyolu [{0}] olay zarfını çözemedi"
+"MQTT event bus [{0}] failed to decode the event": "MQTT olay veriyolu [{0}] olayı çözemedi"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT olay veriyolu abonelikten çıkamadı: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT olay veriyolu dağıtımı başarısız: {0}"

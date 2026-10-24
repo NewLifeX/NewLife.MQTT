@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(máy khách={1})"
 "MQTT Broker Dashboard": "Bảng điều khiển MQTT Broker"
 "Client ID": "ID máy khách"
+"MQTT event bus [{0}] failed to process message: {1}": "Bus sự kiện MQTT [{0}] không xử lý được thông điệp: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Bus sự kiện MQTT [{0}] không giải mã được phong bì sự kiện"
+"MQTT event bus [{0}] failed to decode the event": "Bus sự kiện MQTT [{0}] không giải mã được sự kiện"
+"MQTT event bus failed to unsubscribe: {0}": "Bus sự kiện MQTT không hủy đăng ký được: {0}"
+"MQTT event bus dispatch failed: {0}": "Bus sự kiện MQTT phân phối thất bại: {0}"

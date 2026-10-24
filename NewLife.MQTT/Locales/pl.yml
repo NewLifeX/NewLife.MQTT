@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(klient={1})"
 "MQTT Broker Dashboard": "Pulpit brokera MQTT"
 "Client ID": "Identyfikator klienta"
+"MQTT event bus [{0}] failed to process message: {1}": "Magistrala zdarzeń MQTT [{0}]: nie udało się przetworzyć wiadomości: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Magistrala zdarzeń MQTT [{0}]: nie udało się zdekodować koperty zdarzenia"
+"MQTT event bus [{0}] failed to decode the event": "Magistrala zdarzeń MQTT [{0}]: nie udało się zdekodować zdarzenia"
+"MQTT event bus failed to unsubscribe: {0}": "Magistrala zdarzeń MQTT: nie udało się anulować subskrypcji: {0}"
+"MQTT event bus dispatch failed: {0}": "Magistrala zdarzeń MQTT: nie udało się rozesłać: {0}"

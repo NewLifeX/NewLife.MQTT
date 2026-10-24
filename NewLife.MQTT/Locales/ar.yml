@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(العميل={1})"
 "MQTT Broker Dashboard": "لوحة تحكم وسيط MQTT"
 "Client ID": "معرف العميل"
+"MQTT event bus [{0}] failed to process message: {1}": "تعذر على ناقل أحداث MQTT [{0}] معالجة الرسالة: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "تعذر على ناقل أحداث MQTT [{0}] فك تغليف الحدث"
+"MQTT event bus [{0}] failed to decode the event": "تعذر على ناقل أحداث MQTT [{0}] فك ترميز الحدث"
+"MQTT event bus failed to unsubscribe: {0}": "تعذر على ناقل أحداث MQTT إلغاء الاشتراك: {0}"
+"MQTT event bus dispatch failed: {0}": "فشل توزيع ناقل أحداث MQTT: {0}"

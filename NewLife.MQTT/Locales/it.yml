@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(client={1})"
 "MQTT Broker Dashboard": "Dashboard del broker MQTT"
 "Client ID": "ID client"
+"MQTT event bus [{0}] failed to process message: {1}": "Il bus di eventi MQTT [{0}] non è riuscito a elaborare il messaggio: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Il bus di eventi MQTT [{0}] non è riuscito a decodificare la busta dell'evento"
+"MQTT event bus [{0}] failed to decode the event": "Il bus di eventi MQTT [{0}] non è riuscito a decodificare l'evento"
+"MQTT event bus failed to unsubscribe: {0}": "Il bus di eventi MQTT non è riuscito a annullare la sottoscrizione: {0}"
+"MQTT event bus dispatch failed: {0}": "Distribuzione del bus di eventi MQTT non riuscita: {0}"

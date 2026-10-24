@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(ক্লায়েন্ট={1})"
 "MQTT Broker Dashboard": "MQTT ব্রোকার ড্যাশবোর্ড"
 "Client ID": "ক্লায়েন্ট আইডি"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT ইভেন্ট বাস [{0}] বার্তা প্রক্রিয়া করতে ব্যর্থ: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT ইভেন্ট বাস [{0}] ইভেন্ট খাম ডিকোড করতে ব্যর্থ"
+"MQTT event bus [{0}] failed to decode the event": "MQTT ইভেন্ট বাস [{0}] ইভেন্ট ডিকোড করতে ব্যর্থ"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT ইভেন্ট বাস সদস্যতা বাতিল করতে ব্যর্থ: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT ইভেন্ট বাস বিতরণ ব্যর্থ: {0}"

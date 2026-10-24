@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(client={1})"
 "MQTT Broker Dashboard": "Panou broker MQTT"
 "Client ID": "ID client"
+"MQTT event bus [{0}] failed to process message: {1}": "Magistrala de evenimente MQTT [{0}]: procesarea mesajului a eșuat: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Magistrala de evenimente MQTT [{0}]: decodarea plicului evenimentului a eșuat"
+"MQTT event bus [{0}] failed to decode the event": "Magistrala de evenimente MQTT [{0}]: decodarea evenimentului a eșuat"
+"MQTT event bus failed to unsubscribe: {0}": "Magistrala de evenimente MQTT: anularea abonării a eșuat: {0}"
+"MQTT event bus dispatch failed: {0}": "Magistrala de evenimente MQTT: distribuirea a eșuat: {0}"

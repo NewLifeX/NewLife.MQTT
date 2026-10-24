@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(ไคลเอนต์={1})"
 "MQTT Broker Dashboard": "แดชบอร์ดโบรกเกอร์ MQTT"
 "Client ID": "รหัสไคลเอนต์"
+"MQTT event bus [{0}] failed to process message: {1}": "บัสเหตุการณ์ MQTT [{0}] ประมวลผลข้อความไม่สำเร็จ: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "บัสเหตุการณ์ MQTT [{0}] ถอดรหัสซองเหตุการณ์ไม่สำเร็จ"
+"MQTT event bus [{0}] failed to decode the event": "บัสเหตุการณ์ MQTT [{0}] ถอดรหัสเหตุการณ์ไม่สำเร็จ"
+"MQTT event bus failed to unsubscribe: {0}": "บัสเหตุการณ์ MQTT ยกเลิกการสมัครไม่สำเร็จ: {0}"
+"MQTT event bus dispatch failed: {0}": "บัสเหตุการณ์ MQTT เผยแพร่ไม่สำเร็จ: {0}"

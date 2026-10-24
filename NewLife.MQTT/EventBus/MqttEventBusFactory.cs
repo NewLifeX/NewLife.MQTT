@@ -141,7 +141,7 @@ public class MqttEventBusFactory : IEventBusFactory, IDisposable
         }
         catch (Exception ex)
         {
-            Log?.Error("MQTT事件总线取消订阅失败：{0}", ex.Message);
+            Log?.Error("MQTT event bus failed to unsubscribe: {0}", ex.Message);
         }
     }
 
@@ -178,7 +178,7 @@ public class MqttEventBusFactory : IEventBusFactory, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Log?.Error("MQTT事件总线分发失败：{0}", ex.Message);
+                    Log?.Error("MQTT event bus dispatch failed: {0}", ex.Message);
                 }
             }
         }

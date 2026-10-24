@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(клієнт={1})"
 "MQTT Broker Dashboard": "Панель брокера MQTT"
 "Client ID": "Ідентифікатор клієнта"
+"MQTT event bus [{0}] failed to process message: {1}": "Шина подій MQTT [{0}]: не вдалося обробити повідомлення: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Шина подій MQTT [{0}]: не вдалося декодувати конверт події"
+"MQTT event bus [{0}] failed to decode the event": "Шина подій MQTT [{0}]: не вдалося декодувати подію"
+"MQTT event bus failed to unsubscribe: {0}": "Шина подій MQTT: не вдалося скасувати підписку: {0}"
+"MQTT event bus dispatch failed: {0}": "Шина подій MQTT: не вдалося доставити: {0}"

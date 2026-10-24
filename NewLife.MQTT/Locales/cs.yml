@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(klient={1})"
 "MQTT Broker Dashboard": "Řídicí panel brokeru MQTT"
 "Client ID": "ID klienta"
+"MQTT event bus [{0}] failed to process message: {1}": "Sběrnice událostí MQTT [{0}]: zpracování zprávy se nezdařilo: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "Sběrnice událostí MQTT [{0}]: dekódování obálky události se nezdařilo"
+"MQTT event bus [{0}] failed to decode the event": "Sběrnice událostí MQTT [{0}]: dekódování události se nezdařilo"
+"MQTT event bus failed to unsubscribe: {0}": "Sběrnice událostí MQTT: odhlášení se nezdařilo: {0}"
+"MQTT event bus dispatch failed: {0}": "Sběrnice událostí MQTT: doručení se nezdařilo: {0}"

@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(کلاینت={1})"
 "MQTT Broker Dashboard": "داشبورد کارگزار MQTT"
 "Client ID": "شناسه کلاینت"
+"MQTT event bus [{0}] failed to process message: {1}": "گذرگاه رویداد MQTT [{0}] در پردازش پیام ناموفق بود: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "گذرگاه رویداد MQTT [{0}] در رمزگشایی پاکت رویداد ناموفق بود"
+"MQTT event bus [{0}] failed to decode the event": "گذرگاه رویداد MQTT [{0}] در رمزگشایی رویداد ناموفق بود"
+"MQTT event bus failed to unsubscribe: {0}": "گذرگاه رویداد MQTT در لغو اشتراک ناموفق بود: {0}"
+"MQTT event bus dispatch failed: {0}": "توزیع گذرگاه رویداد MQTT ناموفق بود: {0}"

@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(Client={1})"
 "MQTT Broker Dashboard": "MQTT-Broker-Dashboard"
 "Client ID": "Client-ID"
+"MQTT event bus [{0}] failed to process message: {1}": "MQTT-Ereignisbus [{0}]: Verarbeitung der Nachricht fehlgeschlagen: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "MQTT-Ereignisbus [{0}]: Dekodierung des Ereignisumschlags fehlgeschlagen"
+"MQTT event bus [{0}] failed to decode the event": "MQTT-Ereignisbus [{0}]: Dekodierung des Ereignisses fehlgeschlagen"
+"MQTT event bus failed to unsubscribe: {0}": "MQTT-Ereignisbus: Abmeldung fehlgeschlagen: {0}"
+"MQTT event bus dispatch failed: {0}": "MQTT-Ereignisbus: Verteilung fehlgeschlagen: {0}"

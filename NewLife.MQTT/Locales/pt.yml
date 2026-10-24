@@ -228,3 +228,8 @@
 "{0}(client={1})": "{0}(cliente={1})"
 "MQTT Broker Dashboard": "Painel do broker MQTT"
 "Client ID": "ID do cliente"
+"MQTT event bus [{0}] failed to process message: {1}": "O barramento de eventos MQTT [{0}] falhou ao processar a mensagem: {1}"
+"MQTT event bus [{0}] failed to decode the event envelope": "O barramento de eventos MQTT [{0}] falhou ao decodificar o envelope do evento"
+"MQTT event bus [{0}] failed to decode the event": "O barramento de eventos MQTT [{0}] falhou ao decodificar o evento"
+"MQTT event bus failed to unsubscribe: {0}": "O barramento de eventos MQTT falhou ao cancelar a assinatura: {0}"
+"MQTT event bus dispatch failed: {0}": "Falha na distribuição do barramento de eventos MQTT: {0}"
