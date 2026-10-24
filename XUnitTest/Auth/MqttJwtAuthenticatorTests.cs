@@ -1,6 +1,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
+using NewLife;
 using NewLife.MQTT.Handlers;
 using NewLife.MQTT.Messaging;
 using NewLife.Serialization;
@@ -42,7 +43,7 @@ public class MqttJwtAuthenticatorTests
         var result = auth.TryParseAndValidate(String.Join(".", parts), out _, out var error);
 
         Assert.False(result);
-        Assert.Contains("签名", error);
+        Assert.Contains(Localization.Translate("JWT signature verification failed."), error);
     }
 
     [System.ComponentModel.DisplayName("JWT 过期 Token 被拒绝")]
@@ -57,7 +58,7 @@ public class MqttJwtAuthenticatorTests
         var result = auth.TryParseAndValidate(token, out _, out var error);
 
         Assert.False(result);
-        Assert.Contains("过期", error);
+        Assert.Contains(Localization.Translate("JWT token has expired."), error);
     }
 
     [System.ComponentModel.DisplayName("JWT 未生效 Token（nbf）被拒绝")]
@@ -72,7 +73,7 @@ public class MqttJwtAuthenticatorTests
         var result = auth.TryParseAndValidate(token, out _, out var error);
 
         Assert.False(result);
-        Assert.Contains("尚未生效", error);
+        Assert.Contains(Localization.Translate("JWT token is not yet valid."), error);
     }
 
     [System.ComponentModel.DisplayName("JWT 格式错误被拒绝")]
@@ -83,11 +84,11 @@ public class MqttJwtAuthenticatorTests
 
         var result = auth.TryParseAndValidate("not.a.jwt.token.extra", out _, out var error);
         Assert.False(result);
-        Assert.Contains("格式无效", error);
+        Assert.Contains(Localization.Translate("Invalid JWT format: expected Header.Payload.Signature."), error);
 
         result = auth.TryParseAndValidate("invalid", out _, out var error2);
         Assert.False(result);
-        Assert.Contains("格式无效", error2);
+        Assert.Contains(Localization.Translate("Invalid JWT format: expected Header.Payload.Signature."), error2);
     }
 
     [System.ComponentModel.DisplayName("JWT 非 HS256 算法被拒绝")]
@@ -104,7 +105,7 @@ public class MqttJwtAuthenticatorTests
         var result = auth.TryParseAndValidate($"{header}.{payload}.{signature}", out _, out var error);
 
         Assert.False(result);
-        Assert.Contains("算法", error);
+        Assert.Contains(Localization.Translate("JWT algorithm is not supported; only HS256 is supported."), error);
     }
     #endregion
 
@@ -129,7 +130,7 @@ public class MqttJwtAuthenticatorTests
 
         var result = auth.TryParseAndValidate(token, out _, out var error);
         Assert.False(result);
-        Assert.Contains("签发者", error);
+        Assert.Contains(Localization.Translate("JWT issuer mismatch: expected {0}, actual {1}.", "my-issuer", "bad-issuer"), error);
     }
 
     [System.ComponentModel.DisplayName("JWT 受众验证：匹配时通过")]

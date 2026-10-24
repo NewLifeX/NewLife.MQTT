@@ -74,7 +74,7 @@ public class QuicClientTests
     {
         var client = new QuicClient { Server = "127.0.0.1" };
         var ex = Assert.Throws<InvalidOperationException>(() => client.SendMessage(new PingRequest()));
-        Assert.Contains("未建立 QUIC 连接", ex.Message);
+        Assert.Contains(Localization.Translate("No QUIC connection has been established."), ex.Message);
         client.TryDispose();
     }
 
@@ -84,7 +84,7 @@ public class QuicClientTests
         var client = new QuicClient { Server = "127.0.0.1" };
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             client.SendMessageAsync(new PingRequest()));
-        Assert.Contains("未建立 QUIC 连接", ex.Message);
+        Assert.Contains(Localization.Translate("No QUIC connection has been established."), ex.Message);
         client.TryDispose();
     }
 
