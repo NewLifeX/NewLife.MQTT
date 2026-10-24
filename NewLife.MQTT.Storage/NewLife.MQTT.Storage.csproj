@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net45;net461;netstandard2.0;netstandard2.1;net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="NewLife.XCode" Version="12.2.2026.1021-beta0423" />
-        <PackageReference Include="NewLife.Redis" Version="6.6.2026.1019-beta1511" />
+        <PackageReference Include="NewLife.Redis" Version="6.6.2026.1022-beta0149" />
   </ItemGroup>
 
 </Project>
