@@ -5,9 +5,12 @@ using XCode.DataAccessLayer;
 namespace NewLife.MQTT.Storage.Database;
 
 /// <summary>持久会话实体</summary>
-[BindTable("MqttSession", "持久会话", Description = "MQTT持久会话。保存CleanSession=0客户端的订阅关系")]
+[BindTable("MqttSession", "持久会话", ConnName = "Mqtt", Description = "MQTT持久会话。保存CleanSession=0客户端的订阅关系")]
 public class MqttSessionEntity : Entity<MqttSessionEntity>
 {
+    // 静态构造路径注册工厂，规避 AOT 下运行时泛型实例化
+    static MqttSessionEntity() => EntityFactory.GetFactory<MqttSessionEntity>();
+
     #region 属性
     private Int64 _Id;
     /// <summary>编号</summary>
@@ -89,9 +92,12 @@ public class MqttSessionEntity : Entity<MqttSessionEntity>
 }
 
 /// <summary>离线消息实体</summary>
-[BindTable("MqttOfflineMessage", "离线消息", Description = "MQTT离线消息。暂存离线持久会话的QoS>0消息")]
+[BindTable("MqttOfflineMessage", "离线消息", ConnName = "Mqtt", Description = "MQTT离线消息。暂存离线持久会话的QoS>0消息")]
 public class MqttOfflineMessageEntity : Entity<MqttOfflineMessageEntity>
 {
+    // 静态构造路径注册工厂，规避 AOT 下运行时泛型实例化
+    static MqttOfflineMessageEntity() => EntityFactory.GetFactory<MqttOfflineMessageEntity>();
+
     #region 属性
     private Int64 _Id;
     /// <summary>编号</summary>

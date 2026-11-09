@@ -352,6 +352,8 @@ MqttMessageEntity      → 表名: MqttOfflineMessage
   CreateTime
 ```
 
+实体连接名固定为 `Mqtt`：默认零配置使用 SQLite，可在配置文件或环境变量中以 `XCode_Mqtt` 指定 MySQL/SQL Server/Oracle 等连接串。
+
 ### 2.8 TopicShardManager — 主题分片管理器 ✅（已实现）
 
 | 属性 | 说明 |
