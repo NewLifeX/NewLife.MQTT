@@ -1,6 +1,6 @@
 # NewLife.MQTT AOT 兼容性评估
 
-> 基线：NewLife.Core 12.0.2026.1013-beta0732（2026-10-15 升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（必选覆盖 win-x64 / linux-x64 / linux-arm64，.NET 10；linux-la64 全量单测门禁、AOT 冒烟与 win-arm64 / osx 双架构 / linux-musl 为观察期）｜冒烟工程：`AotSmoke/`（已入库，复现方法见 §5）
+> 基线：NewLife.Core 12.0.2026.1024（2026-11-09 依赖升级复验）｜评估方式：**NativeAOT 真实编译 + 运行实测**（必选覆盖 win-x64 / linux-x64 / linux-arm64，.NET 10；linux-la64 全量单测门禁、AOT 冒烟与 win-arm64 / osx 双架构 / linux-musl 为观察期）｜冒烟工程：`AotSmoke/`（已入库，复现方法见 §5）
 
 ---
 
@@ -13,7 +13,7 @@
   2. 匿名对象载荷改字典承载：AOT 下匿名类型属性被裁剪，经运行时序列化会得到空对象 `{}`——`MqttManagementController.Stats`、`ClusterController.Health`、`ClusterNode` 六处 RPC 载荷、`AliyunMqttClient` 两处载荷均改为 `Dictionary<String, Object?>`（键名与线格式不变，JIT 行为不变）；
   3. 对照实验确认因果：无保根的手工注册在 AOT 下 404（方法元数据被裁剪），保根后恢复；
   4. 集群 RPC 载荷 DTO 保根与订阅数组归一化：`ClusterServer.Start` 对控制器签名涉及的载荷 DTO（NodeInfo/SubscriptionInfo/PublishInfo/PublishMessage/MqttProperties/SessionInfo/Raft 系列/SnapshotSubscription）统一标注 `[DynamicDependency(PublicConstructors | PublicProperties)]`（AOT 下运行时参数绑定需反射创建/读写，修复前 `Publish` 等路径报 `No parameterless constructor defined`）；`Subscribe`/`Unsubscribe` 控制器的数组参数经 `ToSubscriptionInfos` 归一化（FIX-CLUS-1：JSON 数组经参数绑定为对象列表后无法直接强转，JIT/AOT 同错）。
-- **边界（2026-10-15 更新）**：`NewLife.MQTT.Storage`（XCode 数据库路径与 Redis 路径）与 `NewLife.MqttServer` 应用（Stardust）仍不在支持范围；其中 Storage 已完成就绪度实测——XCode 包（12.2.2026.901 / 912-beta）在 AOT 下产生 7 条 ILC 告警且运行期数据库命令创建失败，`RedisExchange` 仅构造级可用，详见 §4。
+- **边界（2026-11-09 更新）**：`NewLife.MQTT.Storage`（XCode 数据库路径与 Redis 路径）与 `NewLife.MqttServer` 应用（Stardust）仍不在支持范围；依赖升级到 XCode 12.3.2026.1024 / Redis 7.0.2026.1024 后复验——ILC 告警由 7 条降为 **0 条**，但 XCode 内置 SQLite 驱动在运行期仍依赖动态插件加载，`DbSession.OnCreateCommand` 抛 `InvalidOperationException`；`RedisExchange` 仅构造级可用。本轮同时修复 Storage 两处阻塞 AOT 的实体配置（`BindTable.ConnName` 缺失、实体工厂未走静态构造路径），详见 §4。
 - **FIX-CLUS-1 已修复（2026-10-09）**：订阅/退订 RPC 数组参数绑定失败为 v12 迁移引入的既有缺陷，已随本次改造修复并补 RPC 级回归测试（`ClusterRpcSubscribeTests`）。
 - **深挖中发现并修复的两个运行时缺陷（2026-10-10）**：冒烟场景 13/14 与端到端大载荷探针驱动发现——①**链式帧体解码静默截断**：v12 消息泵零拷贝切帧时，跨多次管道追加的帧体为多段共享切片组成的链包（`Next != null`），Core `SpanReader` 对链包退化为 8192 字节流式缓冲，`Available` 只反映已缓冲分块，`ReadPacket(Available)` 会截断负载（载荷超过单轮读取上限 8KB 且跨轮追加时即触发，20KB 载荷确定性复现）；修复为 `MqttMessage.EnsureContiguous`（链包→`new ArrayPacket(body.ToArray())`），在 `ReadBody` 与 `MqttFactory.ReadMessage` 入口归一化。②**管理 API 断开客户端不真正断连**：`MqttExchange.DisconnectClient` 原仅调 `handler.Close(...)`（关闭通知语义），交换机登记已清但 TCP 连接仍在，客户端收不到消息又不触发重连；修复为经 `(handler as MqttHandler)?.Session` 走标准会话关闭（含遗嘱与注销）。两处均补确定性回归测试（`FrameBodyChainTests` / `ExchangeDisconnectTests`），修复前红灯、修复后全绿。
 
@@ -52,7 +52,8 @@
 - `dotnet publish -c Release -r win-x64`：**0 条来自 NewLife.MQTT / NewLife.Core 的告警**；仅冒烟工程自身诊断行 `Assembly.Location` 触发 IL3000（评估证据，正式工程不会出现）。
 - **分析器常驻（2026-10-16）**：库工程 net8.0+ 启用 `IsAotCompatible`（AOT/裁剪分析器随日常构建运行），本地实测 net8.0/net9.0/net10.0 构建 **0 条 IL 告警**；CI `aot-analyzer` 作业对三个 TFM 的构建日志做 IL 告警门禁（既有 CS/CA 告警基线不在本任务范围，故未采用全局 `-warnaserror`）。
 - 升级复验：`12.0.2026.1013-beta0732` 发布运行同样 0 条库侧 ILC 告警、19 场景全通过（2026-10-15，扩展场景后复跑）；此前双基线（发布包 `12.0.2026.1009-beta0916` 与下一版 `12.0.2026.1010` 本地 HEAD，尚未发包）结论一致。
-- 产物：单文件 exe 约 11.6 MB（含 MQTT 全功能）。
+- 依赖升级复验（2026-11-09）：`NewLife.Core 12.0.2026.1024` + `NewLife.XCode 12.3.2026.1024` + `NewLife.Redis 7.0.2026.1024` + `NewLife.Stardust 3.10.2026.1024`；win-x64 NativeAOT 发布 0 条库侧 ILC 告警，19 个冒烟场景与本地化检查全部通过；`IsAotCompatible` 分析器 net8.0/net9.0/net10.0 均 0 条 IL 告警。
+- 产物：单文件 exe 约 12.7 MB（含 MQTT 全功能）。
 - AOT 判真：产物运行 `IsDynamicCodeSupported=False`、`Assembly.Location` 为空。
 - 严格姿态：`JsonSerializerIsReflectionEnabledByDefault=false`，配置类与 JSON 场景仍全通过。
 
@@ -73,7 +74,7 @@
 
 | 项 | 现状 | 理由 |
 |---|---|---|
-| `NewLife.MQTT.Storage`（XCode/Redis） | 未就绪（2026-10-15 实测） | 数据库路径：XCode 包（12.2.2026.901 stable / 912-beta，已复刻 XCode AotSmoke 裁剪根配方）在 win-x64 NativeAOT 下产生 7 条 ILC 告警（均出自 XCode.dll：IL2104/IL3053/IL3000/IL3002）且运行期 `DbSession.OnCreateCommand` 抛 `InvalidOperationException`；Redis 路径仅 `RedisExchange` 构造级可用（真实读写未验证）。随本轮修复 `MqttOfflineMessageEntity.FindAllByClientId` 的单参 `FindAll(String)`（整条 SQL 语义）重载误用后，DbExchange 在 JIT 下会话与离线消息往返已通过 |
+| `NewLife.MQTT.Storage`（XCode/Redis） | 未就绪（2026-11-09 复验） | 数据库路径：XCode `12.3.2026.1024` 配 Redis `7.0.2026.1024` 后，win-x64 NativeAOT 发布 **0 条 ILC 告警**（此前 12.2 为 7 条），但运行期仍在 `DbSession.OnCreateCommand` 抛 `InvalidOperationException`——XCode 内置 SQLite 驱动把 `System.Data.SQLite`/`e_sqlite3` 释放到 `Plugins` 目录后动态加载，AOT 不支持动态程序集加载；需上游改为静态绑定。Redis 路径仅 `RedisExchange` 构造级可用（真实读写需服务端，未验证）。本轮修复两处阻塞 AOT 的实体配置：`BindTable` 补 `ConnName="Mqtt"`（此前连接名为空，首次访问即抛 `ArgumentNullException(connName)`，只能靠外部模型文件兜底）、实体静态构造函数改走 `EntityFactory.GetFactory<T>()` 静态注册（此前 AOT 下工厂反射构造失败）。修复后 JIT 下会话/离线消息往返与清除全部通过；AOT 下已越过工厂创建，卡在 SQLite 驱动动态加载 |
 | `NewLife.MqttServer` 应用（Stardust + DI） | 未验证 | Stardust 运行时基于 Core 11 编译，AOT 就绪度未知 |
 | `Test` / `Benchmark` / `XUnitTest` | 不参与 | 非发布产物 |
 | net45~netstandard2.x 目标框架 | 与 AOT 无关 | AOT 只作用于应用工程 |
@@ -200,6 +201,7 @@ DOTNET_ROLL_FORWARD=LatestMajor dotnet /tmp/xrc/tools/net6.0/xunit.console.dll "
 | LA64 无 NativeAOT 支持 | `.github/workflows/aot.yml` | 官方/龙芯均无 linux-loongarch64 的 ILCompiler 产物；以 JIT 冒烟 + 全量单测覆盖平台行为；因仿真环境不稳定，aot.yml 的 LA64 冒烟列为观察期（continue-on-error，失败不阻断），有真机后再评估升级。 |
 | LA64 仿真下不跑 MSBuild/csc/vstest | `.github/actions/setup-la64`、`test.yml` | 龙芯运行时为解释器模式，MSBuild 任务反射调用与 Roslyn 在仿真下会崩溃（实测 MSB4018 / FailFast），官方 vstest 亦不支持 loongarch64；固定为「x64 编译 IL + LA64 执行」，不追修复。 |
 | LA64 部分测试类在仿真下不可运行 | `test.yml`（test-la64 批次清单） | 解释器在反射调用桩上存在缺陷（段错误/AccessViolation/ExecutionEngineException），与库代码无关，且偶发；按已实测稳定粒度分批覆盖 646 个用例、每批最多重试 3 次，其余类待运行时修复或真机 runner 回收，明细见 §6.2。 |
+| Storage 的 XCode/SQLite 路径在 NativeAOT 下不可用 | `NewLife.MQTT.Storage/Database/` | 暂不处理。XCode 12.3 已消除 ILC 告警，但内置 SQLite 驱动运行期从 `Plugins` 目录动态加载 `System.Data.SQLite`，AOT 不支持动态程序集加载，需上游改为静态绑定；Storage 的 Redis 路径真实读写需服务端，暂未纳入 AOT 冒烟。 |
 
 ---
 
