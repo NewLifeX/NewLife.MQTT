@@ -195,6 +195,7 @@ if (!$SkipSource) {
         @{ Name = "L.T"; Regex = 'L\.T\(\s*"((?:[^"\\]|\\.)*)"' },
         @{ Name = "Localization.Translate"; Regex = 'Localization\.Translate\(\s*"((?:[^"\\]|\\.)*)"' },
         @{ Name = "LocalizedDescription"; Regex = 'LocalizedDescription\(\s*"((?:[^"\\]|\\.)*)"' },
+        @{ Name = "LocalizedDisplayName"; Regex = 'LocalizedDisplayName\(\s*"((?:[^"\\]|\\.)*)"' },
         @{ Name = "WriteLog"; Regex = '\.WriteLog\(\s*"((?:[^"\\]|\\.)*)"' },
         @{ Name = "Log"; Regex = '\.(?:Info|Debug|Warn|Error|Fatal)\(\s*"((?:[^"\\]|\\.)*)"' },
         @{ Name = "PrefixedLog"; Regex = '\.(?:InfoPrefixed|ErrorPrefixed|WritePrefixed)\(\s*"(?:[^"\\]|\\.)*"\s*,\s*"((?:[^"\\]|\\.)*)"' }
