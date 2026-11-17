@@ -26,13 +26,15 @@ jobs:
     - name: Setup dotNET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.x
+        dotnet-version: |
+          10.x
+          11.x
     - name: AOT Analyzer Check
       env:
         DOTNET_CLI_UI_LANGUAGE: en
       run: |
         set -eo pipefail
-        for tfm in net8.0 net9.0 net10.0; do
+        for tfm in net8.0 net9.0 net10.0 net11.0; do
           echo "==== $tfm ===="
           dotnet build NewLife.MQTT/NewLife.MQTT.csproj -f $tfm -c Release 2>&1 | tee analyzer-$tfm.log
           if grep -E 'warning IL[0-9]+' analyzer-$tfm.log; then

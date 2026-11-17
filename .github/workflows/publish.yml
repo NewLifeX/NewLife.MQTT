@@ -27,6 +27,7 @@ jobs:
           8.x
           9.x
           10.x
+          11.x
     - name: Resolve version suffix
       # 包版本 = csproj 的 VersionPrefix(主.小) + 版本后缀。
       # tag 发布从 tag 反推后缀（v4.0.2026.1024 → 2026.1024），重跑与 tag 完全一致；
