@@ -3,8 +3,6 @@
 # NewLife.MQTT — A Complete, Fully Self-Developed MQTT Protocol Implementation
 
 ![GitHub top language](https://img.shields.io/github/languages/top/newlifex/newlife.mqtt?logo=github)
-
-
 ![GitHub License](https://img.shields.io/github/license/NewLifeX/NewLife.MQTT?logo=github)
 ![NuGet Downloads](https://img.shields.io/nuget/dt/NewLife.MQTT?logo=nuget)
 ![NuGet](https://img.shields.io/nuget/v/NewLife.MQTT?logo=nuget)
